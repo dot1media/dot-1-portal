@@ -1272,6 +1272,15 @@ function Timeline({ session, actionPanel, accent = RED }) {
   );
 }
 
+function Row({ k, v, bold, sub, red }) {
+  return (
+    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", padding: sub ? "3px 0" : "5px 0" }}>
+      <span style={{ fontSize: sub ? 12.5 : 13.5, color: sub ? STONE : BODY, fontWeight: bold ? 600 : 400 }}>{k}</span>
+      <span style={{ ...mono, fontSize: sub ? 12 : 13.5, color: red ? RED : INK, fontWeight: bold ? 600 : 400 }}>{v}</span>
+    </div>
+  );
+}
+
 function SummaryCell({ label, value, icon }) {
   return <div><div style={{ ...mono, fontSize: 9, letterSpacing: "0.14em", textTransform: "uppercase", color: FAINT, marginBottom: 3 }}>{label}</div><div style={{ fontSize: 14, color: INK, fontWeight: 500, display: "flex", alignItems: "center", gap: 6 }}>{icon}{value}</div></div>;
 }
