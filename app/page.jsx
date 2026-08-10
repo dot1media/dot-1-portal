@@ -169,6 +169,7 @@ export default function App() {
   const [catalogError, setCatalogError] = useState(false);
   useEffect(() => { if (!loaded) return; (async () => { try { const { services, addons, availability, ...rest } = state; await storage.set(STORAGE_KEY, JSON.stringify(rest)); } catch (e) {} })(); }, [state, loaded]);
   useEffect(() => { (async () => { try { const res = await fetch("/api/services"); const data = await res.json(); if (!res.ok) throw new Error(); setState((s) => ({ ...s, services: data.services || [], addons: data.addons || [] })); setCatalogError(false); } catch (e) { setCatalogError(true); } finally { setCatalogLoaded(true); } })(); }, []);
+  useEffect(() => { fetch("/api/auth/me").then((r) => r.json()).then((d) => { if (d && d.admin) setView("admin"); }).catch(() => {}); }, []);
   useEffect(() => { (async () => { try { const res = await fetch("/api/availability"); const data = await res.json(); if (res.ok) setState((s) => ({ ...s, availability: data.availability || [] })); } catch (e) {} })(); }, []);
 
   const showToast = (msg) => { setToast(msg); if (toastTimer.current) clearTimeout(toastTimer.current); toastTimer.current = setTimeout(() => setToast(null), 3600); };
@@ -271,6 +272,7 @@ export default function App() {
       return { ok: false, error: "Could not reach the server. Please try again." };
     }
   };
+  const adminLogout = async () => { try { await fetch("/api/auth/logout", { method: "POST" }); } catch (e) {} setView("landing"); showToast("Signed out of the studio."); };
 
   const resetDemo = () => setConfirm({ title: "Reset the demo?", message: "This clears all sessions, services, add-ons, and booking links back to the starting state.", confirmLabel: "Reset everything", danger: true, onYes: async () => { setState(DEFAULT_STATE); try { await storage.delete(STORAGE_KEY); } catch (e) {} showToast("Demo reset."); setConfirm(null); } });
   const requestCancelBooking = (session) => setConfirm({ title: "Cancel this booking?", message: "This marks " + session.clientName + "'s " + session.type + " as cancelled. The client will see it as cancelled in their portal.", confirmLabel: "Cancel booking", danger: true, onYes: () => { patchSession(session.id, { status: "cancelled" }); showToast("Booking cancelled."); setConfirm(null); } });
@@ -311,6 +313,7 @@ export default function App() {
               <SubTab active={adminTab === "links"} onClick={() => setAdminTab("links")} label="Direct Booking Link" />
               <SubTab active={adminTab === "availability"} onClick={() => setAdminTab("availability")} label="Availability" />
               <SubTab active={adminTab === "services"} onClick={() => setAdminTab("services")} label="Services & Add-ons" />
+              <button onClick={adminLogout} style={{ marginLeft: "auto", ...mono, fontSize: 10, letterSpacing: "0.06em", textTransform: "uppercase", color: STONE, background: "transparent", border: "none", cursor: "pointer", padding: "8px 4px" }}>Sign out</button>
             </div>
             {adminTab === "sessions" && <AdminSessions state={state} adminId={adminId} setAdminId={setAdminId} requestSetStage={requestSetStage} addComment={addComment} patchSession={patchSession} onReschedule={adminReschedule} slotTaken={slotTaken} markMessagesRead={markMessagesRead} onCancelBooking={requestCancelBooking} onCloseBooking={requestCloseBooking} onReopenBooking={requestReopenBooking} />}
             {adminTab === "calendar" && <AdminCalendar state={state} onSelectSession={(id) => { setAdminId(id); setAdminTab("sessions"); }} />}
