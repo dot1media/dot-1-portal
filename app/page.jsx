@@ -8,7 +8,7 @@ import {
   Plus, Trash2, Pencil, Check, AlertTriangle, Tag, Link2, ListPlus,
   Star, CreditCard, Wallet, CalendarDays, ChevronLeft, ChevronRight,
   ArrowRight, ArrowLeft, CalendarClock, X, Copy, LogIn, Sparkles,
-  MessageCircle, Smartphone, Link as LinkIcon, Ban, EyeOff,
+  MessageCircle, Smartphone, Link as LinkIcon, Ban, EyeOff, XCircle, CalendarPlus,
 } from "lucide-react";
 
 // Persist to the browser's localStorage (works in a real browser, unlike the
@@ -73,6 +73,10 @@ const uid = (p) => p + "_" + Math.random().toString(36).slice(2, 8);
 
 const fmtDate = (iso) => { if (!iso) return ""; const [y, m, d] = iso.split("-").map(Number); return new Date(y, m - 1, d).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" }); };
 const fmtTime = (t) => { if (!t) return ""; const [h, m] = t.split(":").map(Number); const ap = h >= 12 ? "PM" : "AM"; const hh = ((h + 11) % 12) + 1; return `${hh}:${String(m).padStart(2, "0")} ${ap}`; };
+const pad2 = (n) => String(n).padStart(2, "0");
+const calDate = (date, time) => { if (!date) return ""; const [y, m, d] = date.split("-").map(Number); const [hh, mm] = (time || "00:00").split(":").map(Number); return `${y}${pad2(m)}${pad2(d)}T${pad2(hh)}${pad2(mm)}00`; };
+const addMinutes = (time, mins) => { const [h, m] = (time || "00:00").split(":").map(Number); let t = h * 60 + m + (mins || 0); t = ((t % 1440) + 1440) % 1440; return `${pad2(Math.floor(t / 60))}:${pad2(t % 60)}`; };
+const gcalLink = (session) => { const s = calDate(session.date, session.time); const e = calDate(session.date, addMinutes(session.time, session.durationMin || 60)); const text = encodeURIComponent("Dot One Media · " + (session.type || "Session")); const details = encodeURIComponent("Your session with Dot One Media. Questions? contact@dot1.media"); const loc = encodeURIComponent(session.location || ""); return "https://calendar.google.com/calendar/render?action=TEMPLATE&text=" + text + "&dates=" + s + "/" + e + "&details=" + details + "&location=" + loc; };
 const money = (n) => "$" + (Number(n) || 0).toLocaleString();
 
 const DEFAULT_STATE = {
@@ -242,7 +246,7 @@ export default function App() {
   const createBooking = (booking) => {
     const id = uid("ses"); const grp = booking.group;
     const notifyEmail = NOTIFY_EMAILS[grp] || "contact@dot1.media";
-    const newSession = { id, clientName: booking.name, clientEmail: booking.email, clientImage: "", notifyEmail, type: booking.serviceName, serviceLine: grp, photographer: grp === "photo" ? "Brittany Matthews" : "Dennis Matthews", date: booking.date, time: booking.time, location: "", currentStage: 1, stageTimes: { 0: "just now" }, comments: [], selectedAddons: booking.addons, total: booking.total, payChoice: booking.payChoice, reviewLink: "", deliveryVideo: "", deliveryPhoto: "" };
+    const newSession = { id, clientName: booking.name, clientEmail: booking.email, clientImage: "", notifyEmail, type: booking.serviceName, serviceLine: grp, photographer: grp === "photo" ? "Brittany Matthews" : "Dennis Matthews", date: booking.date, time: booking.time, location: "", status: "active", durationMin: booking.duration || 60, currentStage: 1, stageTimes: { 0: "just now" }, comments: [], selectedAddons: booking.addons, total: booking.total, payChoice: booking.payChoice, reviewLink: "", deliveryVideo: "", deliveryPhoto: "" };
     setState((s) => ({ ...s, sessions: [...s.sessions, newSession] }));
     if (booking.linkId) consumeDirectLink(booking.linkId);
     setDirectContext(null); setClientId(id); setView("client");
@@ -266,6 +270,9 @@ export default function App() {
   };
 
   const resetDemo = () => setConfirm({ title: "Reset the demo?", message: "This clears all sessions, services, add-ons, and booking links back to the starting state.", confirmLabel: "Reset everything", danger: true, onYes: async () => { setState(DEFAULT_STATE); try { await storage.delete(STORAGE_KEY); } catch (e) {} showToast("Demo reset."); setConfirm(null); } });
+  const requestCancelBooking = (session) => setConfirm({ title: "Cancel this booking?", message: "This marks " + session.clientName + "'s " + session.type + " as cancelled. The client will see it as cancelled in their portal.", confirmLabel: "Cancel booking", danger: true, onYes: () => { patchSession(session.id, { status: "cancelled" }); showToast("Booking cancelled."); setConfirm(null); } });
+  const requestCloseBooking = (session) => setConfirm({ title: "Close this booking?", message: "This closes " + session.clientName + "'s " + session.type + " for a no-show or payment issue. It will be marked closed.", confirmLabel: "Close booking", danger: true, onYes: () => { patchSession(session.id, { status: "closed" }); showToast("Booking closed."); setConfirm(null); } });
+  const requestReopenBooking = (session) => { patchSession(session.id, { status: "active" }); showToast("Booking reopened."); };
 
   const clientSession = state.sessions.find((s) => s.id === clientId) || state.sessions[0];
   const unreadClientTotal = state.sessions.reduce((n, s) => n + s.comments.filter((c) => c.author === "client" && !c.read).length, 0);
@@ -302,7 +309,7 @@ export default function App() {
               <SubTab active={adminTab === "availability"} onClick={() => setAdminTab("availability")} label="Availability" />
               <SubTab active={adminTab === "services"} onClick={() => setAdminTab("services")} label="Services & Add-ons" />
             </div>
-            {adminTab === "sessions" && <AdminSessions state={state} adminId={adminId} setAdminId={setAdminId} requestSetStage={requestSetStage} addComment={addComment} patchSession={patchSession} onReschedule={adminReschedule} slotTaken={slotTaken} markMessagesRead={markMessagesRead} />}
+            {adminTab === "sessions" && <AdminSessions state={state} adminId={adminId} setAdminId={setAdminId} requestSetStage={requestSetStage} addComment={addComment} patchSession={patchSession} onReschedule={adminReschedule} slotTaken={slotTaken} markMessagesRead={markMessagesRead} onCancelBooking={requestCancelBooking} onCloseBooking={requestCloseBooking} onReopenBooking={requestReopenBooking} />}
             {adminTab === "calendar" && <AdminCalendar state={state} onSelectSession={(id) => { setAdminId(id); setAdminTab("sessions"); }} />}
             {adminTab === "links" && <DirectLinks state={state} createDirectLink={createDirectLink} revokeDirectLink={revokeDirectLink} openDirectLink={openDirectLink} showToast={showToast} />}
             {adminTab === "availability" && <AvailabilityManager availability={state.availability} addAvailability={addAvailability} removeAvailability={removeAvailability} showToast={showToast} />}
@@ -402,7 +409,7 @@ function LoginView({ onLogin, onBook, onStudio }) {
         <FieldLabel>Password</FieldLabel>
         <TextInput value={pw} onChange={setPw} placeholder="••••••••" />
         <button onClick={() => { if (!email.trim()) return; onLogin(email); }} style={{ ...btnSolid, background: RED, width: "100%", justifyContent: "center", marginTop: 6, padding: "11px" }}><LogIn size={15} /> Log in</button>
-        <div style={{ ...mono, fontSize: 9.5, color: FAINT, textAlign: "center", marginTop: 12, lineHeight: 1.5 }}>Demo: log in with <span style={{ color: STONE }}>sarah@example.com</span> or <span style={{ color: STONE }}>nelson@example.com</span></div>
+        <div style={{ ...mono, fontSize: 9.5, color: FAINT, textAlign: "center", marginTop: 12, lineHeight: 1.5 }}>Sign in with the email you used when you booked.</div>
       </div>
       <div style={{ textAlign: "center", marginTop: 16, fontSize: 13, color: STONE }}>
         New here? <span onClick={onBook} style={{ color: RED, cursor: "pointer" }}>Book a session</span>{onStudio ? <span> · <span onClick={onStudio} style={{ color: STONE, cursor: "pointer" }}>Studio login</span></span> : null}
@@ -728,7 +735,7 @@ function BookingFlow({ state, direct, slotTaken, onCancel, onComplete, onLogin, 
 
           <div style={{ display: "flex", justifyContent: "space-between" }}>
             <button onClick={() => setStep(2)} style={btnGhost}><ArrowLeft size={14} /> Back</button>
-            <button onClick={() => { if (!date || !time || !payChoice || taken) return; onComplete({ linkId: direct?.id, group, serviceName: service.name, addons: chosenAddons.map((a) => ({ name: a.name, price: Number(a.price) || 0 })), total, date, time, payChoice, name: acct.name, email: acct.email }); }} style={{ ...btnSolid, background: date && time && payChoice && !taken ? A : FAINT }}><Check size={15} /> Confirm booking</button>
+            <button onClick={() => { if (!date || !time || !payChoice || taken) return; onComplete({ linkId: direct?.id, group, serviceName: service.name, duration: service.duration, addons: chosenAddons.map((a) => ({ name: a.name, price: Number(a.price) || 0 })), total, date, time, payChoice, name: acct.name, email: acct.email }); }} style={{ ...btnSolid, background: date && time && payChoice && !taken ? A : FAINT }}><Check size={15} /> Confirm booking</button>
           </div>
         </div>
       )}
@@ -884,6 +891,7 @@ function ClientView({ session, sessions, clientId, setClientId, addComment, onRe
   const stage = session.currentStage;
   const grp = GROUPS[session.serviceLine] || GROUPS.video;
   const fee = PAYMENT_RULES[session.serviceLine]?.reschedFee || 0;
+  const status = session.status || "active";
   const unreadReplies = session.comments.filter((c) => c.author === "studio" && !c.read).length;
   useEffect(() => { setReschedDate(session.date || ""); setReschedOpen(false); setMsg(""); }, [clientId]);
 
@@ -897,10 +905,23 @@ function ClientView({ session, sessions, clientId, setClientId, addComment, onRe
 
   return (
     <div>
-      {(session.currentStage || 0) <= 1 && (
+      {status === "cancelled" && (
+        <div style={{ background: "#fbeeed", border: "1px solid #f2cdc9", borderRadius: 10, padding: "14px 18px", marginBottom: 18 }}>
+          <div style={{ ...display, fontSize: 16, color: "#b5271b", marginBottom: 3 }}>This booking was cancelled</div>
+          <div style={{ fontSize: 13, color: BODY, lineHeight: 1.5 }}>If this wasn't expected, please reach out to us at contact@dot1.media and we'll help.</div>
+        </div>
+      )}
+      {status === "closed" && (
+        <div style={{ background: "#f3f1ec", border: `1px solid ${LINE}`, borderRadius: 10, padding: "14px 18px", marginBottom: 18 }}>
+          <div style={{ ...display, fontSize: 16, color: INK, marginBottom: 3 }}>This booking is closed</div>
+          <div style={{ fontSize: 13, color: BODY, lineHeight: 1.5 }}>Questions about your session? Reach out to us at contact@dot1.media.</div>
+        </div>
+      )}
+      {status === "active" && (session.currentStage || 0) <= 1 && (
         <div style={{ background: grp.bg, border: `1px solid ${grp.border}`, borderRadius: 10, padding: "14px 18px", marginBottom: 18 }}>
           <div style={{ ...display, fontSize: 16, color: INK, marginBottom: 3 }}>You're all set, {(session.clientName || "").split(" ")[0]}!</div>
-          <div style={{ fontSize: 13, color: BODY, lineHeight: 1.5 }}>Your {session.type} is booked{session.date ? " for " + session.date : ""}{session.time ? " at " + session.time : ""}. We've set up your account under {session.clientEmail}. Sign in with that email anytime to track your session's progress below.</div>
+          <div style={{ fontSize: 13, color: BODY, lineHeight: 1.5, marginBottom: 12 }}>Your {session.type} is booked{session.date ? " for " + fmtDate(session.date) : ""}{session.time ? " at " + fmtTime(session.time) : ""}. We've set up your account under {session.clientEmail}. Sign in with that email anytime to track your session's progress below.</div>
+          {session.date && session.time && <a href={gcalLink(session)} target="_blank" rel="noopener noreferrer" style={{ ...btnSolid, background: grp.color, textDecoration: "none", display: "inline-flex" }}><CalendarPlus size={15} /> Add to Google Calendar</a>}
         </div>
       )}
 
@@ -1016,9 +1037,10 @@ function ClientActionPanel({ session, grp, draft, setDraft, onSubmit }) {
 }
 
 /* ============================ ADMIN — SESSIONS ============================ */
-function AdminSessions({ state, adminId, setAdminId, requestSetStage, addComment, patchSession, onReschedule, slotTaken, markMessagesRead }) {
+function AdminSessions({ state, adminId, setAdminId, requestSetStage, addComment, patchSession, onReschedule, slotTaken, markMessagesRead, onCancelBooking, onCloseBooking, onReopenBooking }) {
   const session = state.sessions.find((s) => s.id === adminId) || state.sessions[0];
   const sg = GROUPS[session.serviceLine] || GROUPS.video;
+  const status = session.status || "active";
   const [msg, setMsg] = useState("");
   const [editLinks, setEditLinks] = useState(false);
   const [videoLink, setVideoLink] = useState("");
@@ -1041,7 +1063,7 @@ function AdminSessions({ state, adminId, setAdminId, requestSetStage, addComment
               <span style={{ ...display, fontWeight: 600, fontSize: 15 }}>{s.clientName}</span>
               {unread > 0 && <span style={{ ...mono, background: RED, color: "#fff", borderRadius: 20, fontSize: 9.5, minWidth: 16, height: 16, padding: "0 5px", display: "inline-flex", alignItems: "center", justifyContent: "center" }}>{unread}</span>}
             </div>
-            <div style={{ ...mono, fontSize: 10, letterSpacing: "0.06em", color: selected ? "#c9c6bd" : STONE, display: "flex", alignItems: "center", gap: 6 }}><grp.Icon size={11} /> {s.type} · {STAGES[s.currentStage].label}</div>
+            <div style={{ ...mono, fontSize: 10, letterSpacing: "0.06em", color: selected ? "#c9c6bd" : STONE, display: "flex", alignItems: "center", gap: 6 }}><grp.Icon size={11} /> {s.type} · {(s.status && s.status !== "active") ? (s.status === "cancelled" ? "Cancelled" : "Closed") : STAGES[s.currentStage].label}</div>
           </button>
         ); })}
       </div>
@@ -1054,6 +1076,18 @@ function AdminSessions({ state, adminId, setAdminId, requestSetStage, addComment
         </div>
         <div style={{ ...mono, fontSize: 11, color: STONE, marginBottom: session.notifyEmail ? 4 : 18, letterSpacing: "0.04em" }}>{session.type} · {fmtDate(session.date) || "date TBD"}{session.time ? " at " + fmtTime(session.time) : ""} · {session.clientEmail}</div>
         {session.notifyEmail && <div style={{ ...mono, fontSize: 10, color: FAINT, marginBottom: 18, letterSpacing: "0.04em", display: "flex", alignItems: "center", gap: 6 }}><Send size={11} /> New-booking alert routed to {session.notifyEmail}</div>}
+
+        {status === "active" ? (
+          <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
+            <button onClick={() => onCancelBooking(session)} style={{ ...mono, fontSize: 10.5, letterSpacing: "0.06em", color: "#b5271b", background: "transparent", border: "1px solid #f2cdc9", borderRadius: 7, padding: "8px 12px", cursor: "pointer", display: "flex", alignItems: "center", gap: 7 }}><XCircle size={13} /> Cancel booking</button>
+            <button onClick={() => onCloseBooking(session)} style={{ ...mono, fontSize: 10.5, letterSpacing: "0.06em", color: STONE, background: "transparent", border: `1px solid ${LINE}`, borderRadius: 7, padding: "8px 12px", cursor: "pointer", display: "flex", alignItems: "center", gap: 7 }}><Ban size={13} /> Close (no-show / unpaid)</button>
+          </div>
+        ) : (
+          <div style={{ display: "inline-flex", alignItems: "center", gap: 10, background: status === "cancelled" ? "#fbeeed" : "#f3f1ec", border: `1px solid ${status === "cancelled" ? "#f2cdc9" : LINE}`, borderRadius: 8, padding: "8px 13px", marginBottom: 16 }}>
+            <span style={{ ...mono, fontSize: 10.5, letterSpacing: "0.1em", textTransform: "uppercase", color: status === "cancelled" ? "#b5271b" : STONE }}>{status === "cancelled" ? "Booking cancelled" : "Booking closed"}</span>
+            <button onClick={() => onReopenBooking(session)} style={{ ...mono, fontSize: 10, letterSpacing: "0.06em", color: STONE, background: "transparent", border: `1px solid ${LINE}`, borderRadius: 6, padding: "4px 10px", cursor: "pointer" }}>Reopen</button>
+          </div>
+        )}
 
         <div style={{ marginBottom: 22 }}>
           {!reschedOpen ? (
