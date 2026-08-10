@@ -507,7 +507,7 @@ function LandingPage({ onBook, onClientLogin, onStudioLogin }) {
   return (
     <div style={{ maxWidth: 760, margin: "10px auto 0" }}>
       <div style={{ textAlign: "center", padding: "20px 0 4px" }}>
-        <div style={{ marginBottom: 10 }}><img src="/dot1-logo-anim.gif" alt="Dot One Media" style={{ height: 186, width: "auto", margin: "0 auto", display: "block" }} /></div>
+        <div style={{ marginBottom: 10 }}><img src={isMobile ? "/dot1-logo.png" : "/dot1-logo-anim.gif"} alt="Dot One Media" style={{ height: isMobile ? 84 : 186, width: "auto", margin: "0 auto", display: "block" }} /></div>
         <div style={{ ...mono, fontSize: 11, letterSpacing: "0.24em", textTransform: "uppercase", color: FAINT, marginBottom: 22 }}>Client Portal</div>
         <h1 style={{ ...display, fontWeight: 700, fontSize: isMobile ? 29 : 40, color: INK, lineHeight: 1.1, letterSpacing: "0", marginBottom: 14 }}>Your project,<br />start to finish.</h1>
         <p style={{ fontSize: 15.5, color: BODY, lineHeight: 1.6, maxWidth: 520, margin: "0 auto 30px" }}>
@@ -1124,6 +1124,8 @@ function ClientView({ session, sessions, clientId, setClientId, addComment, onRe
   const fee = PAYMENT_RULES[session.serviceLine]?.reschedFee || 0;
   const status = session.status || "active";
   const unreadReplies = session.comments.filter((c) => c.author === "studio" && !c.read).length;
+  const today = new Date().toISOString().slice(0, 10);
+  const sortedSessions = [...(sessions || [])].sort((a, b) => { const ad = a.date || "9999-99", bd = b.date || "9999-99"; const aUp = ad >= today, bUp = bd >= today; if (aUp !== bUp) return aUp ? -1 : 1; if (aUp) return ad.localeCompare(bd); return bd.localeCompare(ad); });
 
   const onPickImage = async (e) => {
     const file = e.target.files && e.target.files[0];
@@ -1136,6 +1138,24 @@ function ClientView({ session, sessions, clientId, setClientId, addComment, onRe
   return (
     <div>
       {session.serviceLine === "photo" && <img src="/dot1-photo-logo.png" alt="Dot One Photography" style={{ height: 52, width: "auto", display: "block", margin: "2px auto 22px" }} />}
+      {sortedSessions.length > 1 && (
+        <div style={{ marginBottom: 24 }}>
+          <div style={{ ...mono, fontSize: 10, letterSpacing: "0.16em", textTransform: "uppercase", color: STONE, marginBottom: 10 }}>Your bookings · {sortedSessions.length}</div>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            {sortedSessions.map((s) => {
+              const active = s.id === clientId;
+              const sg = GROUPS[s.serviceLine] || GROUPS.video;
+              const tag = s.status === "cancelled" ? "cancelled" : (s.status === "closed" ? "closed" : (s.currentStage >= 6 ? "delivered" : ((s.date && s.date >= today) ? "upcoming" : "in progress")));
+              return (
+                <button key={s.id} onClick={() => setClientId(s.id)} style={{ textAlign: "left", cursor: "pointer", border: `1.5px solid ${active ? sg.color : LINE}`, background: active ? sg.bg : PAPER, borderRadius: 9, padding: "9px 13px", minWidth: 148, opacity: s.status === "cancelled" ? 0.65 : 1 }}>
+                  <div style={{ ...display, fontWeight: 600, fontSize: 13.5, color: active ? sg.text : INK, lineHeight: 1.2 }}>{s.type}</div>
+                  <div style={{ ...mono, fontSize: 9.5, color: STONE, marginTop: 3 }}>{s.date ? fmtDate(s.date) : "Date TBD"} · {tag}</div>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
       {status === "cancelled" && (
         <div style={{ background: "#fbeeed", border: "1px solid #f2cdc9", borderRadius: 10, padding: "14px 18px", marginBottom: 18 }}>
           <div style={{ ...display, fontSize: 16, color: "#b5271b", marginBottom: 3 }}>This booking was cancelled</div>
