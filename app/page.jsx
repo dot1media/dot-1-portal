@@ -8,7 +8,7 @@ import {
   Plus, Trash2, Pencil, Check, AlertTriangle, Tag, Link2, ListPlus,
   Star, CreditCard, Wallet, CalendarDays, ChevronLeft, ChevronRight,
   ArrowRight, ArrowLeft, CalendarClock, X, Copy, LogIn, Sparkles,
-  MessageCircle, Smartphone, Link as LinkIcon, Ban, EyeOff, XCircle, CalendarPlus, ChevronDown,
+  MessageCircle, Smartphone, Link as LinkIcon, Ban, EyeOff, XCircle, CalendarPlus, ChevronDown, Settings, Download,
 } from "lucide-react";
 
 // Persist to the browser's localStorage (works in a real browser, unlike the
@@ -373,12 +373,14 @@ export default function App() {
               <SubTab active={adminTab === "links"} onClick={() => setAdminTab("links")} label="Direct Booking Link" />
               <SubTab active={adminTab === "availability"} onClick={() => setAdminTab("availability")} label="Availability" />
               <SubTab active={adminTab === "services"} onClick={() => setAdminTab("services")} label="Services & Add-ons" />
+              <SubTab active={adminTab === "business"} onClick={() => setAdminTab("business")} label="Business Settings" />
             </div>
             {adminTab === "sessions" && <AdminSessions state={state} adminId={adminId} setAdminId={setAdminId} requestSetStage={requestSetStage} addComment={addComment} patchSession={patchSession} onReschedule={adminReschedule} slotTaken={slotTaken} markMessagesRead={markMessagesRead} onCancelBooking={requestCancelBooking} onCloseBooking={requestCloseBooking} onReopenBooking={requestReopenBooking} onSendBalance={requestSendBalance} onDeleteBooking={requestDeleteBooking} />}
             {adminTab === "calendar" && <AdminCalendar state={state} onSelectSession={(id) => { setAdminId(id); setAdminTab("sessions"); }} />}
             {adminTab === "links" && <DirectLinks state={state} createDirectLink={createDirectLink} revokeDirectLink={revokeDirectLink} openDirectLink={openDirectLink} showToast={showToast} />}
             {adminTab === "availability" && <><CalendarSync showToast={showToast} /><AvailabilityManager availability={state.availability} addAvailability={addAvailability} removeAvailability={removeAvailability} showToast={showToast} /></>}
             {adminTab === "services" && <ServiceCatalog state={state} addService={addService} updateService={updateService} deleteService={deleteService} addAddon={addAddon} updateAddon={updateAddon} deleteAddon={deleteAddon} showToast={showToast} />}
+            {adminTab === "business" && <BusinessSettings sessions={state.sessions} showToast={showToast} />}
           </div>
         )}
       </main>
@@ -1712,6 +1714,91 @@ function StatusBadge({ stage, group }) {
 
 function Toggle({ active, onClick, Icon, label }) {
   return <button onClick={onClick} style={{ display: "flex", alignItems: "center", gap: 7, padding: "8px 13px", borderRadius: 7, cursor: "pointer", fontSize: 12.5, border: `1px solid ${active ? INK : LINE}`, background: active ? INK : PAPER, color: active ? "#fff" : STONE }}><Icon size={14} /> {label}</button>;
+}
+
+function csvCell(v) { const s = String(v == null ? "" : v); return /[",]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; }
+function downloadCsv(rows, filename) {
+  try {
+    const csv = rows.map((r) => r.map(csvCell).join(",")).join("\r\n");
+    const blob = new Blob(["\ufeff" + csv], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a"); a.href = url; a.download = filename;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 1500);
+  } catch (e) {}
+}
+
+function BusinessSettings({ sessions, showToast }) {
+  const [start, setStart] = useState("");
+  const [end, setEnd] = useState("");
+  const [status, setStatus] = useState(null);
+  useEffect(() => { fetch("/api/business-status").then((r) => r.json()).then((d) => setStatus(d || {})).catch(() => {}); }, []);
+
+  const inRange = (s) => { if (!s.date) return false; if (start && s.date < start) return false; if (end && s.date > end) return false; return true; };
+  const rows = (sessions || []).filter(inRange).sort((a, b) => (a.date + (a.time || "")).localeCompare(b.date + (b.time || "")));
+  const collected = rows.reduce((sum, s) => sum + (s.paymentStatus === "paid" ? (Number(s.payAmount) || 0) : 0), 0);
+  const outstanding = rows.reduce((sum, s) => { if (s.status === "cancelled") return sum; const paid = s.paymentStatus === "paid" ? (Number(s.payAmount) || 0) : 0; return sum + Math.max(0, (Number(s.total) || 0) - paid); }, 0);
+  const activeCount = rows.filter((s) => s.status !== "cancelled").length;
+
+  const exportSessions = () => {
+    if (rows.length === 0) { showToast("No sessions in that date range."); return; }
+    const out = [["Date", "Time", "Client", "Email", "Service", "Group", "Status", "Stage", "Total ($)", "Collected ($)", "Payment", "Add-ons"]];
+    rows.forEach((s) => out.push([s.date || "", s.time || "", s.clientName || "", s.clientEmail || "", s.type || "", s.serviceLine || "", s.status || "active", (STAGES[s.currentStage] || {}).label || "", (Number(s.total) || 0).toFixed(2), (s.paymentStatus === "paid" ? (Number(s.payAmount) || 0) : 0).toFixed(2), s.paymentStatus || "none", (s.selectedAddons || []).map((a) => a.name).join("; ")]));
+    downloadCsv(out, "dot-one-media-sessions" + ((start || end) ? "_" + (start || "start") + "_to_" + (end || "end") : "_all") + ".csv");
+    showToast("Exported " + rows.length + " sessions.");
+  };
+  const exportClients = () => {
+    const seen = {}; const clients = [];
+    (sessions || []).forEach((s) => { const key = (s.clientEmail || "").toLowerCase(); if (!key || seen[key]) return; seen[key] = true; clients.push(s); });
+    if (clients.length === 0) { showToast("No clients yet."); return; }
+    const out = [["Client", "Email", "First booking", "Total bookings"]];
+    clients.forEach((c) => { const theirs = (sessions || []).filter((x) => (x.clientEmail || "").toLowerCase() === (c.clientEmail || "").toLowerCase()); const first = theirs.map((x) => x.date).filter(Boolean).sort()[0] || ""; out.push([c.clientName || "", c.clientEmail || "", first, String(theirs.length)]); });
+    downloadCsv(out, "dot-one-media-clients.csv");
+    showToast("Exported " + clients.length + " clients.");
+  };
+  const statCard = (val, label, color) => (
+    <div style={{ border: `1px solid ${LINE}`, borderRadius: 10, padding: "14px 16px", background: PAPER }}>
+      <div style={{ ...display, fontSize: 24, color: color || INK }}>{val}</div>
+      <div style={{ ...mono, fontSize: 9.5, letterSpacing: "0.1em", textTransform: "uppercase", color: STONE, marginTop: 2 }}>{label}</div>
+    </div>
+  );
+  const modeBadge = (label, value, ok) => (
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "11px 14px", border: `1px solid ${LINE}`, borderRadius: 9, background: PAPER }}>
+      <span style={{ ...mono, fontSize: 10.5, letterSpacing: "0.12em", textTransform: "uppercase", color: STONE }}>{label}</span>
+      <span style={{ ...mono, fontSize: 10.5, letterSpacing: "0.08em", textTransform: "uppercase", color: ok ? "#3f7a3f" : "#a97a2e", fontWeight: 600 }}>{value}</span>
+    </div>
+  );
+  return (
+    <div>
+      <div style={{ ...mono, fontSize: 11, letterSpacing: "0.18em", textTransform: "uppercase", color: RED, marginBottom: 6, display: "flex", alignItems: "center", gap: 8 }}><Settings size={13} /> Business settings</div>
+      <div style={{ fontSize: 13, color: BODY, lineHeight: 1.5, marginBottom: 24, maxWidth: 600 }}>Export your records, review revenue for a period, and confirm payments and email are live.</div>
+
+      <div style={{ ...mono, fontSize: 10.5, letterSpacing: "0.16em", textTransform: "uppercase", color: STONE, marginBottom: 10 }}>System status</div>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 28 }}>
+        {modeBadge("Payments", status ? (status.squareMode === "production" ? "Live (production)" : status.squareMode === "sandbox" ? "Test (sandbox)" : "Off") : "\u2026", !!(status && status.squareMode === "production"))}
+        {modeBadge("Email", status ? (status.emailOn ? "On" : "Off") : "\u2026", !!(status && status.emailOn))}
+      </div>
+
+      <div style={{ ...mono, fontSize: 10.5, letterSpacing: "0.16em", textTransform: "uppercase", color: STONE, marginBottom: 10 }}>Revenue &amp; records by period</div>
+      <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "flex-end", marginBottom: 16 }}>
+        <div><FieldLabel>From</FieldLabel><input type="date" value={start} onChange={(e) => setStart(e.target.value)} style={{ ...inputStyle, width: "auto" }} /></div>
+        <div><FieldLabel>To</FieldLabel><input type="date" value={end} onChange={(e) => setEnd(e.target.value)} style={{ ...inputStyle, width: "auto" }} /></div>
+        {(start || end) && <button onClick={() => { setStart(""); setEnd(""); }} style={{ ...mono, fontSize: 10.5, letterSpacing: "0.06em", color: STONE, background: "transparent", border: `1px solid ${LINE}`, borderRadius: 7, padding: "9px 12px", cursor: "pointer" }}>All time</button>}
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10, marginBottom: 26 }}>
+        {statCard(activeCount, "Bookings")}
+        {statCard(money(collected), "Collected", "#3f7a3f")}
+        {statCard(money(outstanding), "Outstanding", "#a97a2e")}
+      </div>
+
+      <div style={{ ...mono, fontSize: 10.5, letterSpacing: "0.16em", textTransform: "uppercase", color: STONE, marginBottom: 10 }}>Export</div>
+      <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+        <button onClick={exportSessions} style={{ ...btnSolid, background: RED }}><Download size={14} /> Export sessions (CSV)</button>
+        <button onClick={exportClients} style={{ ...btnGhost, display: "inline-flex", alignItems: "center", gap: 7 }}><Download size={14} /> Export clients (CSV)</button>
+      </div>
+      <div style={{ ...mono, fontSize: 10, color: FAINT, marginTop: 12, lineHeight: 1.5, maxWidth: 560 }}>The sessions export uses the date range above (all-time if blank). Each row lists the total, what you collected, and payment status, ready for bookkeeping and taxes.</div>
+    </div>
+  );
 }
 
 function SubTab({ active, onClick, label, badge }) {
