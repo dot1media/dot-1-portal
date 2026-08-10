@@ -1,0 +1,23 @@
+import { NextResponse } from "next/server";
+import { sql } from "@/lib/db";
+import { verifyPassword } from "@/lib/auth";
+
+export const runtime = "nodejs";
+
+export async function POST(request: Request) {
+  const body = await request.json().catch(() => ({}));
+  const email = String(body.email || "").trim().toLowerCase();
+  const password = String(body.password || "");
+  if (!email || !password) {
+    return NextResponse.json({ error: "Enter your email and password." }, { status: 400 });
+  }
+  const users = await sql`SELECT id, name, email, password_hash FROM users WHERE email = ${email} LIMIT 1`;
+  if (users.length === 0 || !users[0].password_hash) {
+    return NextResponse.json({ error: "No account found with that email and password." }, { status: 401 });
+  }
+  if (!verifyPassword(password, users[0].password_hash)) {
+    return NextResponse.json({ error: "Incorrect email or password." }, { status: 401 });
+  }
+  return NextResponse.json({ ok: true, name: users[0].name, email: users[0].email });
+}
+

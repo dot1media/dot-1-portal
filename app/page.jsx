@@ -253,10 +253,13 @@ export default function App() {
     showToast(`Booking confirmed! A new ${GROUPS[grp].label} appointment email was sent to ${notifyEmail}.`);
   };
 
-  const loginAs = (email) => {
+  const loginAs = async (email, password) => {
+    const res = await fetch("/api/client-login", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ email: (email || "").trim(), password: password || "" }) }).catch(() => null);
+    const data = res ? await res.json().catch(() => ({})) : {};
+    if (!res || !res.ok) { showToast(data.error || "Incorrect email or password."); return; }
     const s = state.sessions.find((x) => x.clientEmail.toLowerCase() === email.trim().toLowerCase());
     if (s) { setClientId(s.id); setView("client"); showToast("Welcome back, " + s.clientName + "!"); }
-    else showToast("No account found with that email. Try booking a session first.");
+    else showToast("Signed in. We couldn't find your session on this device yet, so please use the device you booked on.");
   };
   const loginAsStudio = async (email, password) => {
     try {
@@ -407,8 +410,8 @@ function LoginView({ onLogin, onBook, onStudio }) {
         <FieldLabel>Email</FieldLabel>
         <TextInput value={email} onChange={setEmail} placeholder="you@example.com" />
         <FieldLabel>Password</FieldLabel>
-        <TextInput value={pw} onChange={setPw} placeholder="••••••••" />
-        <button onClick={() => { if (!email.trim()) return; onLogin(email); }} style={{ ...btnSolid, background: RED, width: "100%", justifyContent: "center", marginTop: 6, padding: "11px" }}><LogIn size={15} /> Log in</button>
+        <input type="password" value={pw} onChange={(e) => setPw(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && email.trim() && pw) onLogin(email, pw); }} placeholder="Your password" style={inputStyle} />
+        <button onClick={() => { if (!email.trim() || !pw) return; onLogin(email, pw); }} style={{ ...btnSolid, background: RED, width: "100%", justifyContent: "center", marginTop: 14, padding: "11px" }}><LogIn size={15} /> Log in</button>
         <div style={{ ...mono, fontSize: 9.5, color: FAINT, textAlign: "center", marginTop: 12, lineHeight: 1.5 }}>Sign in with the email you used when you booked.</div>
       </div>
       <div style={{ textAlign: "center", marginTop: 16, fontSize: 13, color: STONE }}>
@@ -434,7 +437,7 @@ function BookingFlow({ state, direct, slotTaken, onCancel, onComplete, onLogin, 
   const [group, setGroup] = useState(direct?.group || "video");
   const [serviceId, setServiceId] = useState(direct?.serviceId || null);
   const [addonIds, setAddonIds] = useState([]);
-  const [acct, setAcct] = useState({ name: direct?.recipient || "", email: "", phone: "", signature: "" });
+  const [acct, setAcct] = useState({ name: direct?.recipient || "", email: "", phone: "", password: "", signature: "" });
   const [date, setDate] = useState(direct?.date || "");
   const [time, setTime] = useState(direct?.time || "");
   const [payChoice, setPayChoice] = useState(null);
@@ -448,11 +451,12 @@ function BookingFlow({ state, direct, slotTaken, onCancel, onComplete, onLogin, 
   const submitAccount = async () => {
     setSubmitErr("");
     if (!acct.name.trim() || !acct.email.trim()) { setSubmitErr("Please enter your name and email."); return; }
+    if (!acct.password || acct.password.length < 6) { setSubmitErr("Create a password of at least 6 characters."); return; }
     if (isMinor && (!child.name.trim() || !child.age.trim() || !child.relationship.trim())) { setSubmitErr("Please add the child's name, age, and your relationship to the child."); return; }
     if (!agree || !acct.signature.trim()) { setSubmitErr("Type your full legal name and check the box to sign."); return; }
     setSubmitting(true);
     try {
-      const ures = await fetch("/api/users", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ name: acct.name.trim(), email: acct.email.trim(), phone: (acct.phone || "").trim() }) });
+      const ures = await fetch("/api/users", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ name: acct.name.trim(), email: acct.email.trim(), phone: (acct.phone || "").trim(), password: acct.password }) });
       const udata = await ures.json();
       if (!ures.ok) throw new Error(udata.error || "Could not create your account.");
       const releaseType = isMinor ? "minor_release" : "media_release";
@@ -633,6 +637,9 @@ function BookingFlow({ state, direct, slotTaken, onCancel, onComplete, onLogin, 
           <TextInput value={acct.email} onChange={(v) => setAcct({ ...acct, email: v })} placeholder="you@example.com" />
           <FieldLabel>Phone (optional)</FieldLabel>
           <TextInput value={acct.phone} onChange={(v) => setAcct({ ...acct, phone: v })} placeholder="(907) 555-0123" />
+          <FieldLabel>Create a password</FieldLabel>
+          <input type="password" value={acct.password} onChange={(e) => setAcct({ ...acct, password: e.target.value })} placeholder="At least 6 characters" style={{ ...inputStyle, marginBottom: 2 }} />
+          <div style={{ ...mono, fontSize: 10, color: FAINT, marginTop: 4, lineHeight: 1.4 }}>You'll use your email and this password to sign in later and check your session.</div>
 
           <label style={{ display: "flex", alignItems: "flex-start", gap: 10, marginTop: 20, cursor: "pointer", background: CREAM, border: `1px solid ${LINE}`, borderRadius: 9, padding: "12px 14px" }}>
             <input type="checkbox" checked={isMinor} onChange={(e) => setIsMinor(e.target.checked)} style={{ marginTop: 2, width: 16, height: 16, accentColor: A, cursor: "pointer" }} />
