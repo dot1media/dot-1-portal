@@ -120,6 +120,27 @@ export function messageEmail(s: any, toStudio: boolean, msg: string): string {
   return shell(brand, "New Message", "You have a new message", body);
 }
 
+export function resetEmail(link: string): string {
+  const brand = BRAND_MAIN;
+  const body = para("We received a request to reset your Dot One Media portal password. Use the button below to set a new one. This link expires in one hour.") +
+    button(brand, link, "Reset your password") +
+    para("If you didn't request this, you can safely ignore this email and your password will stay the same.");
+  return shell(brand, "Password Reset", "Reset your password", body);
+}
+
+export function balanceEmail(s: any, link: string, balance: number): string {
+  const brand = brandFor(s);
+  const body = para(`The remaining balance for your <strong style="color:${INK};">${esc(s.type) || "session"}</strong> is ready to pay.`) +
+    detailRows([
+      ["Service", esc(s.type)],
+      ["Date", `${esc(s.date) || "TBD"} ${esc(s.time)}`],
+      ["Balance due", dollars(balance)],
+    ]) +
+    button(brand, link, "Pay your balance") +
+    para("Once this is paid, your booking is settled in full. Thank you!");
+  return shell(brand, "Balance Due", "Your balance is ready to pay", body);
+}
+
 export async function sendEmail(opts: { to?: string; subject: string; html: string; replyTo?: string }): Promise<void> {
   const key = process.env.RESEND_API_KEY;
   if (!key || !opts.to) return;

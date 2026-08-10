@@ -56,13 +56,13 @@ const PAYMENT_RULES = {
 };
 
 const STAGES = [
-  { key: "scheduled", label: "Session Scheduled", Icon: CalendarCheck, desc: "Your session is on the calendar. We can't wait to work with you." },
-  { key: "confirmed", label: "Booked & Confirmed", Icon: FileCheck, desc: "Your booking is confirmed and the details are locked in." },
-  { key: "dayof", label: "Day of Session", Icon: Camera, desc: "It's session day. Let's create something great together." },
-  { key: "post", label: "Post-Session", Icon: Upload, desc: "That's a wrap. Your files are safely backed up and selection has begun." },
-  { key: "editing", label: "Editing", Icon: Scissors, desc: "Your story is being crafted, edited frame by frame." },
-  { key: "predelivery", label: "Pre-Delivery Review", Icon: Eye, desc: "Your preview is ready. Take a look and let us know if you'd like any changes." },
-  { key: "delivered", label: "Final Delivery", Icon: PackageCheck, desc: "Everything's ready. Your finished work is delivered below. Thank you." },
+  { key: "scheduled", label: "Session Scheduled", Icon: CalendarCheck, desc: "Your session is on the calendar. We'll review the details and confirm everything with you shortly." },
+  { key: "confirmed", label: "Booked & Confirmed", Icon: FileCheck, desc: "Everything's confirmed and locked in. Next, we prepare for your session day." },
+  { key: "dayof", label: "Day of Session", Icon: Camera, desc: "It's session day, when we capture everything. Afterward, we move into post-production." },
+  { key: "post", label: "Post-Session", Icon: Upload, desc: "That's a wrap. Your files are safely backed up while we select the strongest moments to edit." },
+  { key: "editing", label: "Editing", Icon: Scissors, desc: "The creative work is underway. We're editing and crafting your final pieces frame by frame." },
+  { key: "predelivery", label: "Pre-Delivery Review", Icon: Eye, desc: "Your preview is ready to review. Take a look and tell us if you'd like any changes before final delivery." },
+  { key: "delivered", label: "Final Delivery", Icon: PackageCheck, desc: "All done. Your finished work is ready and delivered below. Thank you for trusting us with your story." },
 ];
 
 const GOOGLE_REVIEW_URL = "https://g.page/r/Ceb1aSxQSvm6EBM/review/";
@@ -156,6 +156,7 @@ export default function App() {
   const [loaded, setLoaded] = useState(false);
   const [clientId, setClientId] = useState("");
   const [clientAuth, setClientAuth] = useState(null);
+  const [resetToken, setResetToken] = useState("");
   const [adminId, setAdminId] = useState("");
   const [directContext, setDirectContext] = useState(null);
   const [toast, setToast] = useState(null);
@@ -180,11 +181,16 @@ export default function App() {
     if (!paidSid) return;
     (async () => {
       let res = {};
-      try { res = await fetch("/api/pay/verify?sid=" + encodeURIComponent(paidSid)).then((r) => r.json()).catch(() => ({})); } catch (e) {}
+      const payKind = new URLSearchParams(window.location.search).get("kind") || "";
+      try { res = await fetch("/api/pay/verify?sid=" + encodeURIComponent(paidSid) + (payKind ? "&kind=" + encodeURIComponent(payKind) : "")).then((r) => r.json()).catch(() => ({})); } catch (e) {}
       try { const sd = await fetch("/api/sessions").then((r) => r.json()).catch(() => ({})); const sess = (sd && sd.sessions) || []; if (sess.length) { setState((s) => ({ ...s, sessions: sess })); const mine = sess.find((x) => x.id === paidSid) || sess[0]; setClientId(mine.id); setClientAuth({ name: mine.clientName || "", email: mine.clientEmail || "" }); setView("thankyou"); } } catch (e) {}
       showToast(res && res.paid ? "Payment received. Thank you!" : "Thanks! If your payment is still processing, your status will update shortly.");
       try { window.history.replaceState({}, "", "/"); } catch (e) {}
     })();
+  }, []);
+  useEffect(() => {
+    const rt = new URLSearchParams(window.location.search).get("reset");
+    if (rt) { setResetToken(rt); setView("resetpw"); try { window.history.replaceState({}, "", "/"); } catch (e) {} }
   }, []);
 
   const showToast = (msg) => { setToast(msg); if (toastTimer.current) clearTimeout(toastTimer.current); toastTimer.current = setTimeout(() => setToast(null), 3600); };
@@ -307,6 +313,8 @@ export default function App() {
   };
   const adminLogout = async () => { try { await fetch("/api/auth/logout", { method: "POST" }); } catch (e) {} setState((s) => ({ ...s, sessions: [] })); setAdminId(""); setView("landing"); showToast("Signed out of the studio."); };
   const clientLogout = async () => { try { await fetch("/api/client-logout", { method: "POST" }); } catch (e) {} setState((s) => ({ ...s, sessions: [] })); setClientId(""); setClientAuth(null); setView("landing"); showToast("Signed out."); };
+  const requestReset = async (email) => { try { await fetch("/api/reset-request", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ email: (email || "").trim() }) }); } catch (e) {} };
+  const requestSendBalance = async (session) => { try { const res = await fetch("/api/pay-balance", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ sessionId: session.id }) }); const data = await res.json().catch(() => ({})); if (res.ok) { showToast("Balance payment link emailed to " + session.clientEmail + "."); setState((s) => ({ ...s, sessions: s.sessions.map((x) => x.id === session.id ? { ...x, balanceStatus: "sent" } : x) })); } else { showToast(data.error || "Could not send the balance link."); } } catch (e) { showToast("Network error."); } };
 
   const resetDemo = () => setConfirm({ title: "Reset the demo?", message: "This clears all sessions, services, add-ons, and booking links back to the starting state.", confirmLabel: "Reset everything", danger: true, onYes: async () => { setState(DEFAULT_STATE); try { await storage.delete(STORAGE_KEY); } catch (e) {} showToast("Demo reset."); setConfirm(null); } });
   const requestCancelBooking = (session) => setConfirm({ title: "Cancel this booking?", message: "This marks " + session.clientName + "'s " + session.type + " as cancelled. The client will see it as cancelled in their portal.", confirmLabel: "Cancel booking", danger: true, onYes: () => { patchSession(session.id, { status: "cancelled" }); showToast("Booking cancelled."); setConfirm(null); } });
@@ -352,7 +360,8 @@ export default function App() {
         {view === "landing" && <LandingPage onBook={() => { setDirectContext(null); setView("book"); }} onClientLogin={() => setView("login")} onStudioLogin={() => setView("studiologin")} />}
         {view === "studiologin" && <StudioLogin onLogin={loginAsStudio} onBack={() => setView("landing")} />}
         {view === "book" && <BookingFlow state={state} direct={directContext} slotTaken={slotTaken} onCancel={() => { setDirectContext(null); setView("landing"); }} onComplete={createBooking} onLogin={() => setView("login")} catalogLoaded={catalogLoaded} catalogError={catalogError} availability={state.availability} authedClient={clientAuth} />}
-        {view === "login" && <LoginView onLogin={loginAs} onBook={() => { setDirectContext(null); setView("book"); }} onStudio={() => setView("studiologin")} />}
+        {view === "login" && <LoginView onLogin={loginAs} onBook={() => { setDirectContext(null); setView("book"); }} onStudio={() => setView("studiologin")} onForgot={requestReset} />}
+        {view === "resetpw" && <ResetPassword token={resetToken} onDone={() => setView("login")} showToast={showToast} />}
         {view === "client" && <ClientView session={clientSession} sessions={state.sessions} clientId={clientId} setClientId={setClientId} addComment={addComment} onRescheduleRequest={clientRescheduleRequest} markMessagesRead={markMessagesRead} patchSession={patchSession} resizeImage={resizeImage} showToast={showToast} />}
         {view === "thankyou" && <ThankYou session={clientSession} onPortal={() => setView("client")} />}
         {view === "admin" && (
@@ -364,7 +373,7 @@ export default function App() {
               <SubTab active={adminTab === "availability"} onClick={() => setAdminTab("availability")} label="Availability" />
               <SubTab active={adminTab === "services"} onClick={() => setAdminTab("services")} label="Services & Add-ons" />
             </div>
-            {adminTab === "sessions" && <AdminSessions state={state} adminId={adminId} setAdminId={setAdminId} requestSetStage={requestSetStage} addComment={addComment} patchSession={patchSession} onReschedule={adminReschedule} slotTaken={slotTaken} markMessagesRead={markMessagesRead} onCancelBooking={requestCancelBooking} onCloseBooking={requestCloseBooking} onReopenBooking={requestReopenBooking} />}
+            {adminTab === "sessions" && <AdminSessions state={state} adminId={adminId} setAdminId={setAdminId} requestSetStage={requestSetStage} addComment={addComment} patchSession={patchSession} onReschedule={adminReschedule} slotTaken={slotTaken} markMessagesRead={markMessagesRead} onCancelBooking={requestCancelBooking} onCloseBooking={requestCloseBooking} onReopenBooking={requestReopenBooking} onSendBalance={requestSendBalance} />}
             {adminTab === "calendar" && <AdminCalendar state={state} onSelectSession={(id) => { setAdminId(id); setAdminTab("sessions"); }} />}
             {adminTab === "links" && <DirectLinks state={state} createDirectLink={createDirectLink} revokeDirectLink={revokeDirectLink} openDirectLink={openDirectLink} showToast={showToast} />}
             {adminTab === "availability" && <><CalendarSync showToast={showToast} /><AvailabilityManager availability={state.availability} addAvailability={addAvailability} removeAvailability={removeAvailability} showToast={showToast} /></>}
@@ -404,6 +413,39 @@ function ThankYou({ session, onPortal }) {
       </p>
       <button onClick={onPortal} style={{ ...btnSolid, background: grp.color, fontSize: 15, padding: "13px 28px", margin: "0 auto" }}>Go to my portal <ArrowRight size={16} /></button>
       <div style={{ ...mono, fontSize: 10, letterSpacing: "0.14em", textTransform: "uppercase", color: FAINT, marginTop: 22 }}>portal.dot1.media</div>
+    </div>
+  );
+}
+
+function ResetPassword({ token, onDone, showToast }) {
+  const [pw, setPw] = useState("");
+  const [pw2, setPw2] = useState("");
+  const [busy, setBusy] = useState(false);
+  const submit = async () => {
+    if (pw.length < 6) { showToast("Password must be at least 6 characters."); return; }
+    if (pw !== pw2) { showToast("Those passwords don't match."); return; }
+    setBusy(true);
+    try {
+      const res = await fetch("/api/reset", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ token, password: pw }) });
+      const data = await res.json().catch(() => ({}));
+      setBusy(false);
+      if (res.ok) { showToast("Password updated. You can sign in now."); onDone(); }
+      else { showToast(data.error || "Could not reset your password."); }
+    } catch (e) { setBusy(false); showToast("Network error."); }
+  };
+  return (
+    <div style={{ maxWidth: 400, margin: "20px auto 0" }}>
+      <div style={{ textAlign: "center", marginBottom: 24 }}>
+        <div style={{ ...display, fontWeight: 700, fontSize: 28, color: INK, marginBottom: 6 }}>Set a new password</div>
+        <div style={{ fontSize: 13.5, color: STONE, lineHeight: 1.5 }}>Choose a new password for your portal.</div>
+      </div>
+      <div style={{ background: PAPER, border: `1px solid ${LINE}`, borderRadius: 12, padding: "22px 24px" }}>
+        <FieldLabel>New password</FieldLabel>
+        <input type="password" value={pw} onChange={(e) => setPw(e.target.value)} placeholder="At least 6 characters" style={inputStyle} />
+        <FieldLabel>Confirm password</FieldLabel>
+        <input type="password" value={pw2} onChange={(e) => setPw2(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") submit(); }} placeholder="Re-enter your password" style={inputStyle} />
+        <button onClick={submit} disabled={busy} style={{ ...btnSolid, background: busy ? FAINT : RED, width: "100%", justifyContent: "center", marginTop: 14, padding: "11px" }}>{busy ? "Saving..." : "Update password"}</button>
+      </div>
     </div>
   );
 }
@@ -476,9 +518,38 @@ function StudioLogin({ onLogin, onBack }) {
 }
 
 /* ============================ CLIENT LOGIN ============================ */
-function LoginView({ onLogin, onBook, onStudio }) {
+function LoginView({ onLogin, onBook, onStudio, onForgot }) {
   const [email, setEmail] = useState("");
   const [pw, setPw] = useState("");
+  const [mode, setMode] = useState("login");
+  const [sent, setSent] = useState(false);
+  if (mode === "forgot") {
+    return (
+      <div style={{ maxWidth: 400, margin: "20px auto 0" }}>
+        <div style={{ textAlign: "center", marginBottom: 24 }}>
+          <div style={{ ...display, fontWeight: 700, fontSize: 28, color: INK, marginBottom: 6 }}>Reset your password</div>
+          <div style={{ fontSize: 13.5, color: STONE, lineHeight: 1.5 }}>Enter your email and we'll send you a reset link.</div>
+        </div>
+        <div style={{ background: PAPER, border: `1px solid ${LINE}`, borderRadius: 12, padding: "22px 24px" }}>
+          {sent ? (
+            <div style={{ textAlign: "center", padding: "8px 0" }}>
+              <Check size={26} color="#3f7a3f" style={{ marginBottom: 10 }} />
+              <div style={{ fontSize: 13.5, color: BODY, lineHeight: 1.6 }}>If that email is registered, a reset link is on its way. Check your inbox (and spam) — the link works for one hour.</div>
+            </div>
+          ) : (
+            <>
+              <FieldLabel>Email</FieldLabel>
+              <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && email.trim()) { onForgot(email); setSent(true); } }} placeholder="you@example.com" style={inputStyle} />
+              <button onClick={() => { if (!email.trim()) return; onForgot(email); setSent(true); }} style={{ ...btnSolid, background: RED, width: "100%", justifyContent: "center", marginTop: 14, padding: "11px" }}>Send reset link</button>
+            </>
+          )}
+        </div>
+        <div style={{ textAlign: "center", marginTop: 16, fontSize: 13, color: STONE }}>
+          <span onClick={() => { setMode("login"); setSent(false); }} style={{ color: RED, cursor: "pointer" }}>Back to login</span>
+        </div>
+      </div>
+    );
+  }
   return (
     <div style={{ maxWidth: 400, margin: "20px auto 0" }}>
       <div style={{ textAlign: "center", marginBottom: 24 }}>
@@ -491,7 +562,7 @@ function LoginView({ onLogin, onBook, onStudio }) {
         <FieldLabel>Password</FieldLabel>
         <input type="password" value={pw} onChange={(e) => setPw(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && email.trim() && pw) onLogin(email, pw); }} placeholder="Your password" style={inputStyle} />
         <button onClick={() => { if (!email.trim() || !pw) return; onLogin(email, pw); }} style={{ ...btnSolid, background: RED, width: "100%", justifyContent: "center", marginTop: 14, padding: "11px" }}><LogIn size={15} /> Log in</button>
-        <div style={{ ...mono, fontSize: 9.5, color: FAINT, textAlign: "center", marginTop: 12, lineHeight: 1.5 }}>Sign in with the email you used when you booked.</div>
+        <div style={{ textAlign: "center", marginTop: 12 }}><span onClick={() => { setMode("forgot"); setSent(false); }} style={{ ...mono, fontSize: 10.5, letterSpacing: "0.04em", color: STONE, cursor: "pointer" }}>Forgot password?</span></div>
       </div>
       <div style={{ textAlign: "center", marginTop: 16, fontSize: 13, color: STONE }}>
         New here? <span onClick={onBook} style={{ color: RED, cursor: "pointer" }}>Book a session</span>{onStudio ? <span> · <span onClick={onStudio} style={{ color: STONE, cursor: "pointer" }}>Studio login</span></span> : null}
@@ -1142,7 +1213,7 @@ function ClientActionPanel({ session, grp, draft, setDraft, onSubmit }) {
 }
 
 /* ============================ ADMIN — SESSIONS ============================ */
-function AdminSessions({ state, adminId, setAdminId, requestSetStage, addComment, patchSession, onReschedule, slotTaken, markMessagesRead, onCancelBooking, onCloseBooking, onReopenBooking }) {
+function AdminSessions({ state, adminId, setAdminId, requestSetStage, addComment, patchSession, onReschedule, slotTaken, markMessagesRead, onCancelBooking, onCloseBooking, onReopenBooking, onSendBalance }) {
   const session = state.sessions.find((s) => s.id === adminId) || state.sessions[0] || null;
   const [msg, setMsg] = useState("");
   const [editLinks, setEditLinks] = useState(false);
@@ -1187,6 +1258,16 @@ function AdminSessions({ state, adminId, setAdminId, requestSetStage, addComment
             <span style={{ ...mono, fontSize: 10.5, letterSpacing: "0.1em", textTransform: "uppercase", color: session.paymentStatus === "paid" ? "#3f7a3f" : "#a97a2e" }}>{session.paymentStatus === "paid" ? "Paid" : "Payment pending"}{session.payAmount ? " · " + money(session.payAmount) : ""}</span>
           </div>
         )}
+        {(() => {
+          const balanceDue = (Number(session.total) || 0) - (Number(session.payAmount) || 0);
+          if (session.paymentStatus !== "paid" || balanceDue <= 0) return null;
+          if (session.balanceStatus === "paid") return <div style={{ ...mono, fontSize: 10.5, letterSpacing: "0.1em", textTransform: "uppercase", color: "#3f7a3f", marginBottom: 16 }}>Paid in full</div>;
+          return (
+            <div style={{ marginBottom: 16 }}>
+              <button onClick={() => onSendBalance(session)} style={{ ...mono, fontSize: 10.5, letterSpacing: "0.06em", color: "#a97a2e", background: "transparent", border: "1px solid #f0e2c4", borderRadius: 7, padding: "8px 12px", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 7 }}><Wallet size={13} /> {session.balanceStatus === "sent" ? "Resend balance link" : "Email balance link"} · {money(balanceDue)}</button>
+            </div>
+          );
+        })()}
 
         {status === "active" ? (
           <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
