@@ -178,6 +178,7 @@ export default function App() {
   useEffect(() => { (async () => { try { const a = await fetch("/api/auth/me").then((r) => r.json()).catch(() => null); if (a && a.admin) { setView("admin"); const sd = await fetch("/api/sessions").then((r) => r.json()).catch(() => ({})); if (sd && sd.sessions) setState((s) => ({ ...s, sessions: sd.sessions })); return; } const c = await fetch("/api/client-me").then((r) => r.json()).catch(() => null); if (c && c.client && c.email) { setClientAuth({ name: "", email: c.email }); const sd = await fetch("/api/sessions").then((r) => r.json()).catch(() => ({})); const sess = (sd && sd.sessions) || []; if (sess.length) { setClientAuth({ name: sess[0].clientName || "", email: c.email }); setState((s) => ({ ...s, sessions: sess })); setClientId(sess[0].id); setView("client"); } } } catch (e) {} })(); }, []);
   useEffect(() => { (async () => { try { const res = await fetch("/api/availability"); const data = await res.json(); if (res.ok) setState((s) => ({ ...s, availability: data.availability || [] })); } catch (e) {} })(); }, []);
   useEffect(() => { (async () => { try { const res = await fetch("/api/sessions?slots=1"); const data = await res.json(); if (res.ok) setState((s) => ({ ...s, takenSlots: data.takenSlots || [] })); } catch (e) {} })(); }, []);
+  const refreshSlots = async () => { try { const res = await fetch("/api/sessions?slots=1"); const data = await res.json(); if (res.ok) setState((s) => ({ ...s, takenSlots: data.takenSlots || [] })); } catch (e) {} };
   useEffect(() => {
     const paidSid = new URLSearchParams(window.location.search).get("paid");
     if (!paidSid) return;
@@ -372,7 +373,7 @@ export default function App() {
       <main style={{ maxWidth: 1120, margin: "0 auto", padding: "28px 22px 60px" }}>
         {view === "landing" && <LandingPage onBook={() => { setDirectContext(null); setView("book"); }} onClientLogin={() => setView("login")} onStudioLogin={() => setView("studiologin")} />}
         {view === "studiologin" && <StudioLogin onLogin={loginAsStudio} onBack={() => setView("landing")} />}
-        {view === "book" && <BookingFlow state={state} direct={directContext} slotTaken={slotTaken} onCancel={() => { setDirectContext(null); setView("landing"); }} onComplete={createBooking} onLogin={() => setView("login")} catalogLoaded={catalogLoaded} catalogError={catalogError} availability={state.availability} authedClient={clientAuth} />}
+        {view === "book" && <BookingFlow state={state} direct={directContext} slotTaken={slotTaken} onCancel={() => { setDirectContext(null); setView("landing"); }} onComplete={createBooking} onLogin={() => setView("login")} catalogLoaded={catalogLoaded} catalogError={catalogError} availability={state.availability} authedClient={clientAuth} refreshSlots={refreshSlots} />}
         {view === "login" && <LoginView onLogin={loginAs} onBook={() => { setDirectContext(null); setView("book"); }} onStudio={() => setView("studiologin")} onForgot={requestReset} />}
         {view === "resetpw" && <ResetPassword token={resetToken} onDone={() => setView("login")} showToast={showToast} />}
         {view === "client" && <ClientView session={clientSession} sessions={state.sessions} clientId={clientId} setClientId={setClientId} addComment={addComment} onRescheduleRequest={clientRescheduleRequest} markMessagesRead={markMessagesRead} patchSession={patchSession} resizeImage={resizeImage} showToast={showToast} />}
@@ -635,12 +636,14 @@ function AgreementBox({ title, text, pdf, A }) {
   );
 }
 
-function BookingFlow({ state, direct, slotTaken, onCancel, onComplete, onLogin, catalogLoaded, catalogError, availability, authedClient }) {
+function BookingFlow({ state, direct, slotTaken, onCancel, onComplete, onLogin, catalogLoaded, catalogError, availability, authedClient, refreshSlots }) {
   const [step, setStep] = useState(direct ? 2 : 0); // 0 welcome, 1 choose, 2 account, 3 confirm
   const [group, setGroup] = useState(direct?.group || "video");
   const [serviceId, setServiceId] = useState(direct?.serviceId || null);
   const [addonIds, setAddonIds] = useState([]);
   const [openCats, setOpenCats] = useState({});
+  const [holdId, setHoldId] = useState("");
+  const holdRef = useRef("");
   const [acct, setAcct] = useState({ name: (authedClient && authedClient.name) || direct?.recipient || "", email: (authedClient && authedClient.email) || "", phone: "", password: "", signature: "" });
   const [date, setDate] = useState(direct?.date || "");
   const [time, setTime] = useState(direct?.time || "");
@@ -654,21 +657,29 @@ function BookingFlow({ state, direct, slotTaken, onCancel, onComplete, onLogin, 
   const [exception, setException] = useState("");
   const submitAccount = async () => {
     setSubmitErr("");
-    if (!acct.name.trim() || !acct.email.trim()) { setSubmitErr("Please enter your name and email."); return; }
-    if (!acct.password || acct.password.length < 6) { setSubmitErr("Create a password of at least 6 characters."); return; }
+    if (!authedClient) {
+      if (!acct.name.trim() || !acct.email.trim()) { setSubmitErr("Please enter your name and email."); return; }
+      if (!acct.password || acct.password.length < 6) { setSubmitErr("Create a password of at least 6 characters."); return; }
+    }
     if (isMinor && (!child.name.trim() || !child.age.trim() || !child.relationship.trim())) { setSubmitErr("Please add the child's name, age, and your relationship to the child."); return; }
     if (!agree || !acct.signature.trim()) { setSubmitErr("Type your full legal name and check the box to sign."); return; }
     setSubmitting(true);
     try {
-      const ures = await fetch("/api/users", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ name: acct.name.trim(), email: acct.email.trim(), phone: (acct.phone || "").trim(), password: acct.password }) });
-      const udata = await ures.json();
-      if (!ures.ok) throw new Error(udata.error || "Could not create your account.");
+      if (!authedClient) {
+        const ures = await fetch("/api/users", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ name: acct.name.trim(), email: acct.email.trim(), phone: (acct.phone || "").trim(), password: acct.password }) });
+        const udata = await ures.json();
+        if (!ures.ok) throw new Error(udata.error || "Could not create your account.");
+      }
       const releaseType = isMinor ? "minor_release" : "media_release";
       const details = isMinor
         ? { childName: child.name.trim(), childAge: child.age.trim(), relationship: child.relationship.trim(), exception: usage === "C" ? exception.trim() : "" }
         : { exception: usage === "C" ? exception.trim() : "" };
-      const ares = await fetch("/api/agreements", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ email: acct.email.trim(), signedName: acct.signature.trim(), agreements: [ { type: "client_services", version: CLIENT_SERVICES_VERSION }, { type: releaseType, version: RELEASE_VERSION, usageOption: usage, details } ] }) });
-      if (!ares.ok) { const d = await ares.json().catch(() => ({})); throw new Error(d.error || "Could not record your signatures."); }
+      const signEmail = authedClient ? authedClient.email : acct.email.trim();
+      const agreements = authedClient
+        ? [ { type: releaseType, version: RELEASE_VERSION, usageOption: usage, details } ]
+        : [ { type: "client_services", version: CLIENT_SERVICES_VERSION }, { type: releaseType, version: RELEASE_VERSION, usageOption: usage, details } ];
+      const ares = await fetch("/api/agreements", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ email: signEmail, signedName: acct.signature.trim(), agreements }) });
+      if (!ares.ok) { const d = await ares.json().catch(() => ({})); throw new Error(d.error || "Could not record your signature."); }
       setStep(3);
     } catch (e) {
       setSubmitErr((e && e.message) || "Something went wrong. Please try again.");
@@ -688,12 +699,24 @@ function BookingFlow({ state, direct, slotTaken, onCancel, onComplete, onLogin, 
   const apptLen = ((Number(service?.duration) || 0) + addonMinutes) || 30;
   const padB = Number(service?.padBefore) || 0;
   const padA = Number(service?.padAfter) || 0;
+  const acquireHold = async (d, t) => {
+    try {
+      const res = await fetch("/api/hold", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ date: d, time: t, apptMin: apptLen, padBefore: padB, padAfter: padA, holdId }) });
+      const data = await res.json().catch(() => ({}));
+      if (data && data.holdId) setHoldId(data.holdId);
+    } catch (e) {}
+  };
+  const releaseHold = () => { if (holdId) { try { fetch("/api/hold?id=" + encodeURIComponent(holdId), { method: "DELETE" }); } catch (e) {} setHoldId(""); } };
+  useEffect(() => { holdRef.current = holdId; }, [holdId]);
+  useEffect(() => { return () => { if (holdRef.current) { try { fetch("/api/hold?id=" + encodeURIComponent(holdRef.current), { method: "DELETE", keepalive: true }); } catch (e) {} } }; }, []);
+  useEffect(() => { if (step === 3 && refreshSlots) refreshSlots(); }, [step]);
   const total = basePrice + chosenAddons.reduce((s, a) => s + (Number(a.price) || 0), 0);
   const rules = PAYMENT_RULES[group];
   const A = GROUPS[group].color, AB = GROUPS[group].bg, ABD = GROUPS[group].border, AT = GROUPS[group].text;
   const taken = !direct && slotTaken(date, time);
 
-  const stepDefs = direct ? [{ n: 2, label: "Account" }, { n: 3, label: "Confirm & Pay" }] : [{ n: 1, label: "Choose" }, { n: 2, label: "Account" }, { n: 3, label: "Confirm & Pay" }];
+  const stepLabel2 = authedClient ? "Sign Release" : "Account";
+  const stepDefs = direct ? [{ n: 2, label: stepLabel2 }, { n: 3, label: "Confirm & Pay" }] : [{ n: 1, label: "Choose" }, { n: 2, label: stepLabel2 }, { n: 3, label: "Confirm & Pay" }];
 
   /* STEP 0 — WELCOME */
   const renderServiceBtn = (s) => { const sel = serviceId === s.id; return (
@@ -840,7 +863,7 @@ function BookingFlow({ state, direct, slotTaken, onCancel, onComplete, onLogin, 
               {service && (
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 20 }}>
                   <div style={{ ...display, fontSize: 18, color: INK }}>Total: <span style={{ color: A }}>{money(total)}</span></div>
-                  <button onClick={() => setStep(authedClient ? 3 : 2)} style={{ ...btnSolid, background: A }}>Continue <ArrowRight size={15} /></button>
+                  <button onClick={() => setStep(2)} style={{ ...btnSolid, background: A }}>Continue <ArrowRight size={15} /></button>
                 </div>
               )}
             </div>
@@ -851,24 +874,30 @@ function BookingFlow({ state, direct, slotTaken, onCancel, onComplete, onLogin, 
       {/* STEP 2 — ACCOUNT */}
       {step === 2 && (
         <div style={{ maxWidth: 600 }}>
-          <div style={{ fontSize: 13.5, color: BODY, marginBottom: 18, lineHeight: 1.5 }}>Create your account and sign to continue. Already have an account? <span onClick={onLogin} style={{ color: A, cursor: "pointer" }}>Log in</span>.</div>
-          <FieldLabel>Your name</FieldLabel>
-          <TextInput value={acct.name} onChange={(v) => setAcct({ ...acct, name: v })} placeholder="Sarah & James" />
-          <FieldLabel>Email</FieldLabel>
-          <TextInput value={acct.email} onChange={(v) => setAcct({ ...acct, email: v })} placeholder="you@example.com" />
-          <FieldLabel>Phone (optional)</FieldLabel>
-          <TextInput value={acct.phone} onChange={(v) => setAcct({ ...acct, phone: v })} placeholder="(907) 555-0123" />
-          <FieldLabel>Create a password</FieldLabel>
-          <input type="password" value={acct.password} onChange={(e) => setAcct({ ...acct, password: e.target.value })} placeholder="At least 6 characters" style={{ ...inputStyle, marginBottom: 2 }} />
-          <div style={{ ...mono, fontSize: 10, color: FAINT, marginTop: 4, lineHeight: 1.4 }}>You'll use your email and this password to sign in later and check your session.</div>
+          {!authedClient ? (
+            <>
+              <div style={{ fontSize: 13.5, color: BODY, marginBottom: 18, lineHeight: 1.5 }}>Create your account and sign to continue. Already have an account? <span onClick={onLogin} style={{ color: A, cursor: "pointer" }}>Log in</span>.</div>
+              <FieldLabel>Your name</FieldLabel>
+              <TextInput value={acct.name} onChange={(v) => setAcct({ ...acct, name: v })} placeholder="Sarah & James" />
+              <FieldLabel>Email</FieldLabel>
+              <TextInput value={acct.email} onChange={(v) => setAcct({ ...acct, email: v })} placeholder="you@example.com" />
+              <FieldLabel>Phone (optional)</FieldLabel>
+              <TextInput value={acct.phone} onChange={(v) => setAcct({ ...acct, phone: v })} placeholder="(907) 555-0123" />
+              <FieldLabel>Create a password</FieldLabel>
+              <input type="password" value={acct.password} onChange={(e) => setAcct({ ...acct, password: e.target.value })} placeholder="At least 6 characters" style={{ ...inputStyle, marginBottom: 2 }} />
+              <div style={{ ...mono, fontSize: 10, color: FAINT, marginTop: 4, lineHeight: 1.4 }}>You'll use your email and this password to sign in later and check your session.</div>
+            </>
+          ) : (
+            <div style={{ fontSize: 13.5, color: BODY, marginBottom: 4, lineHeight: 1.5 }}>You're signed in as <strong style={{ color: INK }}>{authedClient.name || authedClient.email}</strong>. Please sign the release for this session below.</div>
+          )}
 
           <label style={{ display: "flex", alignItems: "flex-start", gap: 10, marginTop: 20, cursor: "pointer", background: CREAM, border: `1px solid ${LINE}`, borderRadius: 9, padding: "12px 14px" }}>
             <input type="checkbox" checked={isMinor} onChange={(e) => setIsMinor(e.target.checked)} style={{ marginTop: 2, width: 16, height: 16, accentColor: A, cursor: "pointer" }} />
             <span style={{ fontSize: 12.5, color: BODY, lineHeight: 1.5 }}>This session is for a child under 18. I am the parent or legal guardian and will sign on their behalf.</span>
           </label>
 
-          <AgreementBox title="1 - Client Services Agreement" text={CLIENT_SERVICES_SUMMARY} pdf={PDF_CLIENT_SERVICES} A={A} />
-          <AgreementBox title={isMinor ? "2 - Minor Release & Liability Waiver" : "2 - Release & Liability Waiver"} text={isMinor ? MINOR_SUMMARY : RELEASE_SUMMARY} pdf={isMinor ? PDF_MINOR : PDF_RELEASE} A={A} />
+          {!authedClient && <AgreementBox title="1 - Client Services Agreement" text={CLIENT_SERVICES_SUMMARY} pdf={PDF_CLIENT_SERVICES} A={A} />}
+          <AgreementBox title={authedClient ? (isMinor ? "Minor Release & Liability Waiver" : "Release & Liability Waiver") : (isMinor ? "2 - Minor Release & Liability Waiver" : "2 - Release & Liability Waiver")} text={isMinor ? MINOR_SUMMARY : RELEASE_SUMMARY} pdf={isMinor ? PDF_MINOR : PDF_RELEASE} A={A} />
 
           {isMinor && (
             <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 6 }}>
@@ -893,7 +922,7 @@ function BookingFlow({ state, direct, slotTaken, onCancel, onComplete, onLogin, 
           </div>
           <label style={{ display: "flex", alignItems: "flex-start", gap: 10, marginTop: 12, cursor: "pointer" }}>
             <input type="checkbox" checked={agree} onChange={(e) => setAgree(e.target.checked)} style={{ marginTop: 3, width: 16, height: 16, accentColor: A, cursor: "pointer" }} />
-            <span style={{ fontSize: 12.5, color: BODY, lineHeight: 1.5 }}>I have read and agree to the Client Services Agreement and the {isMinor ? "Minor " : ""}Release and Liability Waiver above. This typed signature is legally binding.</span>
+            <span style={{ fontSize: 12.5, color: BODY, lineHeight: 1.5 }}>I have read and agree to {authedClient ? "" : "the Client Services Agreement and "}the {isMinor ? "Minor " : ""}Release and Liability Waiver above. This typed signature is legally binding.</span>
           </label>
 
           {submitErr && <div style={{ marginTop: 12, fontSize: 12.5, color: "#b5271b", display: "flex", alignItems: "center", gap: 7 }}><AlertTriangle size={14} /> {submitErr}</div>}
@@ -928,7 +957,7 @@ function BookingFlow({ state, direct, slotTaken, onCancel, onComplete, onLogin, 
               ) : (
                 <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
                   {availDates.map((d) => { const on = date === d; return (
-                    <button key={d} onClick={() => { setDate(d); setTime(""); }} style={{ ...mono, fontSize: 12, padding: "9px 13px", borderRadius: 8, cursor: "pointer", border: `1.5px solid ${on ? A : LINE}`, background: on ? A : PAPER, color: on ? "#fff" : INK }}>{fmtDate(d)}</button>
+                    <button key={d} onClick={() => { setDate(d); setTime(""); releaseHold(); }} style={{ ...mono, fontSize: 12, padding: "9px 13px", borderRadius: 8, cursor: "pointer", border: `1.5px solid ${on ? A : LINE}`, background: on ? A : PAPER, color: on ? "#fff" : INK }}>{fmtDate(d)}</button>
                   ); })}
                 </div>
               )}
@@ -940,7 +969,7 @@ function BookingFlow({ state, direct, slotTaken, onCancel, onComplete, onLogin, 
                   ) : (
                     <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
                       {slotsForDate(date).map((t) => { const on = time === t; return (
-                        <button key={t} onClick={() => setTime(t)} style={{ ...mono, fontSize: 12, padding: "9px 13px", borderRadius: 8, cursor: "pointer", border: `1.5px solid ${on ? A : LINE}`, background: on ? A : PAPER, color: on ? "#fff" : INK }}>{fmtTime(t)}</button>
+                        <button key={t} onClick={() => { setTime(t); acquireHold(date, t); }} style={{ ...mono, fontSize: 12, padding: "9px 13px", borderRadius: 8, cursor: "pointer", border: `1.5px solid ${on ? A : LINE}`, background: on ? A : PAPER, color: on ? "#fff" : INK }}>{fmtTime(t)}</button>
                       ); })}
                     </div>
                   )}
@@ -959,10 +988,10 @@ function BookingFlow({ state, direct, slotTaken, onCancel, onComplete, onLogin, 
               {o.key !== "quote" && <span style={{ ...mono, fontSize: 13, color: A }}>{o.pct === 0 && o.fixed == null ? "$0 today" : money(amt) + " today"}</span>}
             </div>
           ); })}
-          <div style={{ ...mono, fontSize: 9.5, color: FAINT, marginTop: 4, marginBottom: 18 }}>Payment is simulated in this prototype — Square is wired in a later phase.</div>
+          <div style={{ ...mono, fontSize: 9.5, color: FAINT, marginTop: 4, marginBottom: 18 }}>Payments are processed securely through Square.</div>
 
           <div style={{ display: "flex", justifyContent: "space-between" }}>
-            <button onClick={() => setStep(authedClient ? 1 : 2)} style={btnGhost}><ArrowLeft size={14} /> Back</button>
+            <button onClick={() => setStep(2)} style={btnGhost}><ArrowLeft size={14} /> Back</button>
             <button onClick={() => { if (!date || !time || !payChoice || taken) return; const so = rules.options.find((o) => o.key === payChoice); const payAmount = so ? (so.fixed != null ? so.fixed : Math.round(total * ((so.pct || 0) / 100))) : 0; onComplete({ linkId: direct?.id, group, serviceName: service.name, duration: apptLen, apptMin: apptLen, padBefore: padB, padAfter: padA, addons: chosenAddons.map((a) => ({ name: a.name, price: Number(a.price) || 0, addTime: Number(a.addTime) || 0 })), total, payAmount, date, time, payChoice, name: acct.name, email: acct.email }); }} style={{ ...btnSolid, background: date && time && payChoice && !taken ? A : FAINT }}><Check size={15} /> {(() => { const so = rules.options.find((o) => o.key === payChoice); const amt = so ? (so.fixed != null ? so.fixed : Math.round(total * ((so.pct || 0) / 100))) : 0; return amt > 0 ? "Continue to payment · " + money(amt) : "Confirm booking"; })()}</button>
           </div>
         </div>

@@ -20,6 +20,10 @@ export async function GET(request: Request) {
   if (searchParams.get("slots")) {
     const rows = await sql`SELECT data FROM portal_sessions WHERE status = 'active' AND date IS NOT NULL AND time IS NOT NULL`;
     const takenSlots = rows.map((r: any) => { const d = r.data || {}; return { id: d.id, date: d.date, time: d.time, apptMin: Number(d.apptMin) || Number(d.durationMin) || 30, padBefore: Number(d.padBefore) || 0, padAfter: Number(d.padAfter) || 0 }; });
+    try {
+      const hrows = await sql`SELECT id, date, time, appt_min, pad_before, pad_after FROM holds WHERE expires_at > now()`;
+      for (const h of hrows as any[]) takenSlots.push({ id: String(h.id), date: h.date, time: h.time, apptMin: Number(h.appt_min) || 30, padBefore: Number(h.pad_before) || 0, padAfter: Number(h.pad_after) || 0 });
+    } catch (e) { /* holds table not present yet */ }
     return NextResponse.json({ takenSlots });
   }
   const me = await whoami();
