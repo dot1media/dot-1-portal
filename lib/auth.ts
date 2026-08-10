@@ -1,17 +1,17 @@
 import crypto from "crypto";
 
 export const ADMIN_COOKIE = "dot1_admin";
+export const CLIENT_COOKIE = "dot1_client";
 const WEEK_MS = 1000 * 60 * 60 * 24 * 7;
 
-export function makeToken(email: string): string {
+function sign(payloadObj: object): string {
   const secret = process.env.SESSION_SECRET || "";
-  const payload = JSON.stringify({ role: "admin", email, exp: Date.now() + WEEK_MS });
-  const body = Buffer.from(payload).toString("base64url");
+  const body = Buffer.from(JSON.stringify(payloadObj)).toString("base64url");
   const sig = crypto.createHmac("sha256", secret).update(body).digest("base64url");
   return body + "." + sig;
 }
 
-export function verifyToken(token: string | undefined | null): { email: string } | null {
+function verify(token: string | undefined | null, role: string): { email: string } | null {
   const secret = process.env.SESSION_SECRET || "";
   if (!token || !secret) return null;
   const [body, sig] = token.split(".");
@@ -22,20 +22,31 @@ export function verifyToken(token: string | undefined | null): { email: string }
   if (a.length !== e.length || !crypto.timingSafeEqual(a, e)) return null;
   try {
     const payload = JSON.parse(Buffer.from(body, "base64url").toString());
-    if (payload.role !== "admin" || typeof payload.exp !== "number" || Date.now() > payload.exp) return null;
+    if (payload.role !== role || typeof payload.exp !== "number" || Date.now() > payload.exp) return null;
     return { email: String(payload.email || "") };
   } catch {
     return null;
   }
 }
 
-// Client password hashing (scrypt; no external dependency).
+export function makeToken(email: string): string {
+  return sign({ role: "admin", email, exp: Date.now() + WEEK_MS });
+}
+export function verifyToken(token: string | undefined | null) {
+  return verify(token, "admin");
+}
+export function makeClientToken(email: string): string {
+  return sign({ role: "client", email, exp: Date.now() + WEEK_MS });
+}
+export function verifyClientToken(token: string | undefined | null) {
+  return verify(token, "client");
+}
+
 export function hashPassword(password: string): string {
   const salt = crypto.randomBytes(16).toString("hex");
   const hash = crypto.scryptSync(password, salt, 64).toString("hex");
   return "scrypt$" + salt + "$" + hash;
 }
-
 export function verifyPassword(password: string, stored: string | null | undefined): boolean {
   if (!stored) return false;
   const parts = stored.split("$");

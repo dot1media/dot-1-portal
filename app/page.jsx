@@ -80,10 +80,8 @@ const gcalLink = (session) => { const s = calDate(session.date, session.time); c
 const money = (n) => "$" + (Number(n) || 0).toLocaleString();
 
 const DEFAULT_STATE = {
-  sessions: [
-    { id: "ses_wedding", clientName: "Sarah & James", clientEmail: "sarah@example.com", clientImage: "", notifyEmail: "video@dot1.media", type: "Wedding Film", serviceLine: "video", photographer: "Dennis Matthews", date: "2026-09-14", time: "10:00", location: "Palmer, AK", currentStage: 5, stageTimes: { 0: "Aug 2", 1: "Aug 4", 2: "Sep 14", 3: "Sep 15", 4: "Sep 20", 5: "Sep 24" }, comments: [], selectedAddons: [], total: 2500, payChoice: "retainer", reviewLink: "https://f.io/dot1-sarah-james-cut1", deliveryVideo: "https://f.io/dot1-sarah-james-final", deliveryPhoto: "" },
-    { id: "ses_family", clientName: "The Nelson Family", clientEmail: "nelson@example.com", clientImage: "", notifyEmail: "photo@dot1.media", type: "Family Session", serviceLine: "photo", photographer: "Brittany Matthews", date: "2026-08-30", time: "14:00", location: "Eagle River, AK", currentStage: 6, stageTimes: { 0: "Aug 1", 1: "Aug 3", 2: "Aug 30", 3: "Aug 31", 4: "Sep 2", 5: "Sep 4", 6: "Sep 5" }, comments: [{ author: "client", body: "Could we get a few more of the kids down by the river?", time: "Sep 4", read: false }], selectedAddons: [], total: 450, payChoice: "full", reviewLink: "https://gallery.dot1.media/nelson-preview", deliveryVideo: "", deliveryPhoto: "https://gallery.dot1.media/nelson-family" },
-  ],
+  sessions: [],
+  takenSlots: [],
   services: [],
   addons: [],
   availability: [],
@@ -151,9 +149,11 @@ export default function App() {
   const [view, setView] = useState("landing");   // landing | client | admin | book | login | studiologin
   const [adminTab, setAdminTab] = useState("sessions"); // sessions | calendar | services | links
   const [state, setState] = useState(DEFAULT_STATE);
+  const stateRef = useRef(state);
+  useEffect(() => { stateRef.current = state; }, [state]);
   const [loaded, setLoaded] = useState(false);
-  const [clientId, setClientId] = useState("ses_wedding");
-  const [adminId, setAdminId] = useState("ses_wedding");
+  const [clientId, setClientId] = useState("");
+  const [adminId, setAdminId] = useState("");
   const [directContext, setDirectContext] = useState(null);
   const [toast, setToast] = useState(null);
   const [confirm, setConfirm] = useState(null);
@@ -161,22 +161,24 @@ export default function App() {
 
   useEffect(() => {
     (async () => {
-      try { const r = await storage.get(STORAGE_KEY); if (r && r.value) { const p = JSON.parse(r.value); if (p && p.sessions) setState({ ...DEFAULT_STATE, ...p }); } } catch (e) {}
+      try { const r = await storage.get(STORAGE_KEY); if (r && r.value) { const p = JSON.parse(r.value); if (p) { const { sessions, takenSlots, ...rest } = p; setState((prev) => ({ ...prev, ...rest })); } } } catch (e) {}
       setLoaded(true);
     })();
   }, []);
   const [catalogLoaded, setCatalogLoaded] = useState(false);
   const [catalogError, setCatalogError] = useState(false);
-  useEffect(() => { if (!loaded) return; (async () => { try { const { services, addons, availability, ...rest } = state; await storage.set(STORAGE_KEY, JSON.stringify(rest)); } catch (e) {} })(); }, [state, loaded]);
+  useEffect(() => { if (!loaded) return; (async () => { try { const { services, addons, availability, sessions, takenSlots, ...rest } = state; await storage.set(STORAGE_KEY, JSON.stringify(rest)); } catch (e) {} })(); }, [state, loaded]);
   useEffect(() => { (async () => { try { const res = await fetch("/api/services"); const data = await res.json(); if (!res.ok) throw new Error(); setState((s) => ({ ...s, services: data.services || [], addons: data.addons || [] })); setCatalogError(false); } catch (e) { setCatalogError(true); } finally { setCatalogLoaded(true); } })(); }, []);
-  useEffect(() => { fetch("/api/auth/me").then((r) => r.json()).then((d) => { if (d && d.admin) setView("admin"); }).catch(() => {}); }, []);
+  useEffect(() => { (async () => { try { const a = await fetch("/api/auth/me").then((r) => r.json()).catch(() => null); if (a && a.admin) { setView("admin"); const sd = await fetch("/api/sessions").then((r) => r.json()).catch(() => ({})); if (sd && sd.sessions) setState((s) => ({ ...s, sessions: sd.sessions })); return; } const c = await fetch("/api/client-me").then((r) => r.json()).catch(() => null); if (c && c.client && c.email) { const sd = await fetch("/api/sessions").then((r) => r.json()).catch(() => ({})); const sess = (sd && sd.sessions) || []; if (sess.length) { setState((s) => ({ ...s, sessions: sess })); setClientId(sess[0].id); setView("client"); } } } catch (e) {} })(); }, []);
   useEffect(() => { (async () => { try { const res = await fetch("/api/availability"); const data = await res.json(); if (res.ok) setState((s) => ({ ...s, availability: data.availability || [] })); } catch (e) {} })(); }, []);
+  useEffect(() => { (async () => { try { const res = await fetch("/api/sessions?slots=1"); const data = await res.json(); if (res.ok) setState((s) => ({ ...s, takenSlots: data.takenSlots || [] })); } catch (e) {} })(); }, []);
 
   const showToast = (msg) => { setToast(msg); if (toastTimer.current) clearTimeout(toastTimer.current); toastTimer.current = setTimeout(() => setToast(null), 3600); };
 
-  const patchSession = (id, patch) => setState((s) => ({ ...s, sessions: s.sessions.map((x) => (x.id === id ? { ...x, ...patch } : x)) }));
+  const saveSessionPatch = (id, patch) => { fetch("/api/sessions", { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ id, patch }) }).catch(() => {}); };
+  const patchSession = (id, patch) => { setState((s) => ({ ...s, sessions: s.sessions.map((x) => (x.id === id ? { ...x, ...patch } : x)) })); saveSessionPatch(id, patch); };
 
-  const doSetStage = (id, idx) => setState((s) => ({ ...s, sessions: s.sessions.map((x) => { if (x.id !== id) return x; const times = { ...x.stageTimes }; if (times[idx] === undefined) times[idx] = "just now"; return { ...x, currentStage: idx, stageTimes: times }; }) }));
+  const doSetStage = (id, idx) => { const cur = stateRef.current.sessions.find((x) => x.id === id); if (!cur) return; const times = { ...cur.stageTimes }; if (times[idx] === undefined) times[idx] = "just now"; patchSession(id, { currentStage: idx, stageTimes: times }); };
 
   const requestSetStage = (session, idx) => {
     if (idx === session.currentStage) return;
@@ -191,11 +193,14 @@ export default function App() {
 
   const addComment = (id, author, body, silent) => {
     if (!body.trim()) return;
-    setState((s) => ({ ...s, sessions: s.sessions.map((x) => x.id === id ? { ...x, comments: [...x.comments, { author, body: body.trim(), time: "just now", read: false }] } : x) }));
+    const cur = stateRef.current.sessions.find((x) => x.id === id);
+    if (!cur) return;
+    const comments = [...cur.comments, { author, body: body.trim(), time: "just now", read: false }];
+    patchSession(id, { comments });
     if (!silent && author === "client") showToast("Message sent — the studio has been notified by email.");
     if (!silent && author === "studio") showToast("Reply sent — the client has been notified by email.");
   };
-  const markMessagesRead = (id, who) => setState((s) => ({ ...s, sessions: s.sessions.map((x) => x.id === id ? { ...x, comments: x.comments.map((c) => c.author === who ? { ...c, read: true } : c) } : x) }));
+  const markMessagesRead = (id, who) => { const cur = stateRef.current.sessions.find((x) => x.id === id); if (!cur || !cur.comments.some((c) => c.author === who && !c.read)) return; const comments = cur.comments.map((c) => (c.author === who ? { ...c, read: true } : c)); patchSession(id, { comments }); };
   const resizeImage = (file) => new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => {
@@ -229,9 +234,9 @@ export default function App() {
   const removeAvailability = async (id) => { try { const res = await fetch("/api/availability?id=" + encodeURIComponent(id), { method: "DELETE" }); const data = await res.json().catch(() => ({})); if (res.ok) { setState((s) => ({ ...s, availability: s.availability.filter((x) => x.id !== id) })); return { ok: true }; } return { ok: false, error: data.error || "Could not remove that day." }; } catch (e) { return { ok: false, error: "Network error." }; } };
   const slotTaken = (date, time, exceptSessionId) => {
     if (!date || !time) return false;
-    const inSessions = state.sessions.some((s) => s.id !== exceptSessionId && s.date === date && s.time === time);
+    const inSlots = (state.takenSlots || []).some((t) => t.id !== exceptSessionId && t.date === date && t.time === time);
     const inLinks = state.directLinks.some((l) => l.date === date && l.time === time);
-    return inSessions || inLinks;
+    return inSlots || inLinks;
   };
 
   const createDirectLink = (payload) => {
@@ -249,6 +254,7 @@ export default function App() {
     const notifyEmail = NOTIFY_EMAILS[grp] || "contact@dot1.media";
     const newSession = { id, clientName: booking.name, clientEmail: booking.email, clientImage: "", notifyEmail, type: booking.serviceName, serviceLine: grp, photographer: grp === "photo" ? "Brittany Matthews" : "Dennis Matthews", date: booking.date, time: booking.time, location: "", status: "active", durationMin: booking.duration || 60, currentStage: 1, stageTimes: { 0: "just now" }, comments: [], selectedAddons: booking.addons, total: booking.total, payChoice: booking.payChoice, reviewLink: "", deliveryVideo: "", deliveryPhoto: "" };
     setState((s) => ({ ...s, sessions: [...s.sessions, newSession] }));
+    fetch("/api/sessions", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ session: newSession }) }).catch(() => {});
     if (booking.linkId) consumeDirectLink(booking.linkId);
     setDirectContext(null); setClientId(id); setView("client");
     showToast(`Booking confirmed! A new ${GROUPS[grp].label} appointment email was sent to ${notifyEmail}.`);
@@ -258,9 +264,11 @@ export default function App() {
     const res = await fetch("/api/client-login", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ email: (email || "").trim(), password: password || "" }) }).catch(() => null);
     const data = res ? await res.json().catch(() => ({})) : {};
     if (!res || !res.ok) { showToast(data.error || "Incorrect email or password."); return; }
-    const s = state.sessions.find((x) => x.clientEmail.toLowerCase() === email.trim().toLowerCase());
-    if (s) { setClientId(s.id); setView("client"); showToast("Welcome back, " + s.clientName + "!"); }
-    else showToast("Signed in. We couldn't find your session on this device yet, so please use the device you booked on.");
+    const sd = await fetch("/api/sessions").then((r) => r.json()).catch(() => ({}));
+    const sess = (sd && sd.sessions) || [];
+    setState((s) => ({ ...s, sessions: sess }));
+    if (sess.length) { setClientId(sess[0].id); setView("client"); showToast("Welcome back, " + sess[0].clientName + "!"); }
+    else { setClientId(""); setView("client"); showToast("Signed in. You don't have any sessions yet."); }
   };
   const loginAsStudio = async (email, password) => {
     try {
@@ -279,7 +287,7 @@ export default function App() {
   const requestCloseBooking = (session) => setConfirm({ title: "Close this booking?", message: "This closes " + session.clientName + "'s " + session.type + " for a no-show or payment issue. It will be marked closed.", confirmLabel: "Close booking", danger: true, onYes: () => { patchSession(session.id, { status: "closed" }); showToast("Booking closed."); setConfirm(null); } });
   const requestReopenBooking = (session) => { patchSession(session.id, { status: "active" }); showToast("Booking reopened."); };
 
-  const clientSession = state.sessions.find((s) => s.id === clientId) || state.sessions[0];
+  const clientSession = state.sessions.find((s) => s.id === clientId) || state.sessions[0] || null;
   const unreadClientTotal = state.sessions.reduce((n, s) => n + s.comments.filter((c) => c.author === "client" && !c.read).length, 0);
 
   return (
@@ -896,14 +904,15 @@ function ClientView({ session, sessions, clientId, setClientId, addComment, onRe
   const [draft, setDraft] = useState("");
   const [msg, setMsg] = useState("");
   const [reschedOpen, setReschedOpen] = useState(false);
-  const [reschedDate, setReschedDate] = useState(session.date || "");
+  const [reschedDate, setReschedDate] = useState("");
   const fileRef = useRef(null);
+  useEffect(() => { if (!session) return; setReschedDate(session.date || ""); setReschedOpen(false); setMsg(""); }, [clientId]);
+  if (!session) return <div style={{ ...mono, fontSize: 13, color: STONE, padding: "48px 4px", textAlign: "center" }}>No session to show yet. When you book, it will appear here.</div>;
   const stage = session.currentStage;
   const grp = GROUPS[session.serviceLine] || GROUPS.video;
   const fee = PAYMENT_RULES[session.serviceLine]?.reschedFee || 0;
   const status = session.status || "active";
   const unreadReplies = session.comments.filter((c) => c.author === "studio" && !c.read).length;
-  useEffect(() => { setReschedDate(session.date || ""); setReschedOpen(false); setMsg(""); }, [clientId]);
 
   const onPickImage = async (e) => {
     const file = e.target.files && e.target.files[0];
@@ -1048,18 +1057,19 @@ function ClientActionPanel({ session, grp, draft, setDraft, onSubmit }) {
 
 /* ============================ ADMIN — SESSIONS ============================ */
 function AdminSessions({ state, adminId, setAdminId, requestSetStage, addComment, patchSession, onReschedule, slotTaken, markMessagesRead, onCancelBooking, onCloseBooking, onReopenBooking }) {
-  const session = state.sessions.find((s) => s.id === adminId) || state.sessions[0];
-  const sg = GROUPS[session.serviceLine] || GROUPS.video;
-  const status = session.status || "active";
+  const session = state.sessions.find((s) => s.id === adminId) || state.sessions[0] || null;
   const [msg, setMsg] = useState("");
   const [editLinks, setEditLinks] = useState(false);
   const [videoLink, setVideoLink] = useState("");
   const [photoLink, setPhotoLink] = useState("");
   const [reviewLink, setReviewLink] = useState("");
   const [reschedOpen, setReschedOpen] = useState(false);
-  const [reschedDate, setReschedDate] = useState(session.date || "");
-  const [reschedTime, setReschedTime] = useState(session.time || "");
-  useEffect(() => { setVideoLink(session.deliveryVideo || ""); setPhotoLink(session.deliveryPhoto || ""); setReviewLink(session.reviewLink || ""); setEditLinks(false); setReschedOpen(false); setReschedDate(session.date || ""); setReschedTime(session.time || ""); }, [adminId]);
+  const [reschedDate, setReschedDate] = useState("");
+  const [reschedTime, setReschedTime] = useState("");
+  useEffect(() => { if (!session) return; setVideoLink(session.deliveryVideo || ""); setPhotoLink(session.deliveryPhoto || ""); setReviewLink(session.reviewLink || ""); setEditLinks(false); setReschedOpen(false); setReschedDate(session.date || ""); setReschedTime(session.time || ""); }, [adminId]);
+  if (!session) return <div style={{ ...mono, fontSize: 13, color: STONE, padding: "48px 4px", textAlign: "center" }}>No bookings yet. When a client books a session, it will show up here.</div>;
+  const sg = GROUPS[session.serviceLine] || GROUPS.video;
+  const status = session.status || "active";
   const saveLinks = () => { patchSession(session.id, { deliveryVideo: videoLink.trim(), deliveryPhoto: photoLink.trim(), reviewLink: reviewLink.trim() }); setEditLinks(false); };
   const reschedClash = slotTaken(reschedDate, reschedTime, session.id);
 
