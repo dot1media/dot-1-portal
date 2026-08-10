@@ -98,3 +98,20 @@ export async function PATCH(request: Request) {
   return NextResponse.json({ ok: true, session: merged });
 }
 
+
+export async function DELETE(request: Request) {
+  const me = await whoami();
+  if (!me || me.role !== "admin") return NextResponse.json({ error: "Not authorized." }, { status: 401 });
+  const { searchParams } = new URL(request.url);
+  const id = String(searchParams.get("id") || "");
+  if (!id) return NextResponse.json({ error: "Missing id." }, { status: 400 });
+  const rows = await sql`SELECT status FROM portal_sessions WHERE id = ${id} LIMIT 1`;
+  if (rows.length === 0) return NextResponse.json({ ok: true });
+  const status = (rows[0] as any).status;
+  if (status !== "cancelled" && status !== "closed") {
+    return NextResponse.json({ error: "Only cancelled or closed bookings can be deleted. Cancel or close it first." }, { status: 400 });
+  }
+  await sql`DELETE FROM portal_sessions WHERE id = ${id}`;
+  return NextResponse.json({ ok: true });
+}
+
