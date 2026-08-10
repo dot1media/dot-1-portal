@@ -85,6 +85,22 @@ const DEFAULT_STATE = {
   directLinks: [],
 };
 
+const CLIENT_AGREEMENT_VERSION = "1.0";
+const CLIENT_AGREEMENT_TITLE = "Dot One Media Client Services Agreement";
+const CLIENT_AGREEMENT_TEXT = `By booking with Dot One Media / DOT ONE LLC, you agree to the following key terms:
+
+Booking & retainer. Video sessions require a $750 retainer (or payment in full) to reserve your date; the balance is due 24 hours before filming. Photography may be paid in full, 50% now, or reserved and paid at the session. Music and government projects are quoted individually.
+
+Rescheduling. Video sessions may be rescheduled for a $150 fee with reasonable notice. Photography sessions may be rescheduled at no charge with reasonable notice.
+
+Deliverables & timeline. Your project moves through the stages shown in your portal, from booking to final delivery. Final files are delivered digitally; please download and back up your files promptly.
+
+Cancellations. Retainers and deposits reserve your date and are non-refundable.
+
+Media release. You grant Dot One Media permission to use the finished work for portfolio and promotional purposes unless you request otherwise in writing.
+
+This is a summary of the full agreement. By typing your name and checking the box below, you acknowledge that you have read and agree to the full Dot One Media Client Services Agreement.`;
+
 export default function App() {
   const [view, setView] = useState("landing");   // landing | client | admin | book | login | studiologin
   const [adminTab, setAdminTab] = useState("sessions"); // sessions | calendar | services | links
@@ -336,10 +352,32 @@ function BookingFlow({ state, direct, slotTaken, onCancel, onComplete, goStudio,
   const [group, setGroup] = useState(direct?.group || "video");
   const [serviceId, setServiceId] = useState(direct?.serviceId || null);
   const [addonIds, setAddonIds] = useState([]);
-  const [acct, setAcct] = useState({ name: direct?.recipient || "", email: "", password: "" });
+  const [acct, setAcct] = useState({ name: direct?.recipient || "", email: "", phone: "", signature: "" });
   const [date, setDate] = useState(direct?.date || "");
   const [time, setTime] = useState(direct?.time || "");
   const [payChoice, setPayChoice] = useState(null);
+  const [agree, setAgree] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [submitErr, setSubmitErr] = useState("");
+  const submitAccount = async () => {
+    setSubmitErr("");
+    if (!acct.name.trim() || !acct.email.trim()) { setSubmitErr("Please enter your name and email."); return; }
+    if (!agree || !acct.signature.trim()) { setSubmitErr("Type your full legal name and check the box to sign the agreement."); return; }
+    setSubmitting(true);
+    try {
+      const ures = await fetch("/api/users", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ name: acct.name.trim(), email: acct.email.trim(), phone: (acct.phone || "").trim() }) });
+      const udata = await ures.json();
+      if (!ures.ok) throw new Error(udata.error || "Could not create your account.");
+      const ares = await fetch("/api/agreements", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ email: acct.email.trim(), agreementType: "client_services", version: CLIENT_AGREEMENT_VERSION, signedName: acct.signature.trim() }) });
+      const adata = await ares.json();
+      if (!ares.ok) throw new Error(adata.error || "Could not record your signature.");
+      setStep(3);
+    } catch (e) {
+      setSubmitErr((e && e.message) || "Something went wrong. Please try again.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   const groupServices = state.services.filter((s) => s.group === group);
   const catalogService = state.services.find((s) => s.id === serviceId) || null;
@@ -473,17 +511,32 @@ function BookingFlow({ state, direct, slotTaken, onCancel, onComplete, goStudio,
 
       {/* STEP 2 — ACCOUNT */}
       {step === 2 && (
-        <div style={{ maxWidth: 460 }}>
-          <div style={{ fontSize: 13.5, color: BODY, marginBottom: 18, lineHeight: 1.5 }}>Create your account to track your session from booking through delivery. Already have one? <span onClick={onLogin} style={{ color: RED, cursor: "pointer" }}>Log in</span>.</div>
+        <div style={{ maxWidth: 560 }}>
+          <div style={{ fontSize: 13.5, color: BODY, marginBottom: 18, lineHeight: 1.5 }}>Create your account and sign the agreement to continue. Already have an account? <span onClick={onLogin} style={{ color: A, cursor: "pointer" }}>Log in</span>.</div>
           <FieldLabel>Your name</FieldLabel>
           <TextInput value={acct.name} onChange={(v) => setAcct({ ...acct, name: v })} placeholder="Sarah & James" />
           <FieldLabel>Email</FieldLabel>
           <TextInput value={acct.email} onChange={(v) => setAcct({ ...acct, email: v })} placeholder="you@example.com" />
-          <FieldLabel>Create a password</FieldLabel>
-          <TextInput value={acct.password} onChange={(v) => setAcct({ ...acct, password: v })} placeholder="••••••••" />
+          <FieldLabel>Phone (optional)</FieldLabel>
+          <TextInput value={acct.phone} onChange={(v) => setAcct({ ...acct, phone: v })} placeholder="(907) 555-0123" />
+
+          <div style={{ marginTop: 22, marginBottom: 6, ...mono, fontSize: 10.5, letterSpacing: "0.16em", textTransform: "uppercase", color: STONE }}>{CLIENT_AGREEMENT_TITLE}</div>
+          <div style={{ maxHeight: 190, overflowY: "auto", border: `1px solid ${LINE}`, borderRadius: 9, padding: "14px 16px", background: PAPER, fontSize: 12.5, lineHeight: 1.55, color: BODY, whiteSpace: "pre-wrap" }}>{CLIENT_AGREEMENT_TEXT}</div>
+
+          <div style={{ marginTop: 14 }}>
+            <FieldLabel>Type your full legal name to sign</FieldLabel>
+            <TextInput value={acct.signature} onChange={(v) => setAcct({ ...acct, signature: v })} placeholder="Full legal name" />
+          </div>
+          <label style={{ display: "flex", alignItems: "flex-start", gap: 10, marginTop: 12, cursor: "pointer" }}>
+            <input type="checkbox" checked={agree} onChange={(e) => setAgree(e.target.checked)} style={{ marginTop: 3, width: 16, height: 16, accentColor: A, cursor: "pointer" }} />
+            <span style={{ fontSize: 12.5, color: BODY, lineHeight: 1.5 }}>I have read and agree to the {CLIENT_AGREEMENT_TITLE}, and this typed signature is legally binding.</span>
+          </label>
+
+          {submitErr && <div style={{ marginTop: 12, fontSize: 12.5, color: "#b5271b", display: "flex", alignItems: "center", gap: 7 }}><AlertTriangle size={14} /> {submitErr}</div>}
+
           <div style={{ display: "flex", justifyContent: "space-between", marginTop: 18 }}>
-            <button onClick={() => direct ? onCancel() : setStep(1)} style={btnGhost}><ArrowLeft size={14} /> Back</button>
-            <button onClick={() => { if (!acct.name.trim() || !acct.email.trim()) return; setStep(3); }} style={{ ...btnSolid, background: acct.name.trim() && acct.email.trim() ? A : FAINT }}>Continue <ArrowRight size={15} /></button>
+            <button onClick={() => (direct ? onCancel() : setStep(1))} disabled={submitting} style={btnGhost}><ArrowLeft size={14} /> Back</button>
+            <button onClick={submitAccount} disabled={submitting} style={{ ...btnSolid, background: submitting ? FAINT : A }}>{submitting ? "Saving..." : "Create account and continue"} <ArrowRight size={15} /></button>
           </div>
         </div>
       )}
