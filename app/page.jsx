@@ -155,6 +155,7 @@ export default function App() {
   useEffect(() => { stateRef.current = state; }, [state]);
   const [loaded, setLoaded] = useState(false);
   const [clientId, setClientId] = useState("");
+  const [clientAuth, setClientAuth] = useState(null);
   const [adminId, setAdminId] = useState("");
   const [directContext, setDirectContext] = useState(null);
   const [toast, setToast] = useState(null);
@@ -171,7 +172,7 @@ export default function App() {
   const [catalogError, setCatalogError] = useState(false);
   useEffect(() => { if (!loaded) return; (async () => { try { const { services, addons, availability, sessions, takenSlots, ...rest } = state; await storage.set(STORAGE_KEY, JSON.stringify(rest)); } catch (e) {} })(); }, [state, loaded]);
   useEffect(() => { (async () => { try { const res = await fetch("/api/services"); const data = await res.json(); if (!res.ok) throw new Error(); setState((s) => ({ ...s, services: data.services || [], addons: data.addons || [] })); setCatalogError(false); } catch (e) { setCatalogError(true); } finally { setCatalogLoaded(true); } })(); }, []);
-  useEffect(() => { (async () => { try { const a = await fetch("/api/auth/me").then((r) => r.json()).catch(() => null); if (a && a.admin) { setView("admin"); const sd = await fetch("/api/sessions").then((r) => r.json()).catch(() => ({})); if (sd && sd.sessions) setState((s) => ({ ...s, sessions: sd.sessions })); return; } const c = await fetch("/api/client-me").then((r) => r.json()).catch(() => null); if (c && c.client && c.email) { const sd = await fetch("/api/sessions").then((r) => r.json()).catch(() => ({})); const sess = (sd && sd.sessions) || []; if (sess.length) { setState((s) => ({ ...s, sessions: sess })); setClientId(sess[0].id); setView("client"); } } } catch (e) {} })(); }, []);
+  useEffect(() => { (async () => { try { const a = await fetch("/api/auth/me").then((r) => r.json()).catch(() => null); if (a && a.admin) { setView("admin"); const sd = await fetch("/api/sessions").then((r) => r.json()).catch(() => ({})); if (sd && sd.sessions) setState((s) => ({ ...s, sessions: sd.sessions })); return; } const c = await fetch("/api/client-me").then((r) => r.json()).catch(() => null); if (c && c.client && c.email) { setClientAuth({ name: "", email: c.email }); const sd = await fetch("/api/sessions").then((r) => r.json()).catch(() => ({})); const sess = (sd && sd.sessions) || []; if (sess.length) { setClientAuth({ name: sess[0].clientName || "", email: c.email }); setState((s) => ({ ...s, sessions: sess })); setClientId(sess[0].id); setView("client"); } } } catch (e) {} })(); }, []);
   useEffect(() => { (async () => { try { const res = await fetch("/api/availability"); const data = await res.json(); if (res.ok) setState((s) => ({ ...s, availability: data.availability || [] })); } catch (e) {} })(); }, []);
   useEffect(() => { (async () => { try { const res = await fetch("/api/sessions?slots=1"); const data = await res.json(); if (res.ok) setState((s) => ({ ...s, takenSlots: data.takenSlots || [] })); } catch (e) {} })(); }, []);
 
@@ -254,11 +255,11 @@ export default function App() {
   const createBooking = (booking) => {
     const id = uid("ses"); const grp = booking.group;
     const notifyEmail = NOTIFY_EMAILS[grp] || "contact@dot1.media";
-    const newSession = { id, clientName: booking.name, clientEmail: booking.email, clientImage: "", notifyEmail, type: booking.serviceName, serviceLine: grp, photographer: grp === "photo" ? "Brittany Matthews" : "Dennis Matthews", date: booking.date, time: booking.time, location: "", status: "active", durationMin: booking.duration || 60, currentStage: 1, stageTimes: { 0: "just now" }, comments: [], selectedAddons: booking.addons, total: booking.total, payChoice: booking.payChoice, reviewLink: "", deliveryVideo: "", deliveryPhoto: "" };
+    const newSession = { id, clientName: booking.name, clientEmail: booking.email, clientImage: "", notifyEmail, type: booking.serviceName, serviceLine: grp, photographer: grp === "photo" ? "Brittany Matthews" : "Dennis Matthews", date: booking.date, time: booking.time, location: "", status: "active", durationMin: booking.duration || 60, currentStage: 0, stageTimes: { 0: "just now" }, comments: [], selectedAddons: booking.addons, total: booking.total, payChoice: booking.payChoice, reviewLink: "", deliveryVideo: "", deliveryPhoto: "" };
     setState((s) => ({ ...s, sessions: [...s.sessions, newSession] }));
     fetch("/api/sessions", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ session: newSession }) }).catch(() => {});
     if (booking.linkId) consumeDirectLink(booking.linkId);
-    setDirectContext(null); setClientId(id); setView("client");
+    setDirectContext(null); setClientId(id); setClientAuth({ name: booking.name, email: (booking.email || "").toLowerCase() }); setView("client");
     showToast(`Booking confirmed! A new ${GROUPS[grp].label} appointment email was sent to ${notifyEmail}.`);
   };
 
@@ -269,6 +270,7 @@ export default function App() {
     const sd = await fetch("/api/sessions").then((r) => r.json()).catch(() => ({}));
     const sess = (sd && sd.sessions) || [];
     setState((s) => ({ ...s, sessions: sess }));
+    setClientAuth({ name: (data.name) || (sess[0] && sess[0].clientName) || "", email: (email || "").trim().toLowerCase() });
     if (sess.length) { setClientId(sess[0].id); setView("client"); showToast("Welcome back, " + sess[0].clientName + "!"); }
     else { setClientId(""); setView("client"); showToast("Signed in. You don't have any sessions yet."); }
   };
@@ -283,7 +285,7 @@ export default function App() {
     }
   };
   const adminLogout = async () => { try { await fetch("/api/auth/logout", { method: "POST" }); } catch (e) {} setState((s) => ({ ...s, sessions: [] })); setAdminId(""); setView("landing"); showToast("Signed out of the studio."); };
-  const clientLogout = async () => { try { await fetch("/api/client-logout", { method: "POST" }); } catch (e) {} setState((s) => ({ ...s, sessions: [] })); setClientId(""); setView("landing"); showToast("Signed out."); };
+  const clientLogout = async () => { try { await fetch("/api/client-logout", { method: "POST" }); } catch (e) {} setState((s) => ({ ...s, sessions: [] })); setClientId(""); setClientAuth(null); setView("landing"); showToast("Signed out."); };
 
   const resetDemo = () => setConfirm({ title: "Reset the demo?", message: "This clears all sessions, services, add-ons, and booking links back to the starting state.", confirmLabel: "Reset everything", danger: true, onYes: async () => { setState(DEFAULT_STATE); try { await storage.delete(STORAGE_KEY); } catch (e) {} showToast("Demo reset."); setConfirm(null); } });
   const requestCancelBooking = (session) => setConfirm({ title: "Cancel this booking?", message: "This marks " + session.clientName + "'s " + session.type + " as cancelled. The client will see it as cancelled in their portal.", confirmLabel: "Cancel booking", danger: true, onYes: () => { patchSession(session.id, { status: "cancelled" }); showToast("Booking cancelled."); setConfirm(null); } });
@@ -328,7 +330,7 @@ export default function App() {
       <main style={{ maxWidth: 1120, margin: "0 auto", padding: "28px 22px 60px" }}>
         {view === "landing" && <LandingPage onBook={() => { setDirectContext(null); setView("book"); }} onClientLogin={() => setView("login")} onStudioLogin={() => setView("studiologin")} />}
         {view === "studiologin" && <StudioLogin onLogin={loginAsStudio} onBack={() => setView("landing")} />}
-        {view === "book" && <BookingFlow state={state} direct={directContext} slotTaken={slotTaken} onCancel={() => { setDirectContext(null); setView("landing"); }} onComplete={createBooking} onLogin={() => setView("login")} catalogLoaded={catalogLoaded} catalogError={catalogError} availability={state.availability} />}
+        {view === "book" && <BookingFlow state={state} direct={directContext} slotTaken={slotTaken} onCancel={() => { setDirectContext(null); setView("landing"); }} onComplete={createBooking} onLogin={() => setView("login")} catalogLoaded={catalogLoaded} catalogError={catalogError} availability={state.availability} authedClient={clientAuth} />}
         {view === "login" && <LoginView onLogin={loginAs} onBook={() => { setDirectContext(null); setView("book"); }} onStudio={() => setView("studiologin")} />}
         {view === "client" && <ClientView session={clientSession} sessions={state.sessions} clientId={clientId} setClientId={setClientId} addComment={addComment} onRescheduleRequest={clientRescheduleRequest} markMessagesRead={markMessagesRead} patchSession={patchSession} resizeImage={resizeImage} showToast={showToast} />}
         {view === "admin" && (
@@ -460,12 +462,12 @@ function AgreementBox({ title, text, pdf, A }) {
   );
 }
 
-function BookingFlow({ state, direct, slotTaken, onCancel, onComplete, onLogin, catalogLoaded, catalogError, availability }) {
+function BookingFlow({ state, direct, slotTaken, onCancel, onComplete, onLogin, catalogLoaded, catalogError, availability, authedClient }) {
   const [step, setStep] = useState(direct ? 2 : 0); // 0 welcome, 1 choose, 2 account, 3 confirm
   const [group, setGroup] = useState(direct?.group || "video");
   const [serviceId, setServiceId] = useState(direct?.serviceId || null);
   const [addonIds, setAddonIds] = useState([]);
-  const [acct, setAcct] = useState({ name: direct?.recipient || "", email: "", phone: "", password: "", signature: "" });
+  const [acct, setAcct] = useState({ name: (authedClient && authedClient.name) || direct?.recipient || "", email: (authedClient && authedClient.email) || "", phone: "", password: "", signature: "" });
   const [date, setDate] = useState(direct?.date || "");
   const [time, setTime] = useState(direct?.time || "");
   const [payChoice, setPayChoice] = useState(null);
@@ -647,7 +649,7 @@ function BookingFlow({ state, direct, slotTaken, onCancel, onComplete, onLogin, 
               {service && (
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 20 }}>
                   <div style={{ ...display, fontSize: 18, color: INK }}>Total: <span style={{ color: A }}>{money(total)}</span></div>
-                  <button onClick={() => setStep(2)} style={{ ...btnSolid, background: A }}>Continue <ArrowRight size={15} /></button>
+                  <button onClick={() => setStep(authedClient ? 3 : 2)} style={{ ...btnSolid, background: A }}>Continue <ArrowRight size={15} /></button>
                 </div>
               )}
             </div>
@@ -769,7 +771,7 @@ function BookingFlow({ state, direct, slotTaken, onCancel, onComplete, onLogin, 
           <div style={{ ...mono, fontSize: 9.5, color: FAINT, marginTop: 4, marginBottom: 18 }}>Payment is simulated in this prototype — Square is wired in a later phase.</div>
 
           <div style={{ display: "flex", justifyContent: "space-between" }}>
-            <button onClick={() => setStep(2)} style={btnGhost}><ArrowLeft size={14} /> Back</button>
+            <button onClick={() => setStep(authedClient ? 1 : 2)} style={btnGhost}><ArrowLeft size={14} /> Back</button>
             <button onClick={() => { if (!date || !time || !payChoice || taken) return; onComplete({ linkId: direct?.id, group, serviceName: service.name, duration: service.duration, addons: chosenAddons.map((a) => ({ name: a.name, price: Number(a.price) || 0 })), total, date, time, payChoice, name: acct.name, email: acct.email }); }} style={{ ...btnSolid, background: date && time && payChoice && !taken ? A : FAINT }}><Check size={15} /> Confirm booking</button>
           </div>
         </div>
@@ -941,6 +943,7 @@ function ClientView({ session, sessions, clientId, setClientId, addComment, onRe
 
   return (
     <div>
+      {session.serviceLine === "photo" && <img src="/dot1-photo-logo.png" alt="Dot One Photography" style={{ height: 52, width: "auto", display: "block", margin: "2px auto 22px" }} />}
       {status === "cancelled" && (
         <div style={{ background: "#fbeeed", border: "1px solid #f2cdc9", borderRadius: 10, padding: "14px 18px", marginBottom: 18 }}>
           <div style={{ ...display, fontSize: 16, color: "#b5271b", marginBottom: 3 }}>This booking was cancelled</div>
@@ -1152,7 +1155,7 @@ function AdminSessions({ state, adminId, setAdminId, requestSetStage, addComment
         </div>
 
         {status === "active" && (session.currentStage < STAGES.length - 1 ? (
-          <button onClick={() => requestSetStage(session, session.currentStage + 1)} style={{ ...btnSolid, background: sg.color, marginBottom: 18, fontSize: 14, padding: "12px 20px" }}>Advance to: {STAGES[session.currentStage + 1].label} <ArrowRight size={16} /></button>
+          <button onClick={() => requestSetStage(session, session.currentStage + 1)} style={{ ...btnSolid, background: sg.color, marginBottom: 18, fontSize: 14, padding: "12px 20px" }}>{session.currentStage === 0 ? "Confirm booking" : "Advance to: " + STAGES[session.currentStage + 1].label} <ArrowRight size={16} /></button>
         ) : (
           <div style={{ ...mono, fontSize: 10.5, letterSpacing: "0.14em", textTransform: "uppercase", color: sg.color, marginBottom: 18 }}>Final delivery reached. This session is complete.</div>
         ))}
