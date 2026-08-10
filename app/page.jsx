@@ -181,7 +181,7 @@ export default function App() {
     (async () => {
       let res = {};
       try { res = await fetch("/api/pay/verify?sid=" + encodeURIComponent(paidSid)).then((r) => r.json()).catch(() => ({})); } catch (e) {}
-      try { const sd = await fetch("/api/sessions").then((r) => r.json()).catch(() => ({})); const sess = (sd && sd.sessions) || []; if (sess.length) { setState((s) => ({ ...s, sessions: sess })); const mine = sess.find((x) => x.id === paidSid) || sess[0]; setClientId(mine.id); setClientAuth({ name: mine.clientName || "", email: mine.clientEmail || "" }); setView("client"); } } catch (e) {}
+      try { const sd = await fetch("/api/sessions").then((r) => r.json()).catch(() => ({})); const sess = (sd && sd.sessions) || []; if (sess.length) { setState((s) => ({ ...s, sessions: sess })); const mine = sess.find((x) => x.id === paidSid) || sess[0]; setClientId(mine.id); setClientAuth({ name: mine.clientName || "", email: mine.clientEmail || "" }); setView("thankyou"); } } catch (e) {}
       showToast(res && res.paid ? "Payment received. Thank you!" : "Thanks! If your payment is still processing, your status will update shortly.");
       try { window.history.replaceState({}, "", "/"); } catch (e) {}
     })();
@@ -272,7 +272,7 @@ export default function App() {
     if (booking.linkId) consumeDirectLink(booking.linkId);
     setDirectContext(null); setClientId(id); setClientAuth({ name: booking.name, email: (booking.email || "").toLowerCase() });
     if ((booking.payAmount || 0) > 0) { payForBooking(id, booking.payAmount, booking.serviceName || GROUPS[grp].label, booking.payChoice); }
-    else { setView("client"); showToast(`Booking confirmed! A new ${GROUPS[grp].label} appointment email was sent to ${notifyEmail}.`); }
+    else { setView("thankyou"); }
   };
   const payForBooking = async (sessionId, amount, label, payChoice) => {
     try {
@@ -331,7 +331,7 @@ export default function App() {
                 <span style={{ ...mono, fontSize: 10, letterSpacing: "0.16em", textTransform: "uppercase", color: STONE }}>Studio</span>
                 <button onClick={adminLogout} style={{ ...mono, fontSize: 10.5, letterSpacing: "0.08em", textTransform: "uppercase", color: STONE, background: "transparent", border: `1px solid ${LINE}`, borderRadius: 6, padding: "8px 12px", cursor: "pointer" }}>Sign out</button>
               </>
-            ) : view === "client" ? (
+            ) : (view === "client" || view === "thankyou") ? (
               <>
                 <span style={{ ...mono, fontSize: 10, letterSpacing: "0.08em", color: STONE }}>{(clientSession && clientSession.clientName) || "Signed in"}</span>
                 <button onClick={() => { setDirectContext(null); setView("book"); }} style={{ display: "flex", alignItems: "center", gap: 7, padding: "8px 14px", borderRadius: 7, cursor: "pointer", fontSize: 12.5, border: `1px solid ${RED}`, background: "#fff", color: RED, fontWeight: 500 }}><Plus size={14} /> Book Again</button>
@@ -354,6 +354,7 @@ export default function App() {
         {view === "book" && <BookingFlow state={state} direct={directContext} slotTaken={slotTaken} onCancel={() => { setDirectContext(null); setView("landing"); }} onComplete={createBooking} onLogin={() => setView("login")} catalogLoaded={catalogLoaded} catalogError={catalogError} availability={state.availability} authedClient={clientAuth} />}
         {view === "login" && <LoginView onLogin={loginAs} onBook={() => { setDirectContext(null); setView("book"); }} onStudio={() => setView("studiologin")} />}
         {view === "client" && <ClientView session={clientSession} sessions={state.sessions} clientId={clientId} setClientId={setClientId} addComment={addComment} onRescheduleRequest={clientRescheduleRequest} markMessagesRead={markMessagesRead} patchSession={patchSession} resizeImage={resizeImage} showToast={showToast} />}
+        {view === "thankyou" && <ThankYou session={clientSession} onPortal={() => setView("client")} />}
         {view === "admin" && (
           <div>
             <div style={{ display: "flex", gap: 6, marginBottom: 24, borderBottom: `1px solid ${LINE}`, flexWrap: "wrap" }}>
@@ -380,6 +381,33 @@ export default function App() {
 }
 
 /* ============================ LANDING (first-use entry) ============================ */
+function ThankYou({ session, onPortal }) {
+  const grp = session ? (GROUPS[session.serviceLine] || GROUPS.video) : GROUPS.video;
+  const paid = session && session.paymentStatus === "paid";
+  const isPhoto = session && session.serviceLine === "photo";
+  return (
+    <div style={{ maxWidth: 580, margin: "0 auto", padding: "44px 24px 40px", textAlign: "center" }}>
+      <img src={isPhoto ? "/dot1-photo-logo.png" : "/dot1-logo.png"} alt="Dot One Media" style={{ height: isPhoto ? 52 : 44, width: "auto", margin: "0 auto 26px", display: "block" }} />
+      <div style={{ width: 56, height: 56, borderRadius: "50%", background: grp.bg, border: `1.5px solid ${grp.border}`, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 20px" }}>
+        <Check size={27} color={grp.color} />
+      </div>
+      <div style={{ ...mono, fontSize: 11, letterSpacing: "0.22em", textTransform: "uppercase", color: grp.color, marginBottom: 14 }}>Booking Confirmed</div>
+      <h1 style={{ ...display, fontWeight: 700, fontSize: 31, color: INK, lineHeight: 1.15, marginBottom: 14 }}>Thank you for booking with Dot One Media</h1>
+      {session && (
+        <div style={{ fontSize: 15, color: BODY, lineHeight: 1.6, marginBottom: paid ? 8 : 4 }}>
+          Your <strong style={{ color: INK }}>{session.type}</strong> is booked{session.date ? " for " + fmtDate(session.date) : ""}{session.time ? " at " + fmtTime(session.time) : ""}.
+        </div>
+      )}
+      {paid && <div style={{ ...mono, fontSize: 10.5, letterSpacing: "0.12em", textTransform: "uppercase", color: "#3f7a3f", marginBottom: 4 }}>Payment received</div>}
+      <p style={{ fontSize: 14, color: BODY, lineHeight: 1.65, maxWidth: 460, margin: "14px auto 28px" }}>
+        We've emailed your confirmation, and your client portal is ready. Sign in anytime with your email and password to follow your project from booking through final delivery.
+      </p>
+      <button onClick={onPortal} style={{ ...btnSolid, background: grp.color, fontSize: 15, padding: "13px 28px", margin: "0 auto" }}>Go to my portal <ArrowRight size={16} /></button>
+      <div style={{ ...mono, fontSize: 10, letterSpacing: "0.14em", textTransform: "uppercase", color: FAINT, marginTop: 22 }}>portal.dot1.media</div>
+    </div>
+  );
+}
+
 function LandingPage({ onBook, onClientLogin, onStudioLogin }) {
   return (
     <div style={{ maxWidth: 760, margin: "10px auto 0" }}>
@@ -805,7 +833,7 @@ function BookingFlow({ state, direct, slotTaken, onCancel, onComplete, onLogin, 
 
           <div style={{ display: "flex", justifyContent: "space-between" }}>
             <button onClick={() => setStep(authedClient ? 1 : 2)} style={btnGhost}><ArrowLeft size={14} /> Back</button>
-            <button onClick={() => { if (!date || !time || !payChoice || taken) return; const so = rules.options.find((o) => o.key === payChoice); const payAmount = so ? (so.fixed != null ? so.fixed : Math.round(total * ((so.pct || 0) / 100))) : 0; onComplete({ linkId: direct?.id, group, serviceName: service.name, duration: apptLen, apptMin: apptLen, padBefore: padB, padAfter: padA, addons: chosenAddons.map((a) => ({ name: a.name, price: Number(a.price) || 0, addTime: Number(a.addTime) || 0 })), total, payAmount, date, time, payChoice, name: acct.name, email: acct.email }); }} style={{ ...btnSolid, background: date && time && payChoice && !taken ? A : FAINT }}><Check size={15} /> Confirm booking</button>
+            <button onClick={() => { if (!date || !time || !payChoice || taken) return; const so = rules.options.find((o) => o.key === payChoice); const payAmount = so ? (so.fixed != null ? so.fixed : Math.round(total * ((so.pct || 0) / 100))) : 0; onComplete({ linkId: direct?.id, group, serviceName: service.name, duration: apptLen, apptMin: apptLen, padBefore: padB, padAfter: padA, addons: chosenAddons.map((a) => ({ name: a.name, price: Number(a.price) || 0, addTime: Number(a.addTime) || 0 })), total, payAmount, date, time, payChoice, name: acct.name, email: acct.email }); }} style={{ ...btnSolid, background: date && time && payChoice && !taken ? A : FAINT }}><Check size={15} /> {(() => { const so = rules.options.find((o) => o.key === payChoice); const amt = so ? (so.fixed != null ? so.fixed : Math.round(total * ((so.pct || 0) / 100))) : 0; return amt > 0 ? "Continue to payment · " + money(amt) : "Confirm booking"; })()}</button>
           </div>
         </div>
       )}
