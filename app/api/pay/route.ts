@@ -39,7 +39,9 @@ export async function POST(request: Request) {
   });
   const data = await res.json().catch(() => ({}));
   if (!res.ok || !data.payment_link || !data.payment_link.url) {
-    return NextResponse.json({ error: "Could not start checkout." }, { status: 502 });
+    const e0 = data && Array.isArray(data.errors) && data.errors[0] ? data.errors[0] : null;
+    const detail = e0 ? (e0.code + (e0.detail ? ": " + e0.detail : "")) : ("HTTP " + res.status);
+    return NextResponse.json({ error: "Square error (" + detail + ")", configured: true }, { status: 502 });
   }
   const orderId = data.payment_link.order_id || "";
   const rows = await sql`SELECT data FROM portal_sessions WHERE id = ${sessionId} LIMIT 1`;

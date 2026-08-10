@@ -280,7 +280,7 @@ export default function App() {
       const data = await res.json().catch(() => ({}));
       if (res.ok && data.url) { window.location.href = data.url; return; }
       setView("client");
-      showToast(data.configured === false ? "Booking confirmed. We'll reach out to arrange payment." : "Booking confirmed. Checkout couldn't start, we'll follow up on payment.");
+      showToast(data.configured === false ? "Booking confirmed. We'll reach out to arrange payment." : (data.error ? ("Payment could not start. " + data.error) : "Booking confirmed. Checkout could not start."));
     } catch (e) { setView("client"); showToast("Booking confirmed."); }
   };
 
