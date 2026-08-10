@@ -206,16 +206,13 @@ export default function App() {
       <header style={{ borderBottom: `1px solid ${LINE}`, background: PAPER }}>
         <div style={{ maxWidth: 1120, margin: "0 auto", padding: "16px 22px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
           <div style={{ display: "flex", alignItems: "baseline", gap: 12 }}>
-            <span style={{ ...display, fontWeight: 700, fontSize: 22, color: INK, letterSpacing: "-0.01em" }}>Dot One Media<span style={{ color: RED }}>.</span></span>
+            <img src="/dot1-logo.png" alt="Dot One Media" style={{ height: 26, width: "auto", display: "block" }} />
             <span style={{ ...mono, fontSize: 10, letterSpacing: "0.22em", textTransform: "uppercase", color: FAINT }}>Client Portal</span>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
             <button onClick={() => setView("landing")} title="Portal home (first-use landing)" style={{ ...mono, fontSize: 10, letterSpacing: "0.1em", textTransform: "uppercase", color: view === "landing" ? INK : STONE, background: "transparent", border: `1px solid ${view === "landing" ? INK : LINE}`, borderRadius: 6, padding: "8px 10px", cursor: "pointer" }}>Home</button>
             <button onClick={() => { setDirectContext(null); setView("book"); }} style={{ display: "flex", alignItems: "center", gap: 7, padding: "8px 14px", borderRadius: 7, cursor: "pointer", fontSize: 12.5, border: `1px solid ${RED}`, background: view === "book" ? RED : "#fff", color: view === "book" ? "#fff" : RED, fontWeight: 500 }}><Plus size={14} /> Book a Session</button>
             <button onClick={() => setView("login")} style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 12px", borderRadius: 7, cursor: "pointer", fontSize: 12.5, border: `1px solid ${view === "login" ? INK : LINE}`, background: view === "login" ? INK : PAPER, color: view === "login" ? "#fff" : STONE }}><LogIn size={13} /> Log in</button>
-            <Toggle active={view === "client"} onClick={() => setView("client")} Icon={User} label="Client View" />
-            <Toggle active={view === "admin"} onClick={() => setView("admin")} Icon={LayoutDashboard} label="Studio View" />
-            <button onClick={resetDemo} title="Reset the demo" style={{ ...mono, fontSize: 10, letterSpacing: "0.12em", textTransform: "uppercase", color: STONE, background: "transparent", border: `1px solid ${LINE}`, borderRadius: 6, padding: "8px 10px", cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}><RotateCcw size={12} /> Reset</button>
           </div>
         </div>
       </header>
@@ -254,7 +251,7 @@ function LandingPage({ onBook, onClientLogin, onStudioLogin }) {
   return (
     <div style={{ maxWidth: 760, margin: "10px auto 0" }}>
       <div style={{ textAlign: "center", padding: "20px 0 4px" }}>
-        <div style={{ ...display, fontWeight: 700, fontSize: 34, color: INK, letterSpacing: "-0.01em", marginBottom: 4 }}>Dot One Media<span style={{ color: RED }}>.</span></div>
+        <div style={{ marginBottom: 8 }}><img src="/dot1-logo.png" alt="Dot One Media" style={{ height: 62, width: "auto", margin: "0 auto", display: "block" }} /></div>
         <div style={{ ...mono, fontSize: 11, letterSpacing: "0.24em", textTransform: "uppercase", color: FAINT, marginBottom: 22 }}>Client Portal</div>
         <h1 style={{ ...display, fontWeight: 700, fontSize: 40, color: INK, lineHeight: 1.06, letterSpacing: "-0.02em", marginBottom: 14 }}>Your project,<br />start to finish.</h1>
         <p style={{ fontSize: 15.5, color: BODY, lineHeight: 1.6, maxWidth: 520, margin: "0 auto 30px" }}>
