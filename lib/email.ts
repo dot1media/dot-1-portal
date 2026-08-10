@@ -47,7 +47,7 @@ function shell(eyebrow: string, heading: string, bodyHtml: string): string {
   return `<div style="margin:0;padding:0;background:${CREAM};">
   <div style="max-width:600px;margin:0 auto;padding:40px 22px;font-family:${SANS};color:#2b2926;">
     <div style="text-align:center;margin-bottom:30px;">
-      <div style="font-family:${SERIF};font-size:27px;font-weight:700;color:${INK};letter-spacing:-0.01em;">Dot One Media<span style="color:${RED};">.</span></div>
+      <img src="https://portal.dot1.media/dot1-logo.png" alt="Dot One Media" style="height:42px;width:auto;display:inline-block;" />
       <div style="font-family:${SANS};font-size:10px;letter-spacing:0.3em;text-transform:uppercase;color:${FAINT};margin-top:9px;">Create with purpose</div>
     </div>
     <div style="background:#ffffff;border:1px solid ${LINE};border-radius:14px;padding:36px 34px;">

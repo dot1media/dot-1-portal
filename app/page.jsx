@@ -1151,6 +1151,11 @@ function AdminSessions({ state, adminId, setAdminId, requestSetStage, addComment
           )}
         </div>
 
+        {status === "active" && (session.currentStage < STAGES.length - 1 ? (
+          <button onClick={() => requestSetStage(session, session.currentStage + 1)} style={{ ...btnSolid, background: sg.color, marginBottom: 18, fontSize: 14, padding: "12px 20px" }}>Advance to: {STAGES[session.currentStage + 1].label} <ArrowRight size={16} /></button>
+        ) : (
+          <div style={{ ...mono, fontSize: 10.5, letterSpacing: "0.14em", textTransform: "uppercase", color: sg.color, marginBottom: 18 }}>Final delivery reached. This session is complete.</div>
+        ))}
         <div style={{ ...mono, fontSize: 10.5, letterSpacing: "0.18em", textTransform: "uppercase", color: STONE, marginBottom: 12 }}>Advance the session — click a stage to set it current</div>
         <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 8 }}>
           {STAGES.map((st, i) => { const done = i < session.currentStage, current = i === session.currentStage, St = st.Icon; return (
