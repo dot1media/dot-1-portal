@@ -21,18 +21,33 @@ for (const f of [
 console.log("\n2. Environment (.env.local)");
 const env = {};
 if (!fs.existsSync(".env.local")) {
-  bad(".env.local not found -- run: npx vercel env pull .env.local");
+  bad(
+    ".env.local not found -- run: npx vercel env pull .env.local --environment=production"
+  );
 } else {
   for (const line of fs.readFileSync(".env.local", "utf8").split("\n")) {
-    const m = line.match(/^\s*([A-Z0-9_]+)\s*=\s*(.*)\s*$/);
-    if (m) env[m[1]] = m[2].replace(/^["']|["']$/g, "");
+    const m = line.match(/^\s*([A-Za-z0-9_]+)\s*=\s*(.*?)\s*$/);
+    if (!m) continue;
+    let v = m[2].trim();
+    if (
+      (v.startsWith('"') && v.endsWith('"')) ||
+      (v.startsWith("'") && v.endsWith("'"))
+    ) {
+      v = v.slice(1, -1);
+    }
+    env[m[1]] = v;
   }
-  env.DATABASE_URL
-    ? ok("DATABASE_URL present")
-    : bad("DATABASE_URL missing from .env.local");
-  env.BLOB_READ_WRITE_TOKEN
-    ? ok("BLOB_READ_WRITE_TOKEN present")
-    : bad("BLOB_READ_WRITE_TOKEN missing from .env.local");
+  env.DATABASE_URL ? ok("DATABASE_URL present") : bad("DATABASE_URL missing");
+
+  if (env.BLOB_READ_WRITE_TOKEN) {
+    ok("Blob auth: BLOB_READ_WRITE_TOKEN present");
+  } else if (env.BLOB_STORE_ID && env.VERCEL_OIDC_TOKEN) {
+    ok("Blob auth: OIDC (BLOB_STORE_ID + VERCEL_OIDC_TOKEN) present");
+  } else {
+    bad(
+      "Blob auth missing: need BLOB_READ_WRITE_TOKEN, or BLOB_STORE_ID + VERCEL_OIDC_TOKEN"
+    );
+  }
 }
 
 console.log("\n3. Neon database");
