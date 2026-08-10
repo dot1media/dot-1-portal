@@ -491,19 +491,31 @@ function PortalFooter() {
   );
 }
 
+function useIsMobile() {
+  const [m, setM] = useState(typeof window !== "undefined" && window.innerWidth < 640);
+  useEffect(() => {
+    const on = () => setM(window.innerWidth < 640);
+    on();
+    window.addEventListener("resize", on);
+    return () => window.removeEventListener("resize", on);
+  }, []);
+  return m;
+}
+
 function LandingPage({ onBook, onClientLogin, onStudioLogin }) {
+  const isMobile = useIsMobile();
   return (
     <div style={{ maxWidth: 760, margin: "10px auto 0" }}>
       <div style={{ textAlign: "center", padding: "20px 0 4px" }}>
         <div style={{ marginBottom: 10 }}><img src="/dot1-logo-anim.gif" alt="Dot One Media" style={{ height: 186, width: "auto", margin: "0 auto", display: "block" }} /></div>
         <div style={{ ...mono, fontSize: 11, letterSpacing: "0.24em", textTransform: "uppercase", color: FAINT, marginBottom: 22 }}>Client Portal</div>
-        <h1 style={{ ...display, fontWeight: 700, fontSize: 40, color: INK, lineHeight: 1.1, letterSpacing: "0", marginBottom: 14 }}>Your project,<br />start to finish.</h1>
+        <h1 style={{ ...display, fontWeight: 700, fontSize: isMobile ? 29 : 40, color: INK, lineHeight: 1.1, letterSpacing: "0", marginBottom: 14 }}>Your project,<br />start to finish.</h1>
         <p style={{ fontSize: 15.5, color: BODY, lineHeight: 1.6, maxWidth: 520, margin: "0 auto 30px" }}>
           Book a session, then follow every step from the shoot to your final delivery, all in one place. Welcome to your studio's home for the work we make together.
         </p>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 16 }}>
+      <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 16, marginBottom: 16 }}>
         <button onClick={onBook} style={{ textAlign: "left", cursor: "pointer", background: RED, border: "none", borderRadius: 14, padding: "22px 24px", color: "#fff" }}>
           <Sparkles size={22} style={{ marginBottom: 12 }} />
           <div style={{ ...display, fontWeight: 700, fontSize: 20, marginBottom: 4 }}>Book a session</div>
@@ -961,6 +973,7 @@ function BookingFlow({ state, direct, slotTaken, onCancel, onComplete, onLogin, 
 
 /* ============================ DIRECT BOOKING LINKS ============================ */
 function DirectLinks({ state, createDirectLink, revokeDirectLink, openDirectLink, showToast }) {
+  const isMobile = useIsMobile();
   const [group, setGroup] = useState("video");
   const [serviceId, setServiceId] = useState("");
   const [date, setDate] = useState("");
@@ -992,7 +1005,7 @@ function DirectLinks({ state, createDirectLink, revokeDirectLink, openDirectLink
         Pick a service and an exact date and time, then generate a private link to text or send through Messenger. The slot is held the moment you create the link, so no one else can take it. The link works once, for one client.
       </p>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24 }}>
+      <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 24 }}>
         {/* generator */}
         <div style={{ background: PAPER, border: `1px solid ${LINE}`, borderRadius: 12, padding: "18px 20px", alignSelf: "start" }}>
           <div style={{ ...mono, fontSize: 10.5, letterSpacing: "0.16em", textTransform: "uppercase", color: STONE, marginBottom: 14 }}>Create a link</div>
@@ -1261,6 +1274,7 @@ function ClientActionPanel({ session, grp, draft, setDraft, onSubmit }) {
 
 /* ============================ ADMIN — SESSIONS ============================ */
 function AdminSessions({ state, adminId, setAdminId, requestSetStage, addComment, patchSession, onReschedule, slotTaken, markMessagesRead, onCancelBooking, onCloseBooking, onReopenBooking, onSendBalance, onDeleteBooking }) {
+  const isMobile = useIsMobile();
   const session = state.sessions.find((s) => s.id === adminId) || state.sessions[0] || null;
   const [msg, setMsg] = useState("");
   const [editLinks, setEditLinks] = useState(false);
@@ -1278,7 +1292,7 @@ function AdminSessions({ state, adminId, setAdminId, requestSetStage, addComment
   const reschedClash = slotTaken(reschedDate, reschedTime, session.id);
 
   return (
-    <div style={{ display: "grid", gridTemplateColumns: "260px 1fr", gap: 26 }}>
+    <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "260px 1fr", gap: isMobile ? 20 : 26 }}>
       <div>
         <div style={{ ...mono, fontSize: 10.5, letterSpacing: "0.2em", textTransform: "uppercase", color: RED, marginBottom: 14 }}>Sessions</div>
         {state.sessions.map((s) => { const selected = s.id === adminId; const grp = GROUPS[s.serviceLine] || GROUPS.video; const unread = s.comments.filter((c) => c.author === "client" && !c.read).length; return (
@@ -1541,6 +1555,7 @@ function AvailabilityManager({ availability, addAvailability, removeAvailability
 }
 
 function ServiceCatalog({ state, addService, updateService, deleteService, addAddon, updateAddon, deleteAddon, showToast }) {
+  const isMobile = useIsMobile();
   const [group, setGroup] = useState("video");
   const [svcForm, setSvcForm] = useState(null);
   const [addonForm, setAddonForm] = useState(null);
@@ -1560,7 +1575,7 @@ function ServiceCatalog({ state, addService, updateService, deleteService, addAd
         ); })}
       </div>
       <PaymentRuleBanner group={group} />
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24 }}>
+      <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 24 }}>
         <div>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
             <div style={{ ...mono, fontSize: 11, letterSpacing: "0.18em", textTransform: "uppercase", color: g.color, display: "flex", alignItems: "center", gap: 8 }}><Tag size={13} /> {g.label} Services</div>
@@ -1741,6 +1756,7 @@ function downloadCsv(rows, filename) {
 }
 
 function BusinessSettings({ sessions, showToast }) {
+  const isMobile = useIsMobile();
   const [start, setStart] = useState("");
   const [end, setEnd] = useState("");
   const [status, setStatus] = useState(null);
@@ -1786,7 +1802,7 @@ function BusinessSettings({ sessions, showToast }) {
       <div style={{ fontSize: 13, color: BODY, lineHeight: 1.5, marginBottom: 24, maxWidth: 600 }}>Export your records, review revenue for a period, and confirm payments and email are live.</div>
 
       <div style={{ ...mono, fontSize: 10.5, letterSpacing: "0.16em", textTransform: "uppercase", color: STONE, marginBottom: 10 }}>System status</div>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 28 }}>
+      <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 10, marginBottom: 28 }}>
         {modeBadge("Payments", status ? (status.squareMode === "production" ? "Live (production)" : status.squareMode === "sandbox" ? "Test (sandbox)" : "Off") : "\u2026", !!(status && status.squareMode === "production"))}
         {modeBadge("Email", status ? (status.emailOn ? "On" : "Off") : "\u2026", !!(status && status.emailOn))}
       </div>
@@ -1797,7 +1813,7 @@ function BusinessSettings({ sessions, showToast }) {
         <div><FieldLabel>To</FieldLabel><input type="date" value={end} onChange={(e) => setEnd(e.target.value)} style={{ ...inputStyle, width: "auto" }} /></div>
         {(start || end) && <button onClick={() => { setStart(""); setEnd(""); }} style={{ ...mono, fontSize: 10.5, letterSpacing: "0.06em", color: STONE, background: "transparent", border: `1px solid ${LINE}`, borderRadius: 7, padding: "9px 12px", cursor: "pointer" }}>All time</button>}
       </div>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10, marginBottom: 26 }}>
+      <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr 1fr", gap: 10, marginBottom: 26 }}>
         {statCard(activeCount, "Bookings")}
         {statCard(money(collected), "Collected", "#3f7a3f")}
         {statCard(money(outstanding), "Outstanding", "#a97a2e")}
