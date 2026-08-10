@@ -345,7 +345,7 @@ export default function App() {
             {adminTab === "sessions" && <AdminSessions state={state} adminId={adminId} setAdminId={setAdminId} requestSetStage={requestSetStage} addComment={addComment} patchSession={patchSession} onReschedule={adminReschedule} slotTaken={slotTaken} markMessagesRead={markMessagesRead} onCancelBooking={requestCancelBooking} onCloseBooking={requestCloseBooking} onReopenBooking={requestReopenBooking} />}
             {adminTab === "calendar" && <AdminCalendar state={state} onSelectSession={(id) => { setAdminId(id); setAdminTab("sessions"); }} />}
             {adminTab === "links" && <DirectLinks state={state} createDirectLink={createDirectLink} revokeDirectLink={revokeDirectLink} openDirectLink={openDirectLink} showToast={showToast} />}
-            {adminTab === "availability" && <AvailabilityManager availability={state.availability} addAvailability={addAvailability} removeAvailability={removeAvailability} showToast={showToast} />}
+            {adminTab === "availability" && <><CalendarSync showToast={showToast} /><AvailabilityManager availability={state.availability} addAvailability={addAvailability} removeAvailability={removeAvailability} showToast={showToast} /></>}
             {adminTab === "services" && <ServiceCatalog state={state} addService={addService} updateService={updateService} deleteService={deleteService} addAddon={addAddon} updateAddon={updateAddon} deleteAddon={deleteAddon} showToast={showToast} />}
           </div>
         )}
@@ -1290,6 +1290,32 @@ function DayCell({ day, isToday, sessions, holds, accent, onSelect }) {
 }
 
 /* ============================ SERVICE CATALOG ============================ */
+function CalendarSync({ showToast }) {
+  const [url, setUrl] = useState("");
+  useEffect(() => { fetch("/api/calendar-url").then((r) => r.json()).then((d) => { if (d && d.url) setUrl(d.url); }).catch(() => {}); }, []);
+  const copy = () => { if (!url) return; try { navigator.clipboard.writeText(url); showToast("Calendar link copied."); } catch (e) { showToast("Select the link and copy it manually."); } };
+  return (
+    <div style={{ border: `1px solid ${LINE}`, borderRadius: 10, padding: "18px 20px", marginBottom: 26, background: PAPER }}>
+      <div style={{ ...mono, fontSize: 11, letterSpacing: "0.18em", textTransform: "uppercase", color: RED, marginBottom: 6, display: "flex", alignItems: "center", gap: 8 }}><CalendarCheck size={13} /> Sync bookings to your calendar</div>
+      <div style={{ fontSize: 13, color: BODY, lineHeight: 1.5, marginBottom: 14, maxWidth: 620 }}>Add this private link to Google or Apple Calendar and your bookings appear there automatically. Keep it private: anyone with the link can see your booking schedule.</div>
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center", marginBottom: 18 }}>
+        <input readOnly value={url || "Loading..."} onFocus={(e) => e.target.select()} style={{ ...inputStyle, flex: 1, minWidth: 260, fontFamily: "monospace", fontSize: 11.5 }} />
+        <button onClick={copy} style={{ ...btnSolid, background: RED }}><Copy size={14} /> Copy link</button>
+      </div>
+      <div style={{ display: "flex", gap: 22, flexWrap: "wrap" }}>
+        <div style={{ flex: 1, minWidth: 240 }}>
+          <div style={{ ...mono, fontSize: 10, letterSpacing: "0.14em", textTransform: "uppercase", color: STONE, marginBottom: 6 }}>Google Calendar</div>
+          <div style={{ fontSize: 12, color: BODY, lineHeight: 1.6 }}>Open Google Calendar on the web. Next to "Other calendars," click + then "From URL." Paste the link and click "Add calendar."</div>
+        </div>
+        <div style={{ flex: 1, minWidth: 240 }}>
+          <div style={{ ...mono, fontSize: 10, letterSpacing: "0.14em", textTransform: "uppercase", color: STONE, marginBottom: 6 }}>Apple Calendar</div>
+          <div style={{ fontSize: 12, color: BODY, lineHeight: 1.6 }}>In the Calendar app, choose File, then "New Calendar Subscription." Paste the link, click Subscribe, and set your refresh interval.</div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function AvailabilityManager({ availability, addAvailability, removeAvailability, showToast }) {
   const [date, setDate] = useState("");
   const [start, setStart] = useState("09:00");

@@ -57,3 +57,8 @@ export function verifyPassword(password: string, stored: string | null | undefin
   return a.length === b.length && crypto.timingSafeEqual(a, b);
 }
 
+export function calendarToken(): string {
+  const secret = process.env.SESSION_SECRET || "";
+  return crypto.createHmac("sha256", secret).update("dot1-calendar-feed").digest("hex").slice(0, 32);
+}
+
