@@ -246,9 +246,15 @@ export default function App() {
     if (s) { setClientId(s.id); setView("client"); showToast("Welcome back, " + s.clientName + "!"); }
     else showToast("No account found with that email. Try booking a session first.");
   };
-  const loginAsStudio = (email) => {
-    if (ADMINS.includes(email.trim().toLowerCase())) { setView("admin"); showToast("Signed in to the studio dashboard."); }
-    else showToast("That isn't a studio account. Use your Dot One Media admin email.");
+  const loginAsStudio = async (email, password) => {
+    try {
+      const res = await fetch("/api/auth/login", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ email: (email || "").trim(), password: password || "" }) });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data.ok) { setView("admin"); showToast("Signed in to the studio dashboard."); return { ok: true }; }
+      return { ok: false, error: data.error || "Incorrect email or password." };
+    } catch (e) {
+      return { ok: false, error: "Could not reach the server. Please try again." };
+    }
   };
 
   const resetDemo = () => setConfirm({ title: "Reset the demo?", message: "This clears all sessions, services, add-ons, and booking links back to the starting state.", confirmLabel: "Reset everything", danger: true, onYes: async () => { setState(DEFAULT_STATE); try { await storage.delete(STORAGE_KEY); } catch (e) {} showToast("Demo reset."); setConfirm(null); } });
@@ -276,7 +282,7 @@ export default function App() {
       <main style={{ maxWidth: 1120, margin: "0 auto", padding: "28px 22px 60px" }}>
         {view === "landing" && <LandingPage onBook={() => { setDirectContext(null); setView("book"); }} onClientLogin={() => setView("login")} onStudioLogin={() => setView("studiologin")} />}
         {view === "studiologin" && <StudioLogin onLogin={loginAsStudio} onBack={() => setView("landing")} />}
-        {view === "book" && <BookingFlow state={state} direct={directContext} slotTaken={slotTaken} onCancel={() => { setDirectContext(null); setView("landing"); }} onComplete={createBooking} goStudio={() => { setView("admin"); setAdminTab("services"); }} onLogin={() => setView("login")} />}
+        {view === "book" && <BookingFlow state={state} direct={directContext} slotTaken={slotTaken} onCancel={() => { setDirectContext(null); setView("landing"); }} onComplete={createBooking} onLogin={() => setView("login")} />}
         {view === "login" && <LoginView onLogin={loginAs} onBook={() => { setDirectContext(null); setView("book"); }} onStudio={() => setView("studiologin")} />}
         {view === "client" && <ClientView session={clientSession} sessions={state.sessions} clientId={clientId} setClientId={setClientId} addComment={addComment} onRescheduleRequest={clientRescheduleRequest} markMessagesRead={markMessagesRead} patchSession={patchSession} resizeImage={resizeImage} showToast={showToast} />}
         {view === "admin" && (
@@ -341,20 +347,29 @@ function LandingPage({ onBook, onClientLogin, onStudioLogin }) {
 function StudioLogin({ onLogin, onBack }) {
   const [email, setEmail] = useState("");
   const [pw, setPw] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState("");
+  const submit = async () => {
+    if (!email.trim() || !pw) { setErr("Enter your studio email and password."); return; }
+    setErr(""); setBusy(true);
+    const r = await onLogin(email, pw);
+    setBusy(false);
+    if (r && !r.ok) setErr(r.error || "Sign in failed.");
+  };
   return (
     <div style={{ maxWidth: 400, margin: "20px auto 0" }}>
       <div style={{ textAlign: "center", marginBottom: 24 }}>
         <div style={{ width: 46, height: 46, borderRadius: "50%", background: INK, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 12px" }}><LayoutDashboard size={22} color="#fff" /></div>
         <div style={{ ...display, fontWeight: 700, fontSize: 26, color: INK, marginBottom: 6 }}>Studio sign in</div>
-        <div style={{ fontSize: 13.5, color: STONE, lineHeight: 1.5 }}>For Dot One Media staff.</div>
+        <div style={{ fontSize: 13.5, color: STONE, lineHeight: 1.5 }}>For Dot One Media staff only.</div>
       </div>
       <div style={{ background: PAPER, border: `1px solid ${LINE}`, borderRadius: 12, padding: "22px 24px" }}>
         <FieldLabel>Studio email</FieldLabel>
         <TextInput value={email} onChange={setEmail} placeholder="you@dot1.media" />
         <FieldLabel>Password</FieldLabel>
-        <TextInput value={pw} onChange={setPw} placeholder="••••••••" />
-        <button onClick={() => { if (!email.trim()) return; onLogin(email); }} style={{ ...btnSolid, background: INK, width: "100%", justifyContent: "center", marginTop: 6, padding: "11px" }}><LogIn size={15} /> Sign in to studio</button>
-        <div style={{ ...mono, fontSize: 9.5, color: FAINT, textAlign: "center", marginTop: 12, lineHeight: 1.5 }}>Demo: <span style={{ color: STONE }}>video@dot1.media</span> or <span style={{ color: STONE }}>photo@dot1.media</span></div>
+        <input type="password" value={pw} onChange={(e) => setPw(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") submit(); }} placeholder="Your password" style={{ width: "100%", border: `1px solid ${LINE}`, borderRadius: 8, padding: "10px 12px", fontSize: 14, fontFamily: "inherit", background: PAPER, color: BODY, boxSizing: "border-box" }} />
+        {err && <div style={{ marginTop: 10, fontSize: 12.5, color: "#b5271b", display: "flex", alignItems: "center", gap: 7 }}><AlertTriangle size={13} /> {err}</div>}
+        <button onClick={submit} disabled={busy} style={{ ...btnSolid, background: busy ? FAINT : INK, width: "100%", justifyContent: "center", marginTop: 14, padding: "11px" }}><LogIn size={15} /> {busy ? "Signing in..." : "Sign in to studio"}</button>
       </div>
       <div style={{ textAlign: "center", marginTop: 16, fontSize: 13, color: STONE }}><span onClick={onBack} style={{ color: RED, cursor: "pointer" }}>← Back to portal home</span></div>
     </div>
@@ -397,7 +412,7 @@ function AgreementBox({ title, text, pdf, A }) {
   );
 }
 
-function BookingFlow({ state, direct, slotTaken, onCancel, onComplete, goStudio, onLogin }) {
+function BookingFlow({ state, direct, slotTaken, onCancel, onComplete, onLogin }) {
   const [step, setStep] = useState(direct ? 2 : 0); // 0 welcome, 1 choose, 2 account, 3 confirm
   const [group, setGroup] = useState(direct?.group || "video");
   const [serviceId, setServiceId] = useState(direct?.serviceId || null);
@@ -529,9 +544,8 @@ function BookingFlow({ state, direct, slotTaken, onCancel, onComplete, goStudio,
           </div>
           {groupServices.length === 0 ? (
             <div style={{ border: `1px dashed ${LINE}`, borderRadius: 10, padding: "28px", textAlign: "center", background: PAPER }}>
-              <div style={{ ...display, fontSize: 17, color: INK, marginBottom: 6 }}>No {GROUPS[group].label} services yet</div>
-              <div style={{ fontSize: 13, color: STONE, marginBottom: 16, lineHeight: 1.5 }}>This booking page shows the services you create in your catalog. Add some first, then they'll appear here.</div>
-              <button onClick={goStudio} style={{ ...btnSolid, background: INK, margin: "0 auto" }}><Tag size={14} /> Go to Services & Add-ons</button>
+              <div style={{ ...display, fontSize: 17, color: INK, marginBottom: 6 }}>No {GROUPS[group].label} services available yet</div>
+              <div style={{ fontSize: 13, color: STONE, lineHeight: 1.5 }}>Please check back soon, or reach out to us directly and we'll help you book.</div>
             </div>
           ) : (
             <div>
