@@ -251,9 +251,9 @@ function LandingPage({ onBook, onClientLogin, onStudioLogin }) {
   return (
     <div style={{ maxWidth: 760, margin: "10px auto 0" }}>
       <div style={{ textAlign: "center", padding: "20px 0 4px" }}>
-        <div style={{ marginBottom: 8 }}><img src="/dot1-logo.png" alt="Dot One Media" style={{ height: 62, width: "auto", margin: "0 auto", display: "block" }} /></div>
+        <div style={{ marginBottom: 10 }}><img src="/dot1-logo-anim.gif" alt="Dot One Media" style={{ height: 186, width: "auto", margin: "0 auto", display: "block" }} /></div>
         <div style={{ ...mono, fontSize: 11, letterSpacing: "0.24em", textTransform: "uppercase", color: FAINT, marginBottom: 22 }}>Client Portal</div>
-        <h1 style={{ ...display, fontWeight: 700, fontSize: 40, color: INK, lineHeight: 1.06, letterSpacing: "-0.02em", marginBottom: 14 }}>Your project,<br />start to finish.</h1>
+        <h1 style={{ ...display, fontWeight: 700, fontSize: 40, color: INK, lineHeight: 1.1, letterSpacing: "0", marginBottom: 14 }}>Your project,<br />start to finish.</h1>
         <p style={{ fontSize: 15.5, color: BODY, lineHeight: 1.6, maxWidth: 520, margin: "0 auto 30px" }}>
           Book a session, then follow every step from the shoot to your final delivery, all in one place. Welcome to your studio's home for the work we make together.
         </p>
