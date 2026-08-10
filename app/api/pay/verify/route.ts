@@ -4,11 +4,11 @@ import { sql } from "@/lib/db";
 export const runtime = "nodejs";
 
 function squareBase() {
-  return process.env.SQUARE_ENV === "sandbox" ? "https://connect.squareupsandbox.com" : "https://connect.squareup.com";
+  return (process.env.SQUARE_ENV || "").trim() === "sandbox" ? "https://connect.squareupsandbox.com" : "https://connect.squareup.com";
 }
 
 export async function GET(request: Request) {
-  const token = process.env.SQUARE_ACCESS_TOKEN;
+  const token = (process.env.SQUARE_ACCESS_TOKEN || "").trim();
   const { searchParams } = new URL(request.url);
   const sid = String(searchParams.get("sid") || "");
   if (!sid) return NextResponse.json({ error: "Missing sid." }, { status: 400 });
