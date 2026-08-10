@@ -82,6 +82,7 @@ const DEFAULT_STATE = {
   ],
   services: [],
   addons: [],
+  availability: [],
   directLinks: [],
 };
 
@@ -162,8 +163,9 @@ export default function App() {
   }, []);
   const [catalogLoaded, setCatalogLoaded] = useState(false);
   const [catalogError, setCatalogError] = useState(false);
-  useEffect(() => { if (!loaded) return; (async () => { try { const { services, addons, ...rest } = state; await storage.set(STORAGE_KEY, JSON.stringify(rest)); } catch (e) {} })(); }, [state, loaded]);
+  useEffect(() => { if (!loaded) return; (async () => { try { const { services, addons, availability, ...rest } = state; await storage.set(STORAGE_KEY, JSON.stringify(rest)); } catch (e) {} })(); }, [state, loaded]);
   useEffect(() => { (async () => { try { const res = await fetch("/api/services"); const data = await res.json(); if (!res.ok) throw new Error(); setState((s) => ({ ...s, services: data.services || [], addons: data.addons || [] })); setCatalogError(false); } catch (e) { setCatalogError(true); } finally { setCatalogLoaded(true); } })(); }, []);
+  useEffect(() => { (async () => { try { const res = await fetch("/api/availability"); const data = await res.json(); if (res.ok) setState((s) => ({ ...s, availability: data.availability || [] })); } catch (e) {} })(); }, []);
 
   const showToast = (msg) => { setToast(msg); if (toastTimer.current) clearTimeout(toastTimer.current); toastTimer.current = setTimeout(() => setToast(null), 3600); };
 
@@ -218,6 +220,8 @@ export default function App() {
   const deleteAddon = async (id) => { try { const res = await fetch("/api/addons?id=" + encodeURIComponent(id), { method: "DELETE" }); const data = await res.json().catch(() => ({})); if (res.ok) { setState((s) => ({ ...s, addons: s.addons.filter((x) => x.id !== id) })); return { ok: true }; } return { ok: false, error: data.error || "Could not delete the add-on." }; } catch (e) { return { ok: false, error: "Network error." }; } };
 
   /* ---- slot availability + direct links ---- */
+  const addAvailability = async (slot) => { try { const res = await fetch("/api/availability", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(slot) }); const data = await res.json().catch(() => ({})); if (res.ok && data.slot) { setState((s) => ({ ...s, availability: [...s.availability, data.slot].sort((a, b) => (a.date + a.start).localeCompare(b.date + b.start)) })); return { ok: true }; } return { ok: false, error: data.error || "Could not open that day." }; } catch (e) { return { ok: false, error: "Network error." }; } };
+  const removeAvailability = async (id) => { try { const res = await fetch("/api/availability?id=" + encodeURIComponent(id), { method: "DELETE" }); const data = await res.json().catch(() => ({})); if (res.ok) { setState((s) => ({ ...s, availability: s.availability.filter((x) => x.id !== id) })); return { ok: true }; } return { ok: false, error: data.error || "Could not remove that day." }; } catch (e) { return { ok: false, error: "Network error." }; } };
   const slotTaken = (date, time, exceptSessionId) => {
     if (!date || !time) return false;
     const inSessions = state.sessions.some((s) => s.id !== exceptSessionId && s.date === date && s.time === time);
@@ -286,7 +290,7 @@ export default function App() {
       <main style={{ maxWidth: 1120, margin: "0 auto", padding: "28px 22px 60px" }}>
         {view === "landing" && <LandingPage onBook={() => { setDirectContext(null); setView("book"); }} onClientLogin={() => setView("login")} onStudioLogin={() => setView("studiologin")} />}
         {view === "studiologin" && <StudioLogin onLogin={loginAsStudio} onBack={() => setView("landing")} />}
-        {view === "book" && <BookingFlow state={state} direct={directContext} slotTaken={slotTaken} onCancel={() => { setDirectContext(null); setView("landing"); }} onComplete={createBooking} onLogin={() => setView("login")} catalogLoaded={catalogLoaded} catalogError={catalogError} />}
+        {view === "book" && <BookingFlow state={state} direct={directContext} slotTaken={slotTaken} onCancel={() => { setDirectContext(null); setView("landing"); }} onComplete={createBooking} onLogin={() => setView("login")} catalogLoaded={catalogLoaded} catalogError={catalogError} availability={state.availability} />}
         {view === "login" && <LoginView onLogin={loginAs} onBook={() => { setDirectContext(null); setView("book"); }} onStudio={() => setView("studiologin")} />}
         {view === "client" && <ClientView session={clientSession} sessions={state.sessions} clientId={clientId} setClientId={setClientId} addComment={addComment} onRescheduleRequest={clientRescheduleRequest} markMessagesRead={markMessagesRead} patchSession={patchSession} resizeImage={resizeImage} showToast={showToast} />}
         {view === "admin" && (
@@ -295,11 +299,13 @@ export default function App() {
               <SubTab active={adminTab === "sessions"} onClick={() => setAdminTab("sessions")} label="Sessions" badge={unreadClientTotal} />
               <SubTab active={adminTab === "calendar"} onClick={() => setAdminTab("calendar")} label="Calendar" />
               <SubTab active={adminTab === "links"} onClick={() => setAdminTab("links")} label="Direct Booking Link" />
+              <SubTab active={adminTab === "availability"} onClick={() => setAdminTab("availability")} label="Availability" />
               <SubTab active={adminTab === "services"} onClick={() => setAdminTab("services")} label="Services & Add-ons" />
             </div>
             {adminTab === "sessions" && <AdminSessions state={state} adminId={adminId} setAdminId={setAdminId} requestSetStage={requestSetStage} addComment={addComment} patchSession={patchSession} onReschedule={adminReschedule} slotTaken={slotTaken} markMessagesRead={markMessagesRead} />}
             {adminTab === "calendar" && <AdminCalendar state={state} onSelectSession={(id) => { setAdminId(id); setAdminTab("sessions"); }} />}
             {adminTab === "links" && <DirectLinks state={state} createDirectLink={createDirectLink} revokeDirectLink={revokeDirectLink} openDirectLink={openDirectLink} showToast={showToast} />}
+            {adminTab === "availability" && <AvailabilityManager availability={state.availability} addAvailability={addAvailability} removeAvailability={removeAvailability} showToast={showToast} />}
             {adminTab === "services" && <ServiceCatalog state={state} addService={addService} updateService={updateService} deleteService={deleteService} addAddon={addAddon} updateAddon={updateAddon} deleteAddon={deleteAddon} showToast={showToast} />}
           </div>
         )}
@@ -416,7 +422,7 @@ function AgreementBox({ title, text, pdf, A }) {
   );
 }
 
-function BookingFlow({ state, direct, slotTaken, onCancel, onComplete, onLogin, catalogLoaded, catalogError }) {
+function BookingFlow({ state, direct, slotTaken, onCancel, onComplete, onLogin, catalogLoaded, catalogError, availability }) {
   const [step, setStep] = useState(direct ? 2 : 0); // 0 welcome, 1 choose, 2 account, 3 confirm
   const [group, setGroup] = useState(direct?.group || "video");
   const [serviceId, setServiceId] = useState(direct?.serviceId || null);
@@ -480,6 +486,9 @@ function BookingFlow({ state, direct, slotTaken, onCancel, onComplete, onLogin, 
       {s.description && <div style={{ fontSize: 12.5, color: BODY, lineHeight: 1.5, marginTop: 5 }}>{s.description}</div>}
     </button>
   ); };
+
+  const availDates = Array.from(new Set((availability || []).map((a) => a.date)));
+  const slotsForDate = (d) => { const wins = (availability || []).filter((a) => a.date === d); const times = new Set(); const toMin = (t) => { const [h, m] = t.split(":").map(Number); return h * 60 + m; }; const fromMin = (mm) => String(Math.floor(mm / 60)).padStart(2, "0") + ":" + String(mm % 60).padStart(2, "0"); wins.forEach((w) => { for (let mm = toMin(w.start); mm < toMin(w.end); mm += 30) times.add(fromMin(mm)); }); return Array.from(times).sort().filter((t) => !slotTaken(d, t)); };
 
   if (step === 0) {
     return (
@@ -677,15 +686,31 @@ function BookingFlow({ state, direct, slotTaken, onCancel, onComplete, onLogin, 
               <div style={{ fontSize: 14, color: INK, fontWeight: 500 }}>{fmtDate(direct.date)} at {fmtTime(direct.time)}</div>
             </div>
           ) : (
-            <div style={{ display: "flex", gap: 12, marginBottom: 16, flexWrap: "wrap" }}>
-              <div style={{ flex: 1, minWidth: 160 }}>
-                <FieldLabel>Session date</FieldLabel>
-                <input type="date" value={date} onChange={(e) => setDate(e.target.value)} style={inputStyle} />
-              </div>
-              <div style={{ flex: 1, minWidth: 120 }}>
-                <FieldLabel>Time</FieldLabel>
-                <input type="time" value={time} onChange={(e) => setTime(e.target.value)} style={inputStyle} />
-              </div>
+            <div style={{ marginBottom: 16 }}>
+              <FieldLabel>Choose an available day</FieldLabel>
+              {availDates.length === 0 ? (
+                <div style={{ border: `1px dashed ${LINE}`, borderRadius: 9, padding: "18px", textAlign: "center", background: PAPER, fontSize: 13, color: STONE, lineHeight: 1.5 }}>No open dates right now. Please check back soon, or contact us and we'll find a time.</div>
+              ) : (
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                  {availDates.map((d) => { const on = date === d; return (
+                    <button key={d} onClick={() => { setDate(d); setTime(""); }} style={{ ...mono, fontSize: 12, padding: "9px 13px", borderRadius: 8, cursor: "pointer", border: `1.5px solid ${on ? A : LINE}`, background: on ? A : PAPER, color: on ? "#fff" : INK }}>{fmtDate(d)}</button>
+                  ); })}
+                </div>
+              )}
+              {date && (
+                <div style={{ marginTop: 14 }}>
+                  <FieldLabel>Choose a time</FieldLabel>
+                  {slotsForDate(date).length === 0 ? (
+                    <div style={{ fontSize: 12.5, color: STONE }}>Every time on this day is booked. Please choose another day.</div>
+                  ) : (
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                      {slotsForDate(date).map((t) => { const on = time === t; return (
+                        <button key={t} onClick={() => setTime(t)} style={{ ...mono, fontSize: 12, padding: "9px 13px", borderRadius: 8, cursor: "pointer", border: `1.5px solid ${on ? A : LINE}`, background: on ? A : PAPER, color: on ? "#fff" : INK }}>{fmtTime(t)}</button>
+                      ); })}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           )}
           {taken && <div style={{ background: "#fbeeed", border: "1px solid #f2cdc9", borderRadius: 8, padding: "9px 13px", marginBottom: 14, fontSize: 12.5, color: "#b5271b", display: "flex", alignItems: "center", gap: 8 }}><AlertTriangle size={14} /> That date and time is already booked. Please pick another.</div>}
@@ -872,10 +897,12 @@ function ClientView({ session, sessions, clientId, setClientId, addComment, onRe
 
   return (
     <div>
-      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 22, flexWrap: "wrap" }}>
-        <span style={{ ...mono, fontSize: 10, letterSpacing: "0.14em", textTransform: "uppercase", color: FAINT }}>Viewing as</span>
-        {sessions.map((s) => { const sc = (GROUPS[s.serviceLine] || GROUPS.video).color; const on = clientId === s.id; return <button key={s.id} onClick={() => setClientId(s.id)} style={{ ...mono, fontSize: 11, letterSpacing: "0.04em", padding: "6px 11px", borderRadius: 20, cursor: "pointer", border: `1px solid ${on ? sc : LINE}`, background: on ? sc : PAPER, color: on ? "#fff" : STONE }}>{s.clientName}</button>; })}
-      </div>
+      {(session.currentStage || 0) <= 1 && (
+        <div style={{ background: grp.bg, border: `1px solid ${grp.border}`, borderRadius: 10, padding: "14px 18px", marginBottom: 18 }}>
+          <div style={{ ...display, fontSize: 16, color: INK, marginBottom: 3 }}>You're all set, {(session.clientName || "").split(" ")[0]}!</div>
+          <div style={{ fontSize: 13, color: BODY, lineHeight: 1.5 }}>Your {session.type} is booked{session.date ? " for " + session.date : ""}{session.time ? " at " + session.time : ""}. We've set up your account under {session.clientEmail}. Sign in with that email anytime to track your session's progress below.</div>
+        </div>
+      )}
 
       <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 18 }}>
         <div style={{ position: "relative" }}>
@@ -1167,6 +1194,47 @@ function DayCell({ day, isToday, sessions, holds, accent, onSelect }) {
 }
 
 /* ============================ SERVICE CATALOG ============================ */
+function AvailabilityManager({ availability, addAvailability, removeAvailability, showToast }) {
+  const [date, setDate] = useState("");
+  const [start, setStart] = useState("09:00");
+  const [end, setEnd] = useState("15:00");
+  const [busy, setBusy] = useState(false);
+  const submit = async () => {
+    if (!date || !start || !end) { showToast("Pick a day and open/close times."); return; }
+    if (end <= start) { showToast("Close time must be after open time."); return; }
+    setBusy(true);
+    const r = await addAvailability({ date, start, end });
+    setBusy(false);
+    if (r && r.ok) { showToast("Day opened for booking."); setDate(""); } else { showToast((r && r.error) || "Could not open that day."); }
+  };
+  return (
+    <div>
+      <div style={{ ...mono, fontSize: 11, letterSpacing: "0.18em", textTransform: "uppercase", color: RED, marginBottom: 6, display: "flex", alignItems: "center", gap: 8 }}><CalendarCheck size={13} /> Open availability</div>
+      <div style={{ fontSize: 13, color: BODY, lineHeight: 1.5, marginBottom: 16, maxWidth: 560 }}>Open specific days with the hours you're available. Clients can only book a day and time you have opened here.</div>
+      <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "flex-end", background: PAPER, border: `1px solid ${LINE}`, borderRadius: 10, padding: "16px", marginBottom: 24 }}>
+        <div><FieldLabel>Day</FieldLabel><input type="date" value={date} onChange={(e) => setDate(e.target.value)} style={{ ...inputStyle, width: "auto" }} /></div>
+        <div><FieldLabel>Open from</FieldLabel><input type="time" value={start} onChange={(e) => setStart(e.target.value)} style={{ ...inputStyle, width: "auto" }} /></div>
+        <div><FieldLabel>Until</FieldLabel><input type="time" value={end} onChange={(e) => setEnd(e.target.value)} style={{ ...inputStyle, width: "auto" }} /></div>
+        <button onClick={submit} disabled={busy} style={{ ...btnSolid, background: busy ? FAINT : RED }}><Plus size={14} /> {busy ? "Opening..." : "Open this day"}</button>
+      </div>
+      <div style={{ ...mono, fontSize: 10.5, letterSpacing: "0.16em", textTransform: "uppercase", color: STONE, marginBottom: 10 }}>Upcoming open days</div>
+      {(!availability || availability.length === 0) ? (
+        <EmptyHint text="No open days yet. Open one above and it becomes bookable right away." />
+      ) : (
+        availability.map((a) => (
+          <div key={a.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, border: `1px solid ${LINE}`, borderRadius: 9, padding: "12px 15px", marginBottom: 8, background: PAPER }}>
+            <div>
+              <div style={{ ...display, fontWeight: 600, fontSize: 15, color: INK }}>{fmtDate(a.date)}</div>
+              <div style={{ ...mono, fontSize: 11, color: STONE, marginTop: 2 }}>{fmtTime(a.start)} to {fmtTime(a.end)}</div>
+            </div>
+            <IconBtn onClick={async () => { const r = await removeAvailability(a.id); if (r && !r.ok) showToast(r.error || "Could not remove."); }} danger><Trash2 size={13} /></IconBtn>
+          </div>
+        ))
+      )}
+    </div>
+  );
+}
+
 function ServiceCatalog({ state, addService, updateService, deleteService, addAddon, updateAddon, deleteAddon, showToast }) {
   const [group, setGroup] = useState("video");
   const [svcForm, setSvcForm] = useState(null);

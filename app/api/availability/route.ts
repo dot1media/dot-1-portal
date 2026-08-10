@@ -1,0 +1,58 @@
+import { NextResponse } from "next/server";
+import { cookies } from "next/headers";
+import { sql } from "@/lib/db";
+import { verifyToken, ADMIN_COOKIE } from "@/lib/auth";
+
+export const runtime = "nodejs";
+
+async function isAdmin() {
+  const store = await cookies();
+  return !!verifyToken(store.get(ADMIN_COOKIE)?.value);
+}
+
+// Public: upcoming open days (today onward).
+export async function GET() {
+  const rows = await sql`
+    SELECT id,
+           to_char(date, 'YYYY-MM-DD') AS date,
+           to_char(start_time, 'HH24:MI') AS start,
+           to_char(end_time, 'HH24:MI') AS end
+    FROM availability
+    WHERE date >= CURRENT_DATE
+    ORDER BY date, start_time`;
+  return NextResponse.json({ availability: rows });
+}
+
+// Admin: open a day with a window.
+export async function POST(request: Request) {
+  if (!(await isAdmin())) return NextResponse.json({ error: "Not authorized." }, { status: 401 });
+  const b = await request.json().catch(() => ({}));
+  const date = String(b.date || "").trim();
+  const start = String(b.start || "").trim();
+  const end = String(b.end || "").trim();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !/^\d{2}:\d{2}$/.test(start) || !/^\d{2}:\d{2}$/.test(end)) {
+    return NextResponse.json({ error: "Please provide a day, an open time, and a close time." }, { status: 400 });
+  }
+  if (end <= start) {
+    return NextResponse.json({ error: "Close time must be after open time." }, { status: 400 });
+  }
+  const rows = await sql`
+    INSERT INTO availability (date, start_time, end_time)
+    VALUES (${date}::date, ${start}::time, ${end}::time)
+    RETURNING id,
+              to_char(date, 'YYYY-MM-DD') AS date,
+              to_char(start_time, 'HH24:MI') AS start,
+              to_char(end_time, 'HH24:MI') AS end`;
+  return NextResponse.json({ slot: rows[0] });
+}
+
+// Admin: remove an open day.
+export async function DELETE(request: Request) {
+  if (!(await isAdmin())) return NextResponse.json({ error: "Not authorized." }, { status: 401 });
+  const { searchParams } = new URL(request.url);
+  const id = String(searchParams.get("id") || "");
+  if (!id) return NextResponse.json({ error: "Missing id." }, { status: 400 });
+  await sql`DELETE FROM availability WHERE id = ${id}`;
+  return NextResponse.json({ ok: true });
+}
+
