@@ -153,6 +153,8 @@ export default function App() {
   const [state, setState] = useState(DEFAULT_STATE);
   const stateRef = useRef(state);
   useEffect(() => { stateRef.current = state; }, [state]);
+  const poppingRef = useRef(false);
+  const initedRef = useRef(false);
   const [loaded, setLoaded] = useState(false);
   const [clientId, setClientId] = useState("");
   const [clientAuth, setClientAuth] = useState(null);
@@ -185,12 +187,22 @@ export default function App() {
       try { res = await fetch("/api/pay/verify?sid=" + encodeURIComponent(paidSid) + (payKind ? "&kind=" + encodeURIComponent(payKind) : "")).then((r) => r.json()).catch(() => ({})); } catch (e) {}
       try { const sd = await fetch("/api/sessions").then((r) => r.json()).catch(() => ({})); const sess = (sd && sd.sessions) || []; if (sess.length) { setState((s) => ({ ...s, sessions: sess })); const mine = sess.find((x) => x.id === paidSid) || sess[0]; setClientId(mine.id); setClientAuth({ name: mine.clientName || "", email: mine.clientEmail || "" }); setView("thankyou"); } } catch (e) {}
       showToast(res && res.paid ? "Payment received. Thank you!" : "Thanks! If your payment is still processing, your status will update shortly.");
-      try { window.history.replaceState({}, "", "/"); } catch (e) {}
     })();
   }, []);
   useEffect(() => {
     const rt = new URLSearchParams(window.location.search).get("reset");
-    if (rt) { setResetToken(rt); setView("resetpw"); try { window.history.replaceState({}, "", "/"); } catch (e) {} }
+    if (rt) { setResetToken(rt); setView("resetpw"); }
+  }, []);
+  useEffect(() => {
+    if (poppingRef.current) { poppingRef.current = false; return; }
+    const st = { view };
+    if (!initedRef.current) { initedRef.current = true; try { window.history.replaceState(st, "", "/"); } catch (e) {} }
+    else { try { window.history.pushState(st, "", "/"); } catch (e) {} }
+  }, [view]);
+  useEffect(() => {
+    const onPop = (e) => { poppingRef.current = true; setView((e.state && e.state.view) || "landing"); };
+    window.addEventListener("popstate", onPop);
+    return () => window.removeEventListener("popstate", onPop);
   }, []);
 
   const showToast = (msg) => { setToast(msg); if (toastTimer.current) clearTimeout(toastTimer.current); toastTimer.current = setTimeout(() => setToast(null), 3600); };
