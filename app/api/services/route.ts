@@ -54,11 +54,15 @@ export async function POST(request: Request) {
   const duration = b.duration != null && b.duration !== "" ? Math.round(Number(b.duration)) : null;
   const padBefore = b.padBefore != null && b.padBefore !== "" ? Math.max(0, Math.round(Number(b.padBefore))) : 0;
   const padAfter = b.padAfter != null && b.padAfter !== "" ? Math.max(0, Math.round(Number(b.padAfter))) : 0;
-  const rows = await sql`
-    INSERT INTO services (grp, category, name, description, price_cents, duration_min, pad_before_min, pad_after_min, addon_mode, addon_ids, visible, active)
-    VALUES (${grp}::service_group, ${category}, ${name}, ${String(b.description || "")}, ${priceCents}, ${duration}, ${addonMode}::addon_mode, ${addonIds}::jsonb, ${visible}, true)
-    RETURNING id, grp, category, name, description, price_cents, duration_min, pad_before_min, pad_after_min, addon_mode, addon_ids, visible`;
-  return NextResponse.json({ service: mapService(rows[0]) });
+  try {
+    const rows = await sql`
+      INSERT INTO services (grp, category, name, description, price_cents, duration_min, pad_before_min, pad_after_min, addon_mode, addon_ids, visible, active)
+      VALUES (${grp}::service_group, ${category}, ${name}, ${String(b.description || "")}, ${priceCents}, ${duration}, ${padBefore}, ${padAfter}, ${addonMode}::addon_mode, ${addonIds}::jsonb, ${visible}, true)
+      RETURNING id, grp, category, name, description, price_cents, duration_min, pad_before_min, pad_after_min, addon_mode, addon_ids, visible`;
+    return NextResponse.json({ service: mapService(rows[0]) });
+  } catch (e: any) {
+    return NextResponse.json({ error: "Save failed: " + (e && e.message ? e.message : String(e)) }, { status: 500 });
+  }
 }
 
 export async function PATCH(request: Request) {
@@ -79,11 +83,15 @@ export async function PATCH(request: Request) {
   const duration = b.duration != null ? (b.duration === "" ? null : Math.round(Number(b.duration))) : c.duration_min;
   const padBefore = b.padBefore != null ? (b.padBefore === "" ? 0 : Math.max(0, Math.round(Number(b.padBefore)))) : (c.pad_before_min || 0);
   const padAfter = b.padAfter != null ? (b.padAfter === "" ? 0 : Math.max(0, Math.round(Number(b.padAfter)))) : (c.pad_after_min || 0);
-  const rows = await sql`
-    UPDATE services SET category = ${category}, name = ${name}, description = ${description}, price_cents = ${priceCents}, duration_min = ${duration}, pad_before_min = ${padBefore}, pad_after_min = ${padAfter}, addon_mode = ${addonMode}::addon_mode, addon_ids = ${addonIds}::jsonb, visible = ${visible}, updated_at = now()
-    WHERE id = ${id}
-    RETURNING id, grp, category, name, description, price_cents, duration_min, pad_before_min, pad_after_min, addon_mode, addon_ids, visible`;
-  return NextResponse.json({ service: mapService(rows[0]) });
+  try {
+    const rows = await sql`
+      UPDATE services SET category = ${category}, name = ${name}, description = ${description}, price_cents = ${priceCents}, duration_min = ${duration}, pad_before_min = ${padBefore}, pad_after_min = ${padAfter}, addon_mode = ${addonMode}::addon_mode, addon_ids = ${addonIds}::jsonb, visible = ${visible}, updated_at = now()
+      WHERE id = ${id}
+      RETURNING id, grp, category, name, description, price_cents, duration_min, pad_before_min, pad_after_min, addon_mode, addon_ids, visible`;
+    return NextResponse.json({ service: mapService(rows[0]) });
+  } catch (e: any) {
+    return NextResponse.json({ error: "Save failed: " + (e && e.message ? e.message : String(e)) }, { status: 500 });
+  }
 }
 
 export async function DELETE(request: Request) {
