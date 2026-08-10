@@ -8,7 +8,7 @@ import {
   Plus, Trash2, Pencil, Check, AlertTriangle, Tag, Link2, ListPlus,
   Star, CreditCard, Wallet, CalendarDays, ChevronLeft, ChevronRight,
   ArrowRight, ArrowLeft, CalendarClock, X, Copy, LogIn, Sparkles,
-  MessageCircle, Smartphone, Link as LinkIcon, Ban, EyeOff, XCircle, CalendarPlus,
+  MessageCircle, Smartphone, Link as LinkIcon, Ban, EyeOff, XCircle, CalendarPlus, ChevronDown,
 } from "lucide-react";
 
 // Persist to the browser's localStorage (works in a real browser, unlike the
@@ -90,7 +90,7 @@ const DEFAULT_STATE = {
   directLinks: [],
 };
 
-const PHOTO_CATEGORIES = ["Destination Photography", "Event Photography", "Photography"];
+const PHOTO_CATEGORIES = ["Destination Photography", "Event Photography", "Portrait Photography"];
 const CLIENT_SERVICES_VERSION = "1.0";
 const RELEASE_VERSION = "1.0";
 const PDF_CLIENT_SERVICES = "/Dot-One-Media-Client-Services-Agreement.pdf";
@@ -381,8 +381,8 @@ export default function App() {
           </div>
         )}
       </main>
+      <PortalFooter />
 
-      <div style={{ position: "fixed", bottom: 0, left: 0, right: 0, background: INK, color: "#e8e6df", textAlign: "center", padding: "7px 12px", ...mono, fontSize: 10.5, letterSpacing: "0.1em" }}>PHASE 1 PROTOTYPE · mock data · not yet connected to Square / Neon / Frame.io</div>
       {toast && <div style={{ position: "fixed", bottom: 44, left: "50%", transform: "translateX(-50%)", background: INK, color: "#fff", padding: "11px 18px", borderRadius: 8, boxShadow: "0 10px 30px rgba(0,0,0,0.25)", fontSize: 13.5, maxWidth: "92%", display: "flex", alignItems: "center", gap: 9, zIndex: 60 }}><CheckCircle2 size={16} color="#7ee0a0" /> {toast}</div>}
       {confirm && <ConfirmDialog {...confirm} onCancel={() => setConfirm(null)} />}
     </div>
@@ -447,6 +447,32 @@ function ResetPassword({ token, onDone, showToast }) {
         <button onClick={submit} disabled={busy} style={{ ...btnSolid, background: busy ? FAINT : RED, width: "100%", justifyContent: "center", marginTop: 14, padding: "11px" }}>{busy ? "Saving..." : "Update password"}</button>
       </div>
     </div>
+  );
+}
+
+function PortalFooter() {
+  const link = { color: STONE, textDecoration: "none" };
+  const A = (href, label) => <a href={href} target="_blank" rel="noopener noreferrer" style={link}>{label}</a>;
+  return (
+    <footer style={{ borderTop: `1px solid ${LINE}`, marginTop: 54, padding: "40px 24px 34px", textAlign: "center" }}>
+      <div style={{ ...mono, fontSize: 10.5, letterSpacing: "0.16em", textTransform: "uppercase", color: STONE, marginBottom: 16 }}>Wasilla, Alaska · USA</div>
+      <div style={{ ...mono, fontSize: 11, letterSpacing: "0.04em", display: "flex", justifyContent: "center", gap: 20, flexWrap: "wrap", marginBottom: 26 }}>
+        {A("https://instagram.com/dot1media", "Instagram · @dot1media")}
+        {A("https://instagram.com/dot1photo", "Instagram · @dot1photo")}
+        {A("https://apps.apple.com/us/app/dot-1-news/id6757212352", "Dot 1 News · App Store")}
+      </div>
+      <img src="/dot1-logo.png" alt="Dot One Media" style={{ height: 34, width: "auto", margin: "0 auto 10px", display: "block" }} />
+      <div style={{ ...mono, fontSize: 10.5, letterSpacing: "0.16em", textTransform: "uppercase", color: INK, marginBottom: 24 }}>Dot One Media · Create with purpose.</div>
+      <div style={{ fontSize: 11.5, display: "flex", justifyContent: "center", gap: 16, flexWrap: "wrap", marginBottom: 20 }}>
+        {A("https://www.dot1.media/privacy-policy", "Privacy Policy")}
+        {A("https://www.dot1.media/Dot-One-Media-Client-Services-Agreement.pdf", "Client Services Agreement")}
+        {A("https://www.dot1.media/Dot-One-Media-Release-and-Waiver.pdf", "Media Release")}
+        {A("https://www.dot1.media/Dot-One-Media-Minor-Release-and-Waiver.pdf", "Minor Release")}
+      </div>
+      <div style={{ fontSize: 10.5, color: FAINT, lineHeight: 1.65, maxWidth: 660, margin: "0 auto" }}>
+        Copyright © 2026 DOT ONE LLC. All Rights Reserved. DOT ONE®, DOT ONE MEDIA PRODUCTIONS™, and associated logos are trademarks or registered trademarks of DOT ONE LLC and/or its affiliates. Unauthorized use, reproduction, or distribution of this material, in whole or in part, without written permission from DOT ONE LLC or its parent company Dot One Media Inc. is strictly prohibited.
+      </div>
+    </footer>
   );
 }
 
@@ -587,6 +613,7 @@ function BookingFlow({ state, direct, slotTaken, onCancel, onComplete, onLogin, 
   const [group, setGroup] = useState(direct?.group || "video");
   const [serviceId, setServiceId] = useState(direct?.serviceId || null);
   const [addonIds, setAddonIds] = useState([]);
+  const [openCats, setOpenCats] = useState({});
   const [acct, setAcct] = useState({ name: (authedClient && authedClient.name) || direct?.recipient || "", email: (authedClient && authedClient.email) || "", phone: "", password: "", signature: "" });
   const [date, setDate] = useState(direct?.date || "");
   const [time, setTime] = useState(direct?.time || "");
@@ -756,10 +783,15 @@ function BookingFlow({ state, direct, slotTaken, onCancel, onComplete, onLogin, 
                 PHOTO_CATEGORIES.concat(["__other"]).map((cat) => {
                   const inCat = groupServices.filter((s) => cat === "__other" ? !PHOTO_CATEGORIES.includes(s.category) : s.category === cat);
                   if (inCat.length === 0) return null;
+                  const label = cat === "__other" ? "More Sessions" : cat;
+                  const open = !!openCats[cat];
                   return (
-                    <div key={cat}>
-                      <div style={{ ...mono, fontSize: 10.5, letterSpacing: "0.16em", textTransform: "uppercase", color: STONE, margin: "16px 2px 9px" }}>{cat === "__other" ? "More Sessions" : cat}</div>
-                      {inCat.map(renderServiceBtn)}
+                    <div key={cat} style={{ marginTop: 10, border: `1px solid ${LINE}`, borderRadius: 10, overflow: "hidden" }}>
+                      <div onClick={() => setOpenCats((pp) => ({ ...pp, [cat]: !pp[cat] }))} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "13px 15px", cursor: "pointer", background: open ? CREAM : PAPER }}>
+                        <div style={{ ...mono, fontSize: 11, letterSpacing: "0.14em", textTransform: "uppercase", color: INK }}>{label} <span style={{ color: FAINT }}>· {inCat.length}</span></div>
+                        <ChevronDown size={16} color={STONE} style={{ transform: open ? "rotate(180deg)" : "none", transition: "transform 0.15s" }} />
+                      </div>
+                      {open && <div style={{ padding: "4px 12px 12px" }}>{inCat.map(renderServiceBtn)}</div>}
                     </div>
                   );
                 })
