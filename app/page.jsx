@@ -305,7 +305,7 @@ export default function App() {
     try {
       const res = await fetch("/api/auth/login", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ email: (email || "").trim(), password: password || "" }) });
       const data = await res.json().catch(() => ({}));
-      if (res.ok && data.ok) { setView("admin"); showToast("Signed in to the studio dashboard."); return { ok: true }; }
+      if (res.ok && data.ok) { setView("admin"); const sd = await fetch("/api/sessions").then((r) => r.json()).catch(() => ({})); if (sd && sd.sessions) setState((s) => ({ ...s, sessions: sd.sessions })); showToast("Signed in to the studio dashboard."); return { ok: true }; }
       return { ok: false, error: data.error || "Incorrect email or password." };
     } catch (e) {
       return { ok: false, error: "Could not reach the server. Please try again." };
