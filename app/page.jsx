@@ -255,7 +255,7 @@ export default function App() {
   const createBooking = (booking) => {
     const id = uid("ses"); const grp = booking.group;
     const notifyEmail = NOTIFY_EMAILS[grp] || "contact@dot1.media";
-    const newSession = { id, clientName: booking.name, clientEmail: booking.email, clientImage: "", notifyEmail, type: booking.serviceName, serviceLine: grp, photographer: grp === "photo" ? "Brittany Matthews" : "Dennis Matthews", date: booking.date, time: booking.time, location: "", status: "active", durationMin: booking.duration || 60, currentStage: 0, stageTimes: { 0: "just now" }, comments: [], selectedAddons: booking.addons, total: booking.total, payChoice: booking.payChoice, reviewLink: "", deliveryVideo: "", deliveryPhoto: "" };
+    const newSession = { id, clientName: booking.name, clientEmail: booking.email, clientImage: "", notifyEmail, type: booking.serviceName, serviceLine: grp, photographer: grp === "photo" ? "Brittany Matthews" : "Dennis Matthews", date: booking.date, time: booking.time, location: "", status: "active", durationMin: booking.duration || 60, apptMin: booking.apptMin || booking.duration || 60, padBefore: booking.padBefore || 0, padAfter: booking.padAfter || 0, currentStage: 0, stageTimes: { 0: "just now" }, comments: [], selectedAddons: booking.addons, total: booking.total, payChoice: booking.payChoice, reviewLink: "", deliveryVideo: "", deliveryPhoto: "" };
     setState((s) => ({ ...s, sessions: [...s.sessions, newSession] }));
     fetch("/api/sessions", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ session: newSession }) }).catch(() => {});
     if (booking.linkId) consumeDirectLink(booking.linkId);
@@ -510,6 +510,10 @@ function BookingFlow({ state, direct, slotTaken, onCancel, onComplete, onLogin, 
   const availableAddons = service ? (service.addonMode === "custom" ? groupAddons.filter((a) => (service.addonIds || []).includes(a.id)) : groupAddons) : [];
   const chosenAddons = availableAddons.filter((a) => addonIds.includes(a.id));
   const basePrice = Number(service?.price) || 0;
+  const addonMinutes = chosenAddons.reduce((s, a) => s + (Number(a.addTime) || 0), 0);
+  const apptLen = ((Number(service?.duration) || 0) + addonMinutes) || 30;
+  const padB = Number(service?.padBefore) || 0;
+  const padA = Number(service?.padAfter) || 0;
   const total = basePrice + chosenAddons.reduce((s, a) => s + (Number(a.price) || 0), 0);
   const rules = PAYMENT_RULES[group];
   const A = GROUPS[group].color, AB = GROUPS[group].bg, ABD = GROUPS[group].border, AT = GROUPS[group].text;
@@ -529,7 +533,15 @@ function BookingFlow({ state, direct, slotTaken, onCancel, onComplete, onLogin, 
   ); };
 
   const availDates = Array.from(new Set((availability || []).map((a) => a.date)));
-  const slotsForDate = (d) => { const wins = (availability || []).filter((a) => a.date === d); const times = new Set(); const toMin = (t) => { const [h, m] = t.split(":").map(Number); return h * 60 + m; }; const fromMin = (mm) => String(Math.floor(mm / 60)).padStart(2, "0") + ":" + String(mm % 60).padStart(2, "0"); wins.forEach((w) => { for (let mm = toMin(w.start); mm < toMin(w.end); mm += 30) times.add(fromMin(mm)); }); return Array.from(times).sort().filter((t) => !slotTaken(d, t)); };
+  const slotsForDate = (d) => {
+    const wins = (availability || []).filter((a) => a.date === d);
+    const toMin = (t) => { const [h, m] = t.split(":").map(Number); return h * 60 + m; };
+    const fromMin = (mm) => String(Math.floor(mm / 60)).padStart(2, "0") + ":" + String(mm % 60).padStart(2, "0");
+    const blocked = (state.takenSlots || []).filter((b) => b.date === d).map((b) => { const bs = toMin(b.time); return [bs - (Number(b.padBefore) || 0), bs + (Number(b.apptMin) || 30) + (Number(b.padAfter) || 0)]; }).concat((state.directLinks || []).filter((l) => l.date === d).map((l) => { const ls = toMin(l.time); return [ls, ls + apptLen]; }));
+    const out = [];
+    wins.forEach((w) => { const ws = toMin(w.start), we = toMin(w.end); for (let T = ws; T + apptLen <= we; T += 15) { const occStart = T - padB, occEnd = T + apptLen + padA; if (!blocked.some((iv) => occStart < iv[1] && occEnd > iv[0])) out.push(fromMin(T)); } });
+    return Array.from(new Set(out)).sort();
+  };
 
   if (step === 0) {
     return (
@@ -772,7 +784,7 @@ function BookingFlow({ state, direct, slotTaken, onCancel, onComplete, onLogin, 
 
           <div style={{ display: "flex", justifyContent: "space-between" }}>
             <button onClick={() => setStep(authedClient ? 1 : 2)} style={btnGhost}><ArrowLeft size={14} /> Back</button>
-            <button onClick={() => { if (!date || !time || !payChoice || taken) return; onComplete({ linkId: direct?.id, group, serviceName: service.name, duration: service.duration, addons: chosenAddons.map((a) => ({ name: a.name, price: Number(a.price) || 0 })), total, date, time, payChoice, name: acct.name, email: acct.email }); }} style={{ ...btnSolid, background: date && time && payChoice && !taken ? A : FAINT }}><Check size={15} /> Confirm booking</button>
+            <button onClick={() => { if (!date || !time || !payChoice || taken) return; onComplete({ linkId: direct?.id, group, serviceName: service.name, duration: apptLen, apptMin: apptLen, padBefore: padB, padAfter: padA, addons: chosenAddons.map((a) => ({ name: a.name, price: Number(a.price) || 0, addTime: Number(a.addTime) || 0 })), total, date, time, payChoice, name: acct.name, email: acct.email }); }} style={{ ...btnSolid, background: date && time && payChoice && !taken ? A : FAINT }}><Check size={15} /> Confirm booking</button>
           </div>
         </div>
       )}
@@ -1326,7 +1338,7 @@ function ServiceCatalog({ state, addService, updateService, deleteService, addAd
   const groupServices = state.services.filter((s) => s.group === group);
   const groupAddons = state.addons.filter((a) => a.group === group);
   const g = GROUPS[group];
-  const startNewService = () => setSvcForm({ name: "", description: "", price: "", category: "", addonMode: "group", addonIds: [], visible: true });
+  const startNewService = () => setSvcForm({ name: "", description: "", price: "", category: "", duration: "", padBefore: "", padAfter: "", addonMode: "group", addonIds: [], visible: true });
   const saveService = async () => { if (!svcForm.name.trim()) { showToast("Give the service a name first."); return; } const r = svcForm.id ? await updateService(svcForm.id, svcForm) : await addService({ ...svcForm, group }); if (r && r.ok) { showToast(svcForm.id ? "Service updated." : "Service created."); setSvcForm(null); } else { showToast((r && r.error) || "Could not save the service."); } };
   const startNewAddon = () => setAddonForm({ name: "", price: "", addTime: "", visible: true });
   const saveAddon = async () => { if (!addonForm.name.trim()) { showToast("Give the add-on a name first."); return; } const r = addonForm.id ? await updateAddon(addonForm.id, addonForm) : await addAddon({ ...addonForm, group }); if (r && r.ok) { showToast(addonForm.id ? "Add-on updated." : "Add-on created."); setAddonForm(null); } else { showToast((r && r.error) || "Could not save the add-on."); } };
@@ -1375,6 +1387,12 @@ function ServiceForm({ form, setForm, onSave, onCancel, group, groupAddons }) {
       <TextInput value={form.category || ""} onChange={(v) => setForm({ ...form, category: v })} placeholder="e.g. Destination Photography" />
       <FieldLabel>Price (USD)</FieldLabel>
       <TextInput value={form.price} onChange={(v) => setForm({ ...form, price: v })} placeholder="e.g. 1200" prefix="$" />
+      <div style={{ display: "flex", gap: 10 }}>
+        <div style={{ flex: 1 }}><FieldLabel>Duration (min)</FieldLabel><TextInput value={form.duration || ""} onChange={(v) => setForm({ ...form, duration: v })} placeholder="90" /></div>
+        <div style={{ flex: 1 }}><FieldLabel>Pad before</FieldLabel><TextInput value={form.padBefore || ""} onChange={(v) => setForm({ ...form, padBefore: v })} placeholder="0" /></div>
+        <div style={{ flex: 1 }}><FieldLabel>Pad after</FieldLabel><TextInput value={form.padAfter || ""} onChange={(v) => setForm({ ...form, padAfter: v })} placeholder="0" /></div>
+      </div>
+      <div style={{ ...mono, fontSize: 10, color: FAINT, margin: "4px 0 12px", lineHeight: 1.5 }}>Duration plus padding is the total time this booking reserves on the calendar. Add-on minutes stack on top.</div>
       <FieldLabel>Add-on availability</FieldLabel>
       <div style={{ display: "flex", gap: 8, marginBottom: 10, flexWrap: "wrap" }}>
         <RadioPill active={form.addonMode === "group"} onClick={() => setForm({ ...form, addonMode: "group" })} label={`All ${g.label} add-ons`} accent={g.color} />

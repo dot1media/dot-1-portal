@@ -19,6 +19,8 @@ function mapService(r: any) {
     description: r.description || "",
     price: (r.price_cents || 0) / 100,
     duration: r.duration_min,
+    padBefore: r.pad_before_min || 0,
+    padAfter: r.pad_after_min || 0,
     addonMode: r.addon_mode,
     addonIds: r.addon_ids || [],
     visible: r.visible !== false,
@@ -27,7 +29,7 @@ function mapService(r: any) {
 
 export async function GET() {
   const services = await sql`
-    SELECT id, grp, category, name, description, price_cents, duration_min, addon_mode, addon_ids, visible
+    SELECT id, grp, category, name, description, price_cents, duration_min, pad_before_min, pad_after_min, addon_mode, addon_ids, visible
     FROM services WHERE active = true ORDER BY grp, sort_order, name`;
   const addons = await sql`
     SELECT id, grp, name, price_cents, add_time_min, visible
@@ -50,10 +52,12 @@ export async function POST(request: Request) {
   const category = b.category ? String(b.category).trim() : null;
   const visible = b.visible !== false;
   const duration = b.duration != null && b.duration !== "" ? Math.round(Number(b.duration)) : null;
+  const padBefore = b.padBefore != null && b.padBefore !== "" ? Math.max(0, Math.round(Number(b.padBefore))) : 0;
+  const padAfter = b.padAfter != null && b.padAfter !== "" ? Math.max(0, Math.round(Number(b.padAfter))) : 0;
   const rows = await sql`
-    INSERT INTO services (grp, category, name, description, price_cents, duration_min, addon_mode, addon_ids, visible, active)
+    INSERT INTO services (grp, category, name, description, price_cents, duration_min, pad_before_min, pad_after_min, addon_mode, addon_ids, visible, active)
     VALUES (${grp}::service_group, ${category}, ${name}, ${String(b.description || "")}, ${priceCents}, ${duration}, ${addonMode}::addon_mode, ${addonIds}::jsonb, ${visible}, true)
-    RETURNING id, grp, category, name, description, price_cents, duration_min, addon_mode, addon_ids, visible`;
+    RETURNING id, grp, category, name, description, price_cents, duration_min, pad_before_min, pad_after_min, addon_mode, addon_ids, visible`;
   return NextResponse.json({ service: mapService(rows[0]) });
 }
 
@@ -73,10 +77,12 @@ export async function PATCH(request: Request) {
   const addonIds = b.addonIds != null ? JSON.stringify(Array.isArray(b.addonIds) ? b.addonIds : []) : JSON.stringify(c.addon_ids || []);
   const visible = b.visible != null ? !!b.visible : c.visible;
   const duration = b.duration != null ? (b.duration === "" ? null : Math.round(Number(b.duration))) : c.duration_min;
+  const padBefore = b.padBefore != null ? (b.padBefore === "" ? 0 : Math.max(0, Math.round(Number(b.padBefore)))) : (c.pad_before_min || 0);
+  const padAfter = b.padAfter != null ? (b.padAfter === "" ? 0 : Math.max(0, Math.round(Number(b.padAfter)))) : (c.pad_after_min || 0);
   const rows = await sql`
-    UPDATE services SET category = ${category}, name = ${name}, description = ${description}, price_cents = ${priceCents}, duration_min = ${duration}, addon_mode = ${addonMode}::addon_mode, addon_ids = ${addonIds}::jsonb, visible = ${visible}, updated_at = now()
+    UPDATE services SET category = ${category}, name = ${name}, description = ${description}, price_cents = ${priceCents}, duration_min = ${duration}, pad_before_min = ${padBefore}, pad_after_min = ${padAfter}, addon_mode = ${addonMode}::addon_mode, addon_ids = ${addonIds}::jsonb, visible = ${visible}, updated_at = now()
     WHERE id = ${id}
-    RETURNING id, grp, category, name, description, price_cents, duration_min, addon_mode, addon_ids, visible`;
+    RETURNING id, grp, category, name, description, price_cents, duration_min, pad_before_min, pad_after_min, addon_mode, addon_ids, visible`;
   return NextResponse.json({ service: mapService(rows[0]) });
 }
 

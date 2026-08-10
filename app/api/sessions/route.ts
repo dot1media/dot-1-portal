@@ -18,8 +18,9 @@ async function whoami() {
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   if (searchParams.get("slots")) {
-    const rows = await sql`SELECT id, date, time FROM portal_sessions WHERE status = 'active' AND date IS NOT NULL AND time IS NOT NULL`;
-    return NextResponse.json({ takenSlots: rows });
+    const rows = await sql`SELECT data FROM portal_sessions WHERE status = 'active' AND date IS NOT NULL AND time IS NOT NULL`;
+    const takenSlots = rows.map((r: any) => { const d = r.data || {}; return { id: d.id, date: d.date, time: d.time, apptMin: Number(d.apptMin) || Number(d.durationMin) || 30, padBefore: Number(d.padBefore) || 0, padAfter: Number(d.padAfter) || 0 }; });
+    return NextResponse.json({ takenSlots });
   }
   const me = await whoami();
   if (!me) return NextResponse.json({ sessions: [] });
