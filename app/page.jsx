@@ -8,7 +8,7 @@ import {
   Plus, Trash2, Pencil, Check, AlertTriangle, Tag, Link2, ListPlus,
   Star, CreditCard, Wallet, CalendarDays, ChevronLeft, ChevronRight,
   ArrowRight, ArrowLeft, CalendarClock, X, Copy, LogIn, Sparkles,
-  MessageCircle, Smartphone, Link as LinkIcon, Ban
+  MessageCircle, Smartphone, Link as LinkIcon, Ban, EyeOff,
 } from "lucide-react";
 
 // Persist to the browser's localStorage (works in a real browser, unlike the
@@ -85,6 +85,7 @@ const DEFAULT_STATE = {
   directLinks: [],
 };
 
+const PHOTO_CATEGORIES = ["Destination Photography", "Event Photography", "Photography"];
 const CLIENT_SERVICES_VERSION = "1.0";
 const RELEASE_VERSION = "1.0";
 const PDF_CLIENT_SERVICES = "/Dot-One-Media-Client-Services-Agreement.pdf";
@@ -159,7 +160,10 @@ export default function App() {
       setLoaded(true);
     })();
   }, []);
-  useEffect(() => { if (!loaded) return; (async () => { try { await storage.set(STORAGE_KEY, JSON.stringify(state)); } catch (e) {} })(); }, [state, loaded]);
+  const [catalogLoaded, setCatalogLoaded] = useState(false);
+  const [catalogError, setCatalogError] = useState(false);
+  useEffect(() => { if (!loaded) return; (async () => { try { const { services, addons, ...rest } = state; await storage.set(STORAGE_KEY, JSON.stringify(rest)); } catch (e) {} })(); }, [state, loaded]);
+  useEffect(() => { (async () => { try { const res = await fetch("/api/services"); const data = await res.json(); if (!res.ok) throw new Error(); setState((s) => ({ ...s, services: data.services || [], addons: data.addons || [] })); setCatalogError(false); } catch (e) { setCatalogError(true); } finally { setCatalogLoaded(true); } })(); }, []);
 
   const showToast = (msg) => { setToast(msg); if (toastTimer.current) clearTimeout(toastTimer.current); toastTimer.current = setTimeout(() => setToast(null), 3600); };
 
@@ -206,12 +210,12 @@ export default function App() {
 
   const clientRescheduleRequest = (session, newIso) => { const fee = PAYMENT_RULES[session.serviceLine]?.reschedFee || 0; const feeText = fee > 0 ? ` (a ${money(fee)} reschedule fee applies)` : " (no fee)"; addComment(session.id, "client", `Reschedule requested for ${fmtDate(newIso)}${feeText}.`, true); showToast(fee > 0 ? `Request sent — a ${money(fee)} reschedule fee applies.` : "Reschedule request sent (no fee)."); };
 
-  const addService = (svc) => setState((s) => ({ ...s, services: [...s.services, svc] }));
-  const updateService = (id, patch) => setState((s) => ({ ...s, services: s.services.map((x) => (x.id === id ? { ...x, ...patch } : x)) }));
-  const deleteService = (id) => setState((s) => ({ ...s, services: s.services.filter((x) => x.id !== id) }));
-  const addAddon = (a) => setState((s) => ({ ...s, addons: [...s.addons, a] }));
-  const updateAddon = (id, patch) => setState((s) => ({ ...s, addons: s.addons.map((x) => (x.id === id ? { ...x, ...patch } : x)) }));
-  const deleteAddon = (id) => setState((s) => ({ ...s, addons: s.addons.filter((x) => x.id !== id), services: s.services.map((sv) => ({ ...sv, addonIds: (sv.addonIds || []).filter((aid) => aid !== id) })) }));
+  const addService = async (svc) => { try { const res = await fetch("/api/services", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(svc) }); const data = await res.json().catch(() => ({})); if (res.ok && data.service) { setState((s) => ({ ...s, services: [...s.services, data.service] })); return { ok: true }; } return { ok: false, error: data.error || "Could not save the service." }; } catch (e) { return { ok: false, error: "Network error." }; } };
+  const updateService = async (id, patch) => { try { const res = await fetch("/api/services", { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ id, ...patch }) }); const data = await res.json().catch(() => ({})); if (res.ok && data.service) { setState((s) => ({ ...s, services: s.services.map((x) => (x.id === id ? data.service : x)) })); return { ok: true }; } return { ok: false, error: data.error || "Could not update the service." }; } catch (e) { return { ok: false, error: "Network error." }; } };
+  const deleteService = async (id) => { try { const res = await fetch("/api/services?id=" + encodeURIComponent(id), { method: "DELETE" }); const data = await res.json().catch(() => ({})); if (res.ok) { setState((s) => ({ ...s, services: s.services.filter((x) => x.id !== id) })); return { ok: true }; } return { ok: false, error: data.error || "Could not delete the service." }; } catch (e) { return { ok: false, error: "Network error." }; } };
+  const addAddon = async (a) => { try { const res = await fetch("/api/addons", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(a) }); const data = await res.json().catch(() => ({})); if (res.ok && data.addon) { setState((s) => ({ ...s, addons: [...s.addons, data.addon] })); return { ok: true }; } return { ok: false, error: data.error || "Could not save the add-on." }; } catch (e) { return { ok: false, error: "Network error." }; } };
+  const updateAddon = async (id, patch) => { try { const res = await fetch("/api/addons", { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ id, ...patch }) }); const data = await res.json().catch(() => ({})); if (res.ok && data.addon) { setState((s) => ({ ...s, addons: s.addons.map((x) => (x.id === id ? data.addon : x)) })); return { ok: true }; } return { ok: false, error: data.error || "Could not update the add-on." }; } catch (e) { return { ok: false, error: "Network error." }; } };
+  const deleteAddon = async (id) => { try { const res = await fetch("/api/addons?id=" + encodeURIComponent(id), { method: "DELETE" }); const data = await res.json().catch(() => ({})); if (res.ok) { setState((s) => ({ ...s, addons: s.addons.filter((x) => x.id !== id) })); return { ok: true }; } return { ok: false, error: data.error || "Could not delete the add-on." }; } catch (e) { return { ok: false, error: "Network error." }; } };
 
   /* ---- slot availability + direct links ---- */
   const slotTaken = (date, time, exceptSessionId) => {
@@ -282,7 +286,7 @@ export default function App() {
       <main style={{ maxWidth: 1120, margin: "0 auto", padding: "28px 22px 60px" }}>
         {view === "landing" && <LandingPage onBook={() => { setDirectContext(null); setView("book"); }} onClientLogin={() => setView("login")} onStudioLogin={() => setView("studiologin")} />}
         {view === "studiologin" && <StudioLogin onLogin={loginAsStudio} onBack={() => setView("landing")} />}
-        {view === "book" && <BookingFlow state={state} direct={directContext} slotTaken={slotTaken} onCancel={() => { setDirectContext(null); setView("landing"); }} onComplete={createBooking} onLogin={() => setView("login")} />}
+        {view === "book" && <BookingFlow state={state} direct={directContext} slotTaken={slotTaken} onCancel={() => { setDirectContext(null); setView("landing"); }} onComplete={createBooking} onLogin={() => setView("login")} catalogLoaded={catalogLoaded} catalogError={catalogError} />}
         {view === "login" && <LoginView onLogin={loginAs} onBook={() => { setDirectContext(null); setView("book"); }} onStudio={() => setView("studiologin")} />}
         {view === "client" && <ClientView session={clientSession} sessions={state.sessions} clientId={clientId} setClientId={setClientId} addComment={addComment} onRescheduleRequest={clientRescheduleRequest} markMessagesRead={markMessagesRead} patchSession={patchSession} resizeImage={resizeImage} showToast={showToast} />}
         {view === "admin" && (
@@ -412,7 +416,7 @@ function AgreementBox({ title, text, pdf, A }) {
   );
 }
 
-function BookingFlow({ state, direct, slotTaken, onCancel, onComplete, onLogin }) {
+function BookingFlow({ state, direct, slotTaken, onCancel, onComplete, onLogin, catalogLoaded, catalogError }) {
   const [step, setStep] = useState(direct ? 2 : 0); // 0 welcome, 1 choose, 2 account, 3 confirm
   const [group, setGroup] = useState(direct?.group || "video");
   const [serviceId, setServiceId] = useState(direct?.serviceId || null);
@@ -452,10 +456,10 @@ function BookingFlow({ state, direct, slotTaken, onCancel, onComplete, onLogin }
     }
   };
 
-  const groupServices = state.services.filter((s) => s.group === group);
+  const groupServices = state.services.filter((s) => s.group === group && s.visible !== false);
   const catalogService = state.services.find((s) => s.id === serviceId) || null;
   const service = catalogService || (direct ? { id: direct.serviceId, name: direct.serviceName, price: direct.price, addonMode: "group", addonIds: [] } : null);
-  const groupAddons = state.addons.filter((a) => a.group === group);
+  const groupAddons = state.addons.filter((a) => a.group === group && a.visible !== false);
   const availableAddons = service ? (service.addonMode === "custom" ? groupAddons.filter((a) => (service.addonIds || []).includes(a.id)) : groupAddons) : [];
   const chosenAddons = availableAddons.filter((a) => addonIds.includes(a.id));
   const basePrice = Number(service?.price) || 0;
@@ -467,6 +471,16 @@ function BookingFlow({ state, direct, slotTaken, onCancel, onComplete, onLogin }
   const stepDefs = direct ? [{ n: 2, label: "Account" }, { n: 3, label: "Confirm & Pay" }] : [{ n: 1, label: "Choose" }, { n: 2, label: "Account" }, { n: 3, label: "Confirm & Pay" }];
 
   /* STEP 0 — WELCOME */
+  const renderServiceBtn = (s) => { const sel = serviceId === s.id; return (
+    <button key={s.id} onClick={() => { setServiceId(s.id); setAddonIds([]); }} style={{ width: "100%", textAlign: "left", marginBottom: 10, padding: "15px 17px", borderRadius: 10, cursor: "pointer", border: `1.5px solid ${sel ? GROUPS[group].color : LINE}`, background: sel ? AB : PAPER }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 10 }}>
+        <span style={{ ...display, fontWeight: 600, fontSize: 17, color: INK }}>{s.name}</span>
+        <span style={{ ...mono, fontSize: 14, color: A, fontWeight: 500 }}>{s.price ? money(s.price) : "Quote"}</span>
+      </div>
+      {s.description && <div style={{ fontSize: 12.5, color: BODY, lineHeight: 1.5, marginTop: 5 }}>{s.description}</div>}
+    </button>
+  ); };
+
   if (step === 0) {
     return (
       <div style={{ maxWidth: 720, margin: "0 auto" }}>
@@ -542,27 +556,39 @@ function BookingFlow({ state, direct, slotTaken, onCancel, onComplete, onLogin }
               <button key={k} onClick={() => { setGroup(k); setServiceId(null); setAddonIds([]); }} style={{ display: "flex", alignItems: "center", gap: 8, padding: "9px 15px", borderRadius: 8, cursor: "pointer", fontSize: 13, border: `1px solid ${active ? gg.color : LINE}`, background: active ? gg.color : PAPER, color: active ? "#fff" : STONE }}><gg.Icon size={14} /> {gg.label}</button>
             ); })}
           </div>
-          {groupServices.length === 0 ? (
-            <div style={{ border: `1px dashed ${LINE}`, borderRadius: 10, padding: "28px", textAlign: "center", background: PAPER }}>
-              <div style={{ ...display, fontSize: 17, color: INK, marginBottom: 6 }}>No {GROUPS[group].label} services available yet</div>
-              <div style={{ fontSize: 13, color: STONE, lineHeight: 1.5 }}>Please check back soon, or reach out to us directly and we'll help you book.</div>
+          {!catalogLoaded ? (
+            <div style={{ textAlign: "center", padding: "44px", color: STONE, fontSize: 13 }}>Loading services…</div>
+          ) : catalogError ? (
+            <div style={{ border: `1px solid ${LINE}`, borderRadius: 10, padding: "26px", textAlign: "center", background: PAPER }}>
+              <div style={{ ...display, fontSize: 16, color: INK, marginBottom: 6 }}>We couldn't load services right now</div>
+              <div style={{ fontSize: 13, color: STONE, lineHeight: 1.5 }}>Please refresh the page, or reach out to us directly and we'll help you book.</div>
             </div>
           ) : (
             <div>
-              {groupServices.map((s) => { const sel = serviceId === s.id; return (
-                <button key={s.id} onClick={() => { setServiceId(s.id); setAddonIds([]); }} style={{ width: "100%", textAlign: "left", marginBottom: 10, padding: "15px 17px", borderRadius: 10, cursor: "pointer", border: `1.5px solid ${sel ? GROUPS[group].color : LINE}`, background: sel ? AB : PAPER }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 10 }}>
-                    <span style={{ ...display, fontWeight: 600, fontSize: 17, color: INK }}>{s.name}</span>
-                    <span style={{ ...mono, fontSize: 14, color: A, fontWeight: 500 }}>{s.price ? money(s.price) : "Quote"}</span>
-                  </div>
-                  {s.description && <div style={{ fontSize: 12.5, color: BODY, lineHeight: 1.5, marginTop: 5 }}>{s.description}</div>}
-                </button>
-              ); })}
+              {groupServices.length === 0 ? (
+                <div style={{ border: `1px dashed ${LINE}`, borderRadius: 10, padding: "28px", textAlign: "center", background: PAPER }}>
+                  <div style={{ ...display, fontSize: 17, color: INK, marginBottom: 6 }}>No {GROUPS[group].label} services available yet</div>
+                  <div style={{ fontSize: 13, color: STONE, lineHeight: 1.5 }}>Please check back soon, or reach out to us directly and we'll help you book.</div>
+                </div>
+              ) : group === "photo" ? (
+                PHOTO_CATEGORIES.concat(["__other"]).map((cat) => {
+                  const inCat = groupServices.filter((s) => cat === "__other" ? !PHOTO_CATEGORIES.includes(s.category) : s.category === cat);
+                  if (inCat.length === 0) return null;
+                  return (
+                    <div key={cat}>
+                      <div style={{ ...mono, fontSize: 10.5, letterSpacing: "0.16em", textTransform: "uppercase", color: STONE, margin: "16px 2px 9px" }}>{cat === "__other" ? "More Sessions" : cat}</div>
+                      {inCat.map(renderServiceBtn)}
+                    </div>
+                  );
+                })
+              ) : (
+                groupServices.map(renderServiceBtn)
+              )}
               {service && availableAddons.length > 0 && (
                 <div style={{ marginTop: 18, background: CREAM, border: `1px solid ${LINE}`, borderRadius: 10, padding: "16px 18px" }}>
                   <div style={{ ...mono, fontSize: 10.5, letterSpacing: "0.14em", textTransform: "uppercase", color: STONE, marginBottom: 12 }}>Add-ons (optional)</div>
                   {availableAddons.map((a) => { const on = addonIds.includes(a.id); return (
-                    <div key={a.id} onClick={() => setAddonIds((p) => on ? p.filter((x) => x !== a.id) : [...p, a.id])} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 0", cursor: "pointer", borderTop: `1px solid ${LINE}` }}>
+                    <div key={a.id} onClick={() => setAddonIds((pp) => on ? pp.filter((x) => x !== a.id) : [...pp, a.id])} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 0", cursor: "pointer", borderTop: `1px solid ${LINE}` }}>
                       <span style={{ width: 17, height: 17, borderRadius: 4, border: `1.5px solid ${on ? GROUPS[group].color : LINE}`, background: on ? GROUPS[group].color : PAPER, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>{on && <Check size={12} color="#fff" />}</span>
                       <span style={{ flex: 1, fontSize: 13.5, color: INK }}>{a.name}{a.addTime ? <span style={{ ...mono, fontSize: 10, color: FAINT }}>  · +{a.addTime} min</span> : null}</span>
                       <span style={{ ...mono, fontSize: 12.5, color: a.price ? A : FAINT }}>{a.price ? "+" + money(a.price) : "free"}</span>
@@ -1148,10 +1174,10 @@ function ServiceCatalog({ state, addService, updateService, deleteService, addAd
   const groupServices = state.services.filter((s) => s.group === group);
   const groupAddons = state.addons.filter((a) => a.group === group);
   const g = GROUPS[group];
-  const startNewService = () => setSvcForm({ name: "", description: "", price: "", addonMode: "group", addonIds: [] });
-  const saveService = () => { if (!svcForm.name.trim()) { showToast("Give the service a name first."); return; } if (svcForm.id) { updateService(svcForm.id, svcForm); showToast("Service updated."); } else { addService({ ...svcForm, id: uid("svc"), group }); showToast("Service created."); } setSvcForm(null); };
-  const startNewAddon = () => setAddonForm({ name: "", price: "", addTime: "" });
-  const saveAddon = () => { if (!addonForm.name.trim()) { showToast("Give the add-on a name first."); return; } if (addonForm.id) { updateAddon(addonForm.id, addonForm); showToast("Add-on updated."); } else { addAddon({ ...addonForm, id: uid("add"), group }); showToast("Add-on created."); } setAddonForm(null); };
+  const startNewService = () => setSvcForm({ name: "", description: "", price: "", category: "", addonMode: "group", addonIds: [], visible: true });
+  const saveService = async () => { if (!svcForm.name.trim()) { showToast("Give the service a name first."); return; } const r = svcForm.id ? await updateService(svcForm.id, svcForm) : await addService({ ...svcForm, group }); if (r && r.ok) { showToast(svcForm.id ? "Service updated." : "Service created."); setSvcForm(null); } else { showToast((r && r.error) || "Could not save the service."); } };
+  const startNewAddon = () => setAddonForm({ name: "", price: "", addTime: "", visible: true });
+  const saveAddon = async () => { if (!addonForm.name.trim()) { showToast("Give the add-on a name first."); return; } const r = addonForm.id ? await updateAddon(addonForm.id, addonForm) : await addAddon({ ...addonForm, group }); if (r && r.ok) { showToast(addonForm.id ? "Add-on updated." : "Add-on created."); setAddonForm(null); } else { showToast((r && r.error) || "Could not save the add-on."); } };
 
   return (
     <div>
@@ -1169,7 +1195,7 @@ function ServiceCatalog({ state, addService, updateService, deleteService, addAd
           </div>
           {svcForm && <ServiceForm form={svcForm} setForm={setSvcForm} onSave={saveService} onCancel={() => setSvcForm(null)} group={group} groupAddons={groupAddons} />}
           {groupServices.length === 0 && !svcForm && <EmptyHint text={`No ${g.label.toLowerCase()} services yet. Click "New service" to create your first appointment type.`} />}
-          {groupServices.map((s) => <ServiceCard key={s.id} svc={s} groupAddons={groupAddons} onEdit={() => setSvcForm({ ...s, addonIds: s.addonIds || [] })} onDelete={() => deleteService(s.id)} />)}
+          {groupServices.map((s) => <ServiceCard key={s.id} svc={s} groupAddons={groupAddons} onEdit={() => setSvcForm({ ...s, addonIds: s.addonIds || [] })} onDelete={async () => { const r = await deleteService(s.id); if (r && !r.ok) showToast(r.error || "Could not delete the service."); }} onToggleVisible={async () => { const r = await updateService(s.id, { visible: s.visible === false }); if (r && !r.ok) showToast(r.error || "Could not update."); }} />)}
         </div>
         <div>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
@@ -1178,7 +1204,7 @@ function ServiceCatalog({ state, addService, updateService, deleteService, addAd
           </div>
           {addonForm && <AddonForm form={addonForm} setForm={setAddonForm} onSave={saveAddon} onCancel={() => setAddonForm(null)} accent={g.color} />}
           {groupAddons.length === 0 && !addonForm && <EmptyHint text={`No ${g.label.toLowerCase()} add-ons yet. Add-ons you create here can attach to any ${g.label.toLowerCase()} service.`} />}
-          {groupAddons.map((a) => <AddonCard key={a.id} addon={a} onEdit={() => setAddonForm({ ...a })} onDelete={() => deleteAddon(a.id)} />)}
+          {groupAddons.map((a) => <AddonCard key={a.id} addon={a} onEdit={() => setAddonForm({ ...a })} onDelete={async () => { const r = await deleteAddon(a.id); if (r && !r.ok) showToast(r.error || "Could not delete the add-on."); }} onToggleVisible={async () => { const r = await updateAddon(a.id, { visible: a.visible === false }); if (r && !r.ok) showToast(r.error || "Could not update."); }} />)}
         </div>
       </div>
     </div>
@@ -1193,6 +1219,8 @@ function ServiceForm({ form, setForm, onSave, onCancel, group, groupAddons }) {
       <TextInput value={form.name} onChange={(v) => setForm({ ...form, name: v })} placeholder="e.g. Legacy Story Video" />
       <FieldLabel>Description</FieldLabel>
       <textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} rows={3} placeholder="What this service includes…" style={{ width: "100%", border: `1px solid ${LINE}`, borderRadius: 8, padding: "9px 11px", fontSize: 13, fontFamily: "inherit", resize: "vertical", background: PAPER, color: BODY, boxSizing: "border-box", marginBottom: 12 }} />
+      <FieldLabel>Sub-category (optional, groups this under a client-facing heading)</FieldLabel>
+      <TextInput value={form.category || ""} onChange={(v) => setForm({ ...form, category: v })} placeholder="e.g. Destination Photography" />
       <FieldLabel>Price (USD)</FieldLabel>
       <TextInput value={form.price} onChange={(v) => setForm({ ...form, price: v })} placeholder="e.g. 1200" prefix="$" />
       <FieldLabel>Add-on availability</FieldLabel>
@@ -1211,6 +1239,10 @@ function ServiceForm({ form, setForm, onSave, onCancel, group, groupAddons }) {
           ); })}
         </div>
       )}
+      <label style={{ display: "flex", alignItems: "center", gap: 9, margin: "4px 0 12px", cursor: "pointer" }}>
+        <input type="checkbox" checked={form.visible !== false} onChange={(e) => setForm({ ...form, visible: e.target.checked })} style={{ width: 16, height: 16, accentColor: g.color, cursor: "pointer" }} />
+        <span style={{ fontSize: 12, color: BODY, lineHeight: 1.4 }}>Show on the public booking page (uncheck to keep it bookable by direct link only)</span>
+      </label>
       <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 6 }}>
         <button onClick={onCancel} style={btnGhost}>Cancel</button>
         <button onClick={onSave} style={{ ...btnSolid, background: g.color }}><Check size={14} /> Save service</button>
@@ -1228,6 +1260,10 @@ function AddonForm({ form, setForm, onSave, onCancel, accent }) {
         <div style={{ flex: 1 }}><FieldLabel>Price (USD)</FieldLabel><TextInput value={form.price} onChange={(v) => setForm({ ...form, price: v })} placeholder="350" prefix="$" /></div>
         <div style={{ flex: 1 }}><FieldLabel>Adds time (min)</FieldLabel><TextInput value={form.addTime} onChange={(v) => setForm({ ...form, addTime: v })} placeholder="30" /></div>
       </div>
+      <label style={{ display: "flex", alignItems: "center", gap: 9, margin: "4px 0 12px", cursor: "pointer" }}>
+        <input type="checkbox" checked={form.visible !== false} onChange={(e) => setForm({ ...form, visible: e.target.checked })} style={{ width: 16, height: 16, accentColor: accent, cursor: "pointer" }} />
+        <span style={{ fontSize: 12, color: BODY, lineHeight: 1.4 }}>Show on the public booking page (uncheck to keep it direct-link only)</span>
+      </label>
       <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 6 }}>
         <button onClick={onCancel} style={btnGhost}>Cancel</button>
         <button onClick={onSave} style={{ ...btnSolid, background: accent }}><Check size={14} /> Save add-on</button>
@@ -1236,13 +1272,16 @@ function AddonForm({ form, setForm, onSave, onCancel, accent }) {
   );
 }
 
-function ServiceCard({ svc, groupAddons, onEdit, onDelete }) {
+function ServiceCard({ svc, groupAddons, onEdit, onDelete, onToggleVisible }) {
   const attached = svc.addonMode === "group" ? groupAddons : groupAddons.filter((a) => (svc.addonIds || []).includes(a.id));
   return (
     <div style={{ border: `1px solid ${LINE}`, borderRadius: 10, padding: "14px 16px", marginBottom: 10, background: PAPER }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 10 }}>
-        <div style={{ ...display, fontWeight: 600, fontSize: 16, color: INK }}>{svc.name}</div>
-        <div style={{ display: "flex", gap: 6, flexShrink: 0, alignItems: "center" }}>{svc.price ? <span style={{ ...mono, fontSize: 12, color: RED, fontWeight: 500 }}>${svc.price}</span> : null}<IconBtn onClick={onEdit}><Pencil size={13} /></IconBtn><IconBtn onClick={onDelete} danger><Trash2 size={13} /></IconBtn></div>
+        <div>
+          <div style={{ ...display, fontWeight: 600, fontSize: 16, color: INK }}>{svc.name}{svc.visible === false && <span style={{ ...mono, fontSize: 8.5, letterSpacing: "0.08em", textTransform: "uppercase", color: STONE, background: CREAM, border: `1px solid ${LINE}`, borderRadius: 4, padding: "2px 6px", marginLeft: 8, verticalAlign: "middle" }}>Hidden</span>}</div>
+          {svc.category ? <div style={{ ...mono, fontSize: 9, letterSpacing: "0.06em", color: FAINT, marginTop: 3 }}>{svc.category}</div> : null}
+        </div>
+        <div style={{ display: "flex", gap: 6, flexShrink: 0, alignItems: "center" }}>{svc.price ? <span style={{ ...mono, fontSize: 12, color: RED, fontWeight: 500 }}>${svc.price}</span> : null}<IconBtn onClick={onToggleVisible}>{svc.visible === false ? <EyeOff size={13} /> : <Eye size={13} />}</IconBtn><IconBtn onClick={onEdit}><Pencil size={13} /></IconBtn><IconBtn onClick={onDelete} danger><Trash2 size={13} /></IconBtn></div>
       </div>
       {svc.description ? <div style={{ fontSize: 12.5, color: BODY, lineHeight: 1.5, marginTop: 5 }}>{svc.description}</div> : null}
       <div style={{ ...mono, fontSize: 9.5, letterSpacing: "0.05em", color: FAINT, marginTop: 9, display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}><Package size={11} /> {svc.addonMode === "group" ? "All group add-ons" : `${attached.length} selected`}{attached.length > 0 && <span style={{ color: STONE }}>· {attached.map((a) => a.name).join(", ")}</span>}</div>
@@ -1250,11 +1289,11 @@ function ServiceCard({ svc, groupAddons, onEdit, onDelete }) {
   );
 }
 
-function AddonCard({ addon, onEdit, onDelete }) {
+function AddonCard({ addon, onEdit, onDelete, onToggleVisible }) {
   return (
     <div style={{ border: `1px solid ${LINE}`, borderRadius: 9, padding: "11px 14px", marginBottom: 8, background: PAPER, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10 }}>
-      <div><div style={{ fontSize: 13.5, color: INK, fontWeight: 500 }}>{addon.name}</div><div style={{ ...mono, fontSize: 10, color: STONE, marginTop: 2, letterSpacing: "0.04em" }}>{addon.price ? `+$${addon.price}` : "no charge"}{addon.addTime ? ` · +${addon.addTime} min` : ""}</div></div>
-      <div style={{ display: "flex", gap: 6 }}><IconBtn onClick={onEdit}><Pencil size={13} /></IconBtn><IconBtn onClick={onDelete} danger><Trash2 size={13} /></IconBtn></div>
+      <div><div style={{ fontSize: 13.5, color: INK, fontWeight: 500 }}>{addon.name}{addon.visible === false && <span style={{ ...mono, fontSize: 8, letterSpacing: "0.08em", textTransform: "uppercase", color: STONE, marginLeft: 6 }}>Hidden</span>}</div><div style={{ ...mono, fontSize: 10, color: STONE, marginTop: 2, letterSpacing: "0.04em" }}>{addon.price ? `+$${addon.price}` : "no charge"}{addon.addTime ? ` · +${addon.addTime} min` : ""}</div></div>
+      <div style={{ display: "flex", gap: 6 }}><IconBtn onClick={onToggleVisible}>{addon.visible === false ? <EyeOff size={13} /> : <Eye size={13} />}</IconBtn><IconBtn onClick={onEdit}><Pencil size={13} /></IconBtn><IconBtn onClick={onDelete} danger><Trash2 size={13} /></IconBtn></div>
     </div>
   );
 }
