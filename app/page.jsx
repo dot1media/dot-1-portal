@@ -85,21 +85,61 @@ const DEFAULT_STATE = {
   directLinks: [],
 };
 
-const CLIENT_AGREEMENT_VERSION = "1.0";
-const CLIENT_AGREEMENT_TITLE = "Dot One Media Client Services Agreement";
-const CLIENT_AGREEMENT_TEXT = `By booking with Dot One Media / DOT ONE LLC, you agree to the following key terms:
+const CLIENT_SERVICES_VERSION = "1.0";
+const RELEASE_VERSION = "1.0";
+const PDF_CLIENT_SERVICES = "/Dot-One-Media-Client-Services-Agreement.pdf";
+const PDF_RELEASE = "/Dot-One-Media-Release-and-Waiver.pdf";
+const PDF_MINOR = "/Dot-One-Media-Minor-Release-and-Waiver.pdf";
 
-Booking & retainer. Video sessions require a $750 retainer (or payment in full) to reserve your date; the balance is due 24 hours before filming. Photography may be paid in full, 50% now, or reserved and paid at the session. Music and government projects are quoted individually.
+const CLIENT_SERVICES_SUMMARY = `Key terms for your booking. The full agreement is linked below.
 
-Rescheduling. Video sessions may be rescheduled for a $150 fee with reasonable notice. Photography sessions may be rescheduled at no charge with reasonable notice.
+Payment. Full payment is due no later than the start of your session; for video, the balance is due at least 24 hours before the filming date. We don't begin work or deliver until the payment due at that stage is paid in full.
 
-Deliverables & timeline. Your project moves through the stages shown in your portal, from booking to final delivery. Final files are delivered digitally; please download and back up your files promptly.
+Video sessions. A non-refundable $750 retainer is due at booking to reserve your date. Reschedule with at least 3 days' notice for a $150 fee (your retainer transfers). Fewer than 3 days' notice is treated as a cancellation.
 
-Cancellations. Retainers and deposits reserve your date and are non-refundable.
+Photography sessions. No retainer; the full session fee is due at or before your session. You may reschedule once with at least 24 hours' notice at no charge. Less notice, or cancelling, forfeits the fee.
 
-Media release. You grant Dot One Media permission to use the finished work for portfolio and promotional purposes unless you request otherwise in writing.
+No-shows & late payment. Missing a session without notice forfeits payments made. If we proceed despite an unpaid balance, a $100/day late fee (up to 7 days) may apply.
 
-This is a summary of the full agreement. By typing your name and checking the box below, you acknowledge that you have read and agree to the full Dot One Media Client Services Agreement.`;
+Travel. Video includes travel within 50 miles of the Mat-Su Valley; photography includes within 25 minutes of Eagle River. Beyond that, a travel add-on or $0.52/mile applies.
+
+Deliverables & style. You're booking our creative style. We deliver the strongest images and footage, not every frame. Photography images may be purged after 6 months, so please download promptly.
+
+Copyright. Dot One Media retains copyright; you receive a personal-use license unless a commercial license is arranged.
+
+Liability is limited to the amount you paid for the project. Governed by Alaska law.`;
+
+const RELEASE_SUMMARY = `Media release and liability waiver for adults (18 and over). The full document is linked below.
+
+You consent to being photographed and filmed, and to the capture of your name, likeness, image, and voice.
+
+Dot One Media owns the copyright in the content; you receive use rights according to the choice you make below.
+
+You choose how your images and video may be used (Option A, B, or C below).
+
+You waive the right to pre-approve the finished content, and you release Dot One Media from claims arising from the permitted uses and from ordinary session risks.
+
+Liability is limited to the amount paid for the session. Governed by Alaska law.
+
+If the person being photographed is under 18, check the box above and a parent or guardian will sign the Minor Release instead.`;
+
+const MINOR_SUMMARY = `Media release and liability waiver for a child under 18, signed by the parent or legal guardian. The full document is linked below.
+
+You confirm you are the parent or legal guardian, with authority to sign for the child.
+
+You consent, on the child's behalf, to the child being photographed and filmed.
+
+Dot One Media owns the copyright; use of the child's images follows the choice you make below.
+
+Dot One Media will not publish the child's full name or identifying details without your separate permission, and will use only a first name or no name in permitted uses.
+
+You release Dot One Media, on your and the child's behalf, from claims arising from the permitted uses and ordinary session risks. Liability is limited to the amount paid.`;
+
+const USAGE_OPTIONS = [
+  { key: "A", label: "Portfolio & Marketing (default)", desc: "Dot One Media may use the content to promote its own business, including its website, social media, portfolio, samples, competition entries, and its own advertising. It will not sell or license your images to unrelated third parties." },
+  { key: "B", label: "Full Commercial Use", desc: "In addition to Option A, Dot One Media may license, sell, or assign the content to third parties for commercial purposes, without further compensation." },
+  { key: "C", label: "Private / Limited Use", desc: "Dot One Media may use the content only to deliver your finished project, and may not publish your images publicly, except as you note below." },
+];
 
 export default function App() {
   const [view, setView] = useState("landing");   // landing | client | admin | book | login | studiologin
@@ -347,6 +387,16 @@ function LoginView({ onLogin, onBook, onStudio }) {
 }
 
 /* ============================ BOOKING FLOW ============================ */
+function AgreementBox({ title, text, pdf, A }) {
+  return (
+    <div style={{ marginTop: 18 }}>
+      <div style={{ ...mono, fontSize: 10.5, letterSpacing: "0.16em", textTransform: "uppercase", color: STONE, marginBottom: 6 }}>{title}</div>
+      <div style={{ maxHeight: 170, overflowY: "auto", border: `1px solid ${LINE}`, borderRadius: 9, padding: "13px 15px", background: PAPER, fontSize: 12.5, lineHeight: 1.55, color: BODY, whiteSpace: "pre-wrap" }}>{text}</div>
+      <a href={pdf} target="_blank" rel="noopener noreferrer" style={{ ...mono, fontSize: 10.5, letterSpacing: "0.04em", color: A, textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 6, marginTop: 6 }}><FileCheck size={12} /> Read the full agreement (PDF)</a>
+    </div>
+  );
+}
+
 function BookingFlow({ state, direct, slotTaken, onCancel, onComplete, goStudio, onLogin }) {
   const [step, setStep] = useState(direct ? 2 : 0); // 0 welcome, 1 choose, 2 account, 3 confirm
   const [group, setGroup] = useState(direct?.group || "video");
@@ -359,18 +409,26 @@ function BookingFlow({ state, direct, slotTaken, onCancel, onComplete, goStudio,
   const [agree, setAgree] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [submitErr, setSubmitErr] = useState("");
+  const [isMinor, setIsMinor] = useState(false);
+  const [usage, setUsage] = useState("A");
+  const [child, setChild] = useState({ name: "", age: "", relationship: "" });
+  const [exception, setException] = useState("");
   const submitAccount = async () => {
     setSubmitErr("");
     if (!acct.name.trim() || !acct.email.trim()) { setSubmitErr("Please enter your name and email."); return; }
-    if (!agree || !acct.signature.trim()) { setSubmitErr("Type your full legal name and check the box to sign the agreement."); return; }
+    if (isMinor && (!child.name.trim() || !child.age.trim() || !child.relationship.trim())) { setSubmitErr("Please add the child's name, age, and your relationship to the child."); return; }
+    if (!agree || !acct.signature.trim()) { setSubmitErr("Type your full legal name and check the box to sign."); return; }
     setSubmitting(true);
     try {
       const ures = await fetch("/api/users", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ name: acct.name.trim(), email: acct.email.trim(), phone: (acct.phone || "").trim() }) });
       const udata = await ures.json();
       if (!ures.ok) throw new Error(udata.error || "Could not create your account.");
-      const ares = await fetch("/api/agreements", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ email: acct.email.trim(), agreementType: "client_services", version: CLIENT_AGREEMENT_VERSION, signedName: acct.signature.trim() }) });
-      const adata = await ares.json();
-      if (!ares.ok) throw new Error(adata.error || "Could not record your signature.");
+      const releaseType = isMinor ? "minor_release" : "media_release";
+      const details = isMinor
+        ? { childName: child.name.trim(), childAge: child.age.trim(), relationship: child.relationship.trim(), exception: usage === "C" ? exception.trim() : "" }
+        : { exception: usage === "C" ? exception.trim() : "" };
+      const ares = await fetch("/api/agreements", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ email: acct.email.trim(), signedName: acct.signature.trim(), agreements: [ { type: "client_services", version: CLIENT_SERVICES_VERSION }, { type: releaseType, version: RELEASE_VERSION, usageOption: usage, details } ] }) });
+      if (!ares.ok) { const d = await ares.json().catch(() => ({})); throw new Error(d.error || "Could not record your signatures."); }
       setStep(3);
     } catch (e) {
       setSubmitErr((e && e.message) || "Something went wrong. Please try again.");
@@ -511,8 +569,8 @@ function BookingFlow({ state, direct, slotTaken, onCancel, onComplete, goStudio,
 
       {/* STEP 2 — ACCOUNT */}
       {step === 2 && (
-        <div style={{ maxWidth: 560 }}>
-          <div style={{ fontSize: 13.5, color: BODY, marginBottom: 18, lineHeight: 1.5 }}>Create your account and sign the agreement to continue. Already have an account? <span onClick={onLogin} style={{ color: A, cursor: "pointer" }}>Log in</span>.</div>
+        <div style={{ maxWidth: 600 }}>
+          <div style={{ fontSize: 13.5, color: BODY, marginBottom: 18, lineHeight: 1.5 }}>Create your account and sign to continue. Already have an account? <span onClick={onLogin} style={{ color: A, cursor: "pointer" }}>Log in</span>.</div>
           <FieldLabel>Your name</FieldLabel>
           <TextInput value={acct.name} onChange={(v) => setAcct({ ...acct, name: v })} placeholder="Sarah & James" />
           <FieldLabel>Email</FieldLabel>
@@ -520,23 +578,45 @@ function BookingFlow({ state, direct, slotTaken, onCancel, onComplete, goStudio,
           <FieldLabel>Phone (optional)</FieldLabel>
           <TextInput value={acct.phone} onChange={(v) => setAcct({ ...acct, phone: v })} placeholder="(907) 555-0123" />
 
-          <div style={{ marginTop: 22, marginBottom: 6, ...mono, fontSize: 10.5, letterSpacing: "0.16em", textTransform: "uppercase", color: STONE }}>{CLIENT_AGREEMENT_TITLE}</div>
-          <div style={{ maxHeight: 190, overflowY: "auto", border: `1px solid ${LINE}`, borderRadius: 9, padding: "14px 16px", background: PAPER, fontSize: 12.5, lineHeight: 1.55, color: BODY, whiteSpace: "pre-wrap" }}>{CLIENT_AGREEMENT_TEXT}</div>
+          <label style={{ display: "flex", alignItems: "flex-start", gap: 10, marginTop: 20, cursor: "pointer", background: CREAM, border: `1px solid ${LINE}`, borderRadius: 9, padding: "12px 14px" }}>
+            <input type="checkbox" checked={isMinor} onChange={(e) => setIsMinor(e.target.checked)} style={{ marginTop: 2, width: 16, height: 16, accentColor: A, cursor: "pointer" }} />
+            <span style={{ fontSize: 12.5, color: BODY, lineHeight: 1.5 }}>This session is for a child under 18. I am the parent or legal guardian and will sign on their behalf.</span>
+          </label>
 
-          <div style={{ marginTop: 14 }}>
+          <AgreementBox title="1 - Client Services Agreement" text={CLIENT_SERVICES_SUMMARY} pdf={PDF_CLIENT_SERVICES} A={A} />
+          <AgreementBox title={isMinor ? "2 - Minor Release & Liability Waiver" : "2 - Release & Liability Waiver"} text={isMinor ? MINOR_SUMMARY : RELEASE_SUMMARY} pdf={isMinor ? PDF_MINOR : PDF_RELEASE} A={A} />
+
+          {isMinor && (
+            <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 6 }}>
+              <div style={{ flex: "1 1 200px" }}><FieldLabel>Child's full name</FieldLabel><TextInput value={child.name} onChange={(v) => setChild({ ...child, name: v })} placeholder="Child's name" /></div>
+              <div style={{ flex: "0 1 90px" }}><FieldLabel>Age</FieldLabel><TextInput value={child.age} onChange={(v) => setChild({ ...child, age: v })} placeholder="e.g. 6" /></div>
+              <div style={{ flex: "1 1 160px" }}><FieldLabel>Your relationship</FieldLabel><TextInput value={child.relationship} onChange={(v) => setChild({ ...child, relationship: v })} placeholder="Parent / Guardian" /></div>
+            </div>
+          )}
+
+          <div style={{ ...mono, fontSize: 10.5, letterSpacing: "0.16em", textTransform: "uppercase", color: STONE, marginTop: 20, marginBottom: 8 }}>How may we use the images and video?</div>
+          {USAGE_OPTIONS.map((o) => (
+            <label key={o.key} style={{ display: "flex", alignItems: "flex-start", gap: 10, marginBottom: 8, cursor: "pointer", border: `1.5px solid ${usage === o.key ? A : LINE}`, background: usage === o.key ? A + "0e" : PAPER, borderRadius: 9, padding: "11px 13px" }}>
+              <input type="radio" name="usage" checked={usage === o.key} onChange={() => setUsage(o.key)} style={{ marginTop: 2, accentColor: A, cursor: "pointer" }} />
+              <span><span style={{ fontSize: 13, fontWeight: 600, color: INK }}>{o.label}</span><span style={{ display: "block", fontSize: 12, color: STONE, lineHeight: 1.45, marginTop: 2 }}>{o.desc}</span></span>
+            </label>
+          ))}
+          {usage === "C" && <TextInput value={exception} onChange={setException} placeholder="Optional: any specific use you allow (e.g. website portfolio only)" />}
+
+          <div style={{ marginTop: 18 }}>
             <FieldLabel>Type your full legal name to sign</FieldLabel>
             <TextInput value={acct.signature} onChange={(v) => setAcct({ ...acct, signature: v })} placeholder="Full legal name" />
           </div>
           <label style={{ display: "flex", alignItems: "flex-start", gap: 10, marginTop: 12, cursor: "pointer" }}>
             <input type="checkbox" checked={agree} onChange={(e) => setAgree(e.target.checked)} style={{ marginTop: 3, width: 16, height: 16, accentColor: A, cursor: "pointer" }} />
-            <span style={{ fontSize: 12.5, color: BODY, lineHeight: 1.5 }}>I have read and agree to the {CLIENT_AGREEMENT_TITLE}, and this typed signature is legally binding.</span>
+            <span style={{ fontSize: 12.5, color: BODY, lineHeight: 1.5 }}>I have read and agree to the Client Services Agreement and the {isMinor ? "Minor " : ""}Release and Liability Waiver above. This typed signature is legally binding.</span>
           </label>
 
           {submitErr && <div style={{ marginTop: 12, fontSize: 12.5, color: "#b5271b", display: "flex", alignItems: "center", gap: 7 }}><AlertTriangle size={14} /> {submitErr}</div>}
 
           <div style={{ display: "flex", justifyContent: "space-between", marginTop: 18 }}>
             <button onClick={() => (direct ? onCancel() : setStep(1))} disabled={submitting} style={btnGhost}><ArrowLeft size={14} /> Back</button>
-            <button onClick={submitAccount} disabled={submitting} style={{ ...btnSolid, background: submitting ? FAINT : A }}>{submitting ? "Saving..." : "Create account and continue"} <ArrowRight size={15} /></button>
+            <button onClick={submitAccount} disabled={submitting} style={{ ...btnSolid, background: submitting ? FAINT : A }}>{submitting ? "Saving..." : "Sign and continue"} <ArrowRight size={15} /></button>
           </div>
         </div>
       )}
