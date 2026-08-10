@@ -50,7 +50,7 @@ const NOTIFY_EMAILS = {
 
 const PAYMENT_RULES = {
   video: { label: "Video payment", Icon: CreditCard, options: [{ key: "retainer", label: "Pay $750 retainer now", fixed: 750 }, { key: "full", label: "Pay in full", pct: 100 }], note: "Balance due 24 hours before filming. Retainer is non-refundable.", reschedFee: 150 },
-  photo: { label: "Photography payment", Icon: Wallet, options: [{ key: "full", label: "Pay in full now", pct: 100 }, { key: "half", label: "Pay 50% now", pct: 50 }, { key: "reserve", label: "Reserve — pay at session", pct: 0 }], note: "No retainer required. Full session fee due at or before the session start.", reschedFee: 0 },
+  photo: { label: "Photography payment", Icon: Wallet, options: [{ key: "full", label: "Pay in full now", pct: 100 }, { key: "half", label: "Pay 50% deposit now", pct: 50 }], note: "Payment is due before your session. A 50% deposit holds your date; the balance is due before the session start.", reschedFee: 0 },
   music: { label: "Music payment", Icon: Wallet, options: [{ key: "quote", label: "Request a quote", pct: 0 }], note: "Custom-quoted per project. No online checkout yet.", reschedFee: 0 },
   government: { label: "Government payment", Icon: Wallet, options: [{ key: "quote", label: "Request a quote", pct: 0 }], note: "Always custom-quoted and invoiced. No online checkout.", reschedFee: 0 },
 };
@@ -175,6 +175,17 @@ export default function App() {
   useEffect(() => { (async () => { try { const a = await fetch("/api/auth/me").then((r) => r.json()).catch(() => null); if (a && a.admin) { setView("admin"); const sd = await fetch("/api/sessions").then((r) => r.json()).catch(() => ({})); if (sd && sd.sessions) setState((s) => ({ ...s, sessions: sd.sessions })); return; } const c = await fetch("/api/client-me").then((r) => r.json()).catch(() => null); if (c && c.client && c.email) { setClientAuth({ name: "", email: c.email }); const sd = await fetch("/api/sessions").then((r) => r.json()).catch(() => ({})); const sess = (sd && sd.sessions) || []; if (sess.length) { setClientAuth({ name: sess[0].clientName || "", email: c.email }); setState((s) => ({ ...s, sessions: sess })); setClientId(sess[0].id); setView("client"); } } } catch (e) {} })(); }, []);
   useEffect(() => { (async () => { try { const res = await fetch("/api/availability"); const data = await res.json(); if (res.ok) setState((s) => ({ ...s, availability: data.availability || [] })); } catch (e) {} })(); }, []);
   useEffect(() => { (async () => { try { const res = await fetch("/api/sessions?slots=1"); const data = await res.json(); if (res.ok) setState((s) => ({ ...s, takenSlots: data.takenSlots || [] })); } catch (e) {} })(); }, []);
+  useEffect(() => {
+    const paidSid = new URLSearchParams(window.location.search).get("paid");
+    if (!paidSid) return;
+    (async () => {
+      let res = {};
+      try { res = await fetch("/api/pay/verify?sid=" + encodeURIComponent(paidSid)).then((r) => r.json()).catch(() => ({})); } catch (e) {}
+      try { const sd = await fetch("/api/sessions").then((r) => r.json()).catch(() => ({})); const sess = (sd && sd.sessions) || []; if (sess.length) { setState((s) => ({ ...s, sessions: sess })); const mine = sess.find((x) => x.id === paidSid) || sess[0]; setClientId(mine.id); setClientAuth({ name: mine.clientName || "", email: mine.clientEmail || "" }); setView("client"); } } catch (e) {}
+      showToast(res && res.paid ? "Payment received. Thank you!" : "Thanks! If your payment is still processing, your status will update shortly.");
+      try { window.history.replaceState({}, "", "/"); } catch (e) {}
+    })();
+  }, []);
 
   const showToast = (msg) => { setToast(msg); if (toastTimer.current) clearTimeout(toastTimer.current); toastTimer.current = setTimeout(() => setToast(null), 3600); };
 
@@ -255,12 +266,22 @@ export default function App() {
   const createBooking = (booking) => {
     const id = uid("ses"); const grp = booking.group;
     const notifyEmail = NOTIFY_EMAILS[grp] || "contact@dot1.media";
-    const newSession = { id, clientName: booking.name, clientEmail: booking.email, clientImage: "", notifyEmail, type: booking.serviceName, serviceLine: grp, photographer: grp === "photo" ? "Brittany Matthews" : "Dennis Matthews", date: booking.date, time: booking.time, location: "", status: "active", durationMin: booking.duration || 60, apptMin: booking.apptMin || booking.duration || 60, padBefore: booking.padBefore || 0, padAfter: booking.padAfter || 0, currentStage: 0, stageTimes: { 0: "just now" }, comments: [], selectedAddons: booking.addons, total: booking.total, payChoice: booking.payChoice, reviewLink: "", deliveryVideo: "", deliveryPhoto: "" };
+    const newSession = { id, clientName: booking.name, clientEmail: booking.email, clientImage: "", notifyEmail, type: booking.serviceName, serviceLine: grp, photographer: grp === "photo" ? "Brittany Matthews" : "Dennis Matthews", date: booking.date, time: booking.time, location: "", status: "active", durationMin: booking.duration || 60, apptMin: booking.apptMin || booking.duration || 60, padBefore: booking.padBefore || 0, padAfter: booking.padAfter || 0, currentStage: 0, stageTimes: { 0: "just now" }, comments: [], selectedAddons: booking.addons, total: booking.total, payChoice: booking.payChoice, paymentStatus: (booking.payAmount || 0) > 0 ? "pending" : "none", payAmount: booking.payAmount || 0, reviewLink: "", deliveryVideo: "", deliveryPhoto: "" };
     setState((s) => ({ ...s, sessions: [...s.sessions, newSession] }));
     fetch("/api/sessions", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ session: newSession }) }).catch(() => {});
     if (booking.linkId) consumeDirectLink(booking.linkId);
-    setDirectContext(null); setClientId(id); setClientAuth({ name: booking.name, email: (booking.email || "").toLowerCase() }); setView("client");
-    showToast(`Booking confirmed! A new ${GROUPS[grp].label} appointment email was sent to ${notifyEmail}.`);
+    setDirectContext(null); setClientId(id); setClientAuth({ name: booking.name, email: (booking.email || "").toLowerCase() });
+    if ((booking.payAmount || 0) > 0) { payForBooking(id, booking.payAmount, booking.serviceName || GROUPS[grp].label, booking.payChoice); }
+    else { setView("client"); showToast(`Booking confirmed! A new ${GROUPS[grp].label} appointment email was sent to ${notifyEmail}.`); }
+  };
+  const payForBooking = async (sessionId, amount, label, payChoice) => {
+    try {
+      const res = await fetch("/api/pay", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ sessionId, amount, label, payChoice }) });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data.url) { window.location.href = data.url; return; }
+      setView("client");
+      showToast(data.configured === false ? "Booking confirmed. We'll reach out to arrange payment." : "Booking confirmed. Checkout couldn't start, we'll follow up on payment.");
+    } catch (e) { setView("client"); showToast("Booking confirmed."); }
   };
 
   const loginAs = async (email, password) => {
@@ -784,7 +805,7 @@ function BookingFlow({ state, direct, slotTaken, onCancel, onComplete, onLogin, 
 
           <div style={{ display: "flex", justifyContent: "space-between" }}>
             <button onClick={() => setStep(authedClient ? 1 : 2)} style={btnGhost}><ArrowLeft size={14} /> Back</button>
-            <button onClick={() => { if (!date || !time || !payChoice || taken) return; onComplete({ linkId: direct?.id, group, serviceName: service.name, duration: apptLen, apptMin: apptLen, padBefore: padB, padAfter: padA, addons: chosenAddons.map((a) => ({ name: a.name, price: Number(a.price) || 0, addTime: Number(a.addTime) || 0 })), total, date, time, payChoice, name: acct.name, email: acct.email }); }} style={{ ...btnSolid, background: date && time && payChoice && !taken ? A : FAINT }}><Check size={15} /> Confirm booking</button>
+            <button onClick={() => { if (!date || !time || !payChoice || taken) return; const so = rules.options.find((o) => o.key === payChoice); const payAmount = so ? (so.fixed != null ? so.fixed : Math.round(total * ((so.pct || 0) / 100))) : 0; onComplete({ linkId: direct?.id, group, serviceName: service.name, duration: apptLen, apptMin: apptLen, padBefore: padB, padAfter: padA, addons: chosenAddons.map((a) => ({ name: a.name, price: Number(a.price) || 0, addTime: Number(a.addTime) || 0 })), total, payAmount, date, time, payChoice, name: acct.name, email: acct.email }); }} style={{ ...btnSolid, background: date && time && payChoice && !taken ? A : FAINT }}><Check size={15} /> Confirm booking</button>
           </div>
         </div>
       )}
@@ -1133,6 +1154,11 @@ function AdminSessions({ state, adminId, setAdminId, requestSetStage, addComment
         </div>
         <div style={{ ...mono, fontSize: 11, color: STONE, marginBottom: session.notifyEmail ? 4 : 18, letterSpacing: "0.04em" }}>{session.type} · {fmtDate(session.date) || "date TBD"}{session.time ? " at " + fmtTime(session.time) : ""} · {session.clientEmail}</div>
         {session.notifyEmail && <div style={{ ...mono, fontSize: 10, color: FAINT, marginBottom: 18, letterSpacing: "0.04em", display: "flex", alignItems: "center", gap: 6 }}><Send size={11} /> New-booking alert routed to {session.notifyEmail}</div>}
+        {(session.paymentStatus === "paid" || session.paymentStatus === "pending") && (
+          <div style={{ display: "inline-flex", alignItems: "center", gap: 8, background: session.paymentStatus === "paid" ? "#eef6ee" : "#fbf4e9", border: `1px solid ${session.paymentStatus === "paid" ? "#cfe6cf" : "#f0e2c4"}`, borderRadius: 8, padding: "7px 12px", marginBottom: 16 }}>
+            <span style={{ ...mono, fontSize: 10.5, letterSpacing: "0.1em", textTransform: "uppercase", color: session.paymentStatus === "paid" ? "#3f7a3f" : "#a97a2e" }}>{session.paymentStatus === "paid" ? "Paid" : "Payment pending"}{session.payAmount ? " · " + money(session.payAmount) : ""}</span>
+          </div>
+        )}
 
         {status === "active" ? (
           <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
