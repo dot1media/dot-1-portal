@@ -77,6 +77,8 @@ const pad2 = (n) => String(n).padStart(2, "0");
 const calDate = (date, time) => { if (!date) return ""; const [y, m, d] = date.split("-").map(Number); const [hh, mm] = (time || "00:00").split(":").map(Number); return `${y}${pad2(m)}${pad2(d)}T${pad2(hh)}${pad2(mm)}00`; };
 const addMinutes = (time, mins) => { const [h, m] = (time || "00:00").split(":").map(Number); let t = h * 60 + m + (mins || 0); t = ((t % 1440) + 1440) % 1440; return `${pad2(Math.floor(t / 60))}:${pad2(t % 60)}`; };
 const gcalLink = (session) => { const s = calDate(session.date, session.time); const e = calDate(session.date, addMinutes(session.time, session.durationMin || 60)); const text = encodeURIComponent("Dot One Media · " + (session.type || "Session")); const details = encodeURIComponent("Your session with Dot One Media. Questions? contact@dot1.media"); const loc = encodeURIComponent(session.location || ""); return "https://calendar.google.com/calendar/render?action=TEMPLATE&text=" + text + "&dates=" + s + "/" + e + "&details=" + details + "&location=" + loc; };
+const icsContent = (session) => { const s = calDate(session.date, session.time); const e = calDate(session.date, addMinutes(session.time, session.durationMin || 60)); return ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//Dot One Media//Portal//EN", "CALSCALE:GREGORIAN", "BEGIN:VEVENT", "UID:" + (session.id || "ses") + "@dot1.media", "DTSTAMP:" + s, "DTSTART:" + s, "DTEND:" + e, "SUMMARY:Dot One Media - " + (session.type || "Session"), "DESCRIPTION:Your session with Dot One Media. Questions? contact@dot1.media", "LOCATION:" + (session.location || ""), "END:VEVENT", "END:VCALENDAR"].join("\r\n"); };
+const downloadIcs = (session) => { try { const blob = new Blob([icsContent(session)], { type: "text/calendar;charset=utf-8" }); const url = URL.createObjectURL(blob); const a = document.createElement("a"); a.href = url; a.download = "dot-one-media-session.ics"; document.body.appendChild(a); a.click(); document.body.removeChild(a); setTimeout(() => URL.revokeObjectURL(url), 1500); } catch (e) {} };
 const money = (n) => "$" + (Number(n) || 0).toLocaleString();
 
 const DEFAULT_STATE = {
@@ -280,7 +282,8 @@ export default function App() {
       return { ok: false, error: "Could not reach the server. Please try again." };
     }
   };
-  const adminLogout = async () => { try { await fetch("/api/auth/logout", { method: "POST" }); } catch (e) {} setView("landing"); showToast("Signed out of the studio."); };
+  const adminLogout = async () => { try { await fetch("/api/auth/logout", { method: "POST" }); } catch (e) {} setState((s) => ({ ...s, sessions: [] })); setAdminId(""); setView("landing"); showToast("Signed out of the studio."); };
+  const clientLogout = async () => { try { await fetch("/api/client-logout", { method: "POST" }); } catch (e) {} setState((s) => ({ ...s, sessions: [] })); setClientId(""); setView("landing"); showToast("Signed out."); };
 
   const resetDemo = () => setConfirm({ title: "Reset the demo?", message: "This clears all sessions, services, add-ons, and booking links back to the starting state.", confirmLabel: "Reset everything", danger: true, onYes: async () => { setState(DEFAULT_STATE); try { await storage.delete(STORAGE_KEY); } catch (e) {} showToast("Demo reset."); setConfirm(null); } });
   const requestCancelBooking = (session) => setConfirm({ title: "Cancel this booking?", message: "This marks " + session.clientName + "'s " + session.type + " as cancelled. The client will see it as cancelled in their portal.", confirmLabel: "Cancel booking", danger: true, onYes: () => { patchSession(session.id, { status: "cancelled" }); showToast("Booking cancelled."); setConfirm(null); } });
@@ -300,9 +303,24 @@ export default function App() {
             <span style={{ ...mono, fontSize: 10, letterSpacing: "0.22em", textTransform: "uppercase", color: FAINT }}>Client Portal</span>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-            <button onClick={() => setView("landing")} title="Portal home (first-use landing)" style={{ ...mono, fontSize: 10, letterSpacing: "0.1em", textTransform: "uppercase", color: view === "landing" ? INK : STONE, background: "transparent", border: `1px solid ${view === "landing" ? INK : LINE}`, borderRadius: 6, padding: "8px 10px", cursor: "pointer" }}>Home</button>
-            <button onClick={() => { setDirectContext(null); setView("book"); }} style={{ display: "flex", alignItems: "center", gap: 7, padding: "8px 14px", borderRadius: 7, cursor: "pointer", fontSize: 12.5, border: `1px solid ${RED}`, background: view === "book" ? RED : "#fff", color: view === "book" ? "#fff" : RED, fontWeight: 500 }}><Plus size={14} /> Book a Session</button>
-            <button onClick={() => setView("login")} style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 12px", borderRadius: 7, cursor: "pointer", fontSize: 12.5, border: `1px solid ${view === "login" ? INK : LINE}`, background: view === "login" ? INK : PAPER, color: view === "login" ? "#fff" : STONE }}><LogIn size={13} /> Log in</button>
+            {view === "admin" ? (
+              <>
+                <span style={{ ...mono, fontSize: 10, letterSpacing: "0.16em", textTransform: "uppercase", color: STONE }}>Studio</span>
+                <button onClick={adminLogout} style={{ ...mono, fontSize: 10.5, letterSpacing: "0.08em", textTransform: "uppercase", color: STONE, background: "transparent", border: `1px solid ${LINE}`, borderRadius: 6, padding: "8px 12px", cursor: "pointer" }}>Sign out</button>
+              </>
+            ) : view === "client" ? (
+              <>
+                <span style={{ ...mono, fontSize: 10, letterSpacing: "0.08em", color: STONE }}>{(clientSession && clientSession.clientName) || "Signed in"}</span>
+                <button onClick={() => { setDirectContext(null); setView("book"); }} style={{ display: "flex", alignItems: "center", gap: 7, padding: "8px 14px", borderRadius: 7, cursor: "pointer", fontSize: 12.5, border: `1px solid ${RED}`, background: "#fff", color: RED, fontWeight: 500 }}><Plus size={14} /> Book Again</button>
+                <button onClick={clientLogout} style={{ ...mono, fontSize: 10.5, letterSpacing: "0.08em", textTransform: "uppercase", color: STONE, background: "transparent", border: `1px solid ${LINE}`, borderRadius: 6, padding: "8px 12px", cursor: "pointer" }}>Sign out</button>
+              </>
+            ) : (
+              <>
+                <button onClick={() => setView("landing")} title="Portal home" style={{ ...mono, fontSize: 10, letterSpacing: "0.1em", textTransform: "uppercase", color: view === "landing" ? INK : STONE, background: "transparent", border: `1px solid ${view === "landing" ? INK : LINE}`, borderRadius: 6, padding: "8px 10px", cursor: "pointer" }}>Home</button>
+                <button onClick={() => { setDirectContext(null); setView("book"); }} style={{ display: "flex", alignItems: "center", gap: 7, padding: "8px 14px", borderRadius: 7, cursor: "pointer", fontSize: 12.5, border: `1px solid ${RED}`, background: view === "book" ? RED : "#fff", color: view === "book" ? "#fff" : RED, fontWeight: 500 }}><Plus size={14} /> Book a Session</button>
+                <button onClick={() => setView("login")} style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 12px", borderRadius: 7, cursor: "pointer", fontSize: 12.5, border: `1px solid ${view === "login" ? INK : LINE}`, background: view === "login" ? INK : PAPER, color: view === "login" ? "#fff" : STONE }}><LogIn size={13} /> Log in</button>
+              </>
+            )}
           </div>
         </div>
       </header>
@@ -321,7 +339,6 @@ export default function App() {
               <SubTab active={adminTab === "links"} onClick={() => setAdminTab("links")} label="Direct Booking Link" />
               <SubTab active={adminTab === "availability"} onClick={() => setAdminTab("availability")} label="Availability" />
               <SubTab active={adminTab === "services"} onClick={() => setAdminTab("services")} label="Services & Add-ons" />
-              <button onClick={adminLogout} style={{ marginLeft: "auto", ...mono, fontSize: 10, letterSpacing: "0.06em", textTransform: "uppercase", color: STONE, background: "transparent", border: "none", cursor: "pointer", padding: "8px 4px" }}>Sign out</button>
             </div>
             {adminTab === "sessions" && <AdminSessions state={state} adminId={adminId} setAdminId={setAdminId} requestSetStage={requestSetStage} addComment={addComment} patchSession={patchSession} onReschedule={adminReschedule} slotTaken={slotTaken} markMessagesRead={markMessagesRead} onCancelBooking={requestCancelBooking} onCloseBooking={requestCloseBooking} onReopenBooking={requestReopenBooking} />}
             {adminTab === "calendar" && <AdminCalendar state={state} onSelectSession={(id) => { setAdminId(id); setAdminTab("sessions"); }} />}
@@ -940,7 +957,12 @@ function ClientView({ session, sessions, clientId, setClientId, addComment, onRe
         <div style={{ background: grp.bg, border: `1px solid ${grp.border}`, borderRadius: 10, padding: "14px 18px", marginBottom: 18 }}>
           <div style={{ ...display, fontSize: 16, color: INK, marginBottom: 3 }}>You're all set, {(session.clientName || "").split(" ")[0]}!</div>
           <div style={{ fontSize: 13, color: BODY, lineHeight: 1.5, marginBottom: 12 }}>Your {session.type} is booked{session.date ? " for " + fmtDate(session.date) : ""}{session.time ? " at " + fmtTime(session.time) : ""}. We've set up your account under {session.clientEmail}. Sign in with that email anytime to track your session's progress below.</div>
-          {session.date && session.time && <a href={gcalLink(session)} target="_blank" rel="noopener noreferrer" style={{ ...btnSolid, background: grp.color, textDecoration: "none", display: "inline-flex" }}><CalendarPlus size={15} /> Add to Google Calendar</a>}
+          {session.date && session.time && (
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              <a href={gcalLink(session)} target="_blank" rel="noopener noreferrer" style={{ ...btnSolid, background: grp.color, textDecoration: "none", display: "inline-flex" }}><CalendarPlus size={15} /> Google Calendar</a>
+              <button onClick={() => downloadIcs(session)} style={{ ...btnGhost, display: "inline-flex", alignItems: "center", gap: 7 }}><CalendarPlus size={15} /> Apple Calendar</button>
+            </div>
+          )}
         </div>
       )}
 
