@@ -1324,9 +1324,9 @@ function ClientView({ session, sessions, clientId, setClientId, addComment, onRe
   const fullyPaid = payTotal > 0 && (balancePaid || (depositPaid && payPaid >= payTotal));
   const briefSubmitted = !!(session.brief && session.brief.submitted);
   const briefHasContent = !!(session.brief && BRIEF_FIELDS.some((f) => (session.brief[f.key] || "").trim()));
-  const briefStatusText = briefSubmitted ? "Submitted \u2014 thank you" : briefHasContent ? "Draft saved \u00b7 not yet submitted" : "Tell us about your project so we can prepare";
+  const briefStatusText = briefSubmitted ? "Submitted \u00b7 thank you" : briefHasContent ? "Draft saved \u00b7 not yet submitted" : "Tell us about your project so we can prepare";
   const isLastStage = session.currentStage >= stagesFor(session).length - 1;
-  const statusLine = session.status === "cancelled" ? "This booking has been cancelled." : session.status === "closed" ? "This booking has been closed." : isLastStage ? ("Your " + session.type + " is complete. Thank you for creating with Dot One.") : ("Your " + session.type + " is currently at \u201c" + curStage(session).label + ".\u201d We\u2019ll notify you when the next step is ready \u2014 no action is needed from you right now.");
+  const statusLine = session.status === "cancelled" ? "This booking has been cancelled." : session.status === "closed" ? "This booking has been closed." : isLastStage ? ("Your " + session.type + " is complete. Thank you for creating with Dot One.") : ("Your " + session.type + " is currently at \u201c" + curStage(session).label + ".\u201d We\u2019ll notify you when the next step is ready. No action is needed from you right now.");
 
   const payBalance = async () => {
     setPayErr(""); setPayingBalance(true);
@@ -1343,7 +1343,7 @@ function ClientView({ session, sessions, clientId, setClientId, addComment, onRe
     const now = new Date().toISOString();
     const next = { ...brief, submitted: submit ? true : already, submittedAt: (submit && !already) ? now : ((session.brief && session.brief.submittedAt) || ""), updatedAt: now };
     patchSession(session.id, { brief: next });
-    setBriefMsg(submit ? "Brief submitted \u2014 thank you! We\u2019ll be in touch." : "Draft saved.");
+    setBriefMsg(submit ? "Brief submitted \u00b7 thank you! We\u2019ll be in touch." : "Draft saved.");
   };
   const onPickImage = async (e) => {
     const file = e.target.files && e.target.files[0];
@@ -1441,14 +1441,14 @@ function ClientView({ session, sessions, clientId, setClientId, addComment, onRe
           {payPaid > 0 && balanceDue > 0 && <Row k="Deposit paid" v={money(payPaid)} sub />}
           {balanceDue > 0 && <Row k="Balance due" v={money(balanceDue)} bold red />}
           {fullyPaid ? (
-            <div style={{ marginTop: 13, display: "flex", alignItems: "center", gap: 8 }}><CheckCircle2 size={15} color="#2e9e5b" /><span style={{ ...mono, fontSize: 11.5, letterSpacing: "0.05em", color: "#2e7d4f" }}>PAID IN FULL \u2014 THANK YOU</span></div>
+            <div style={{ marginTop: 13, display: "flex", alignItems: "center", gap: 8 }}><CheckCircle2 size={15} color="#2e9e5b" /><span style={{ ...mono, fontSize: 11.5, letterSpacing: "0.05em", color: "#2e7d4f" }}>{"PAID IN FULL \u00b7 THANK YOU"}</span></div>
           ) : balanceDue > 0 ? (
             <>
               <button onClick={payBalance} disabled={payingBalance} style={{ ...btnSolid, background: grp.color, marginTop: 15, width: "100%", justifyContent: "center", opacity: payingBalance ? 0.7 : 1, cursor: payingBalance ? "default" : "pointer" }}>{payingBalance ? "Starting secure checkout\u2026" : "Pay balance securely \u00b7 " + money(balanceDue)}</button>
               {payErr && <div style={{ marginTop: 10, fontSize: 12.5, color: "#b5271b", display: "flex", alignItems: "center", gap: 7 }}><AlertTriangle size={14} /> {payErr}</div>}
             </>
           ) : paymentPending ? (
-            <div style={{ marginTop: 12, ...mono, fontSize: 11.5, letterSpacing: "0.04em", color: STONE }}>We\u2019re confirming your payment. This will update automatically.</div>
+            <div style={{ marginTop: 12, ...mono, fontSize: 11.5, letterSpacing: "0.04em", color: STONE }}>{"We\u2019re confirming your payment. This will update automatically."}</div>
           ) : null}
           <div style={{ ...mono, fontSize: 9, color: FAINT, marginTop: 11 }}>Payments are processed securely through Square.</div>
         </div>
@@ -1661,7 +1661,7 @@ function AdminSessions({ state, adminId, setAdminId, requestSetStage, addComment
           const sections = [["today", "Today"], ["upcoming", "Upcoming"], ["completed", "Completed"]];
           return sections.map(([key, label]) => groups[key].length === 0 ? null : (
             <div key={key} style={{ marginBottom: 16 }}>
-              <div style={{ ...mono, fontSize: 9.5, letterSpacing: "0.16em", textTransform: "uppercase", color: key === "today" ? RED : STONE, marginBottom: 8 }}>{label} <span style={{ color: FAINT }}>\u00b7 {groups[key].length}</span></div>
+              <div style={{ ...mono, fontSize: 9.5, letterSpacing: "0.16em", textTransform: "uppercase", color: key === "today" ? RED : STONE, marginBottom: 8 }}>{label} <span style={{ color: FAINT }}>{"\u00b7 "}{groups[key].length}</span></div>
               {groups[key].map(renderBtn)}
             </div>
           ));
@@ -2250,7 +2250,7 @@ function BusinessSettings({ sessions, showToast }) {
   const exportAnalytics = () => {
     if (arows.length === 0) { showToast("No booking data to export yet."); return; }
     const out = [];
-    out.push(["Dot One Media \u2014 Booking analytics"]);
+    out.push(["Dot One Media \u00b7 Booking analytics"]);
     out.push(["Period", (start || "all time") + (end ? " to " + end : (start ? " onward" : ""))]);
     out.push(["Bookings", String(arows.length), "Booked revenue ($)", bookedRevenue.toFixed(2), "Avg per booking ($)", avgValue.toFixed(2), "Collected ($)", collected.toFixed(2), "Outstanding ($)", outstanding.toFixed(2)]);
     out.push([]);
@@ -2316,7 +2316,7 @@ function BusinessSettings({ sessions, showToast }) {
                   <div key={seg.label} style={{ display: "flex", alignItems: "center", gap: 10 }}>
                     <span style={{ width: 11, height: 11, borderRadius: 3, background: seg.color, flexShrink: 0 }} />
                     <span style={{ ...display, fontSize: 13, color: INK, flex: 1 }}>{seg.label}</span>
-                    <span style={{ ...mono, fontSize: 11, color: STONE }}>{money(seg.value)} \u00b7 {pct}%</span>
+                    <span style={{ ...mono, fontSize: 11, color: STONE }}>{money(seg.value)}{" \u00b7 "}{pct}%</span>
                   </div>
                 ); })}
               </div>
@@ -2326,7 +2326,7 @@ function BusinessSettings({ sessions, showToast }) {
           <div style={{ border: `1px solid ${LINE}`, borderRadius: 12, padding: "18px 20px", background: PAPER }}>
             <div style={{ ...mono, fontSize: 10, letterSpacing: "0.12em", textTransform: "uppercase", color: STONE, marginBottom: 16 }}>Bookings by session type</div>
             <HBars items={typeItems} />
-            {byType.length > typeItems.length && <div style={{ ...mono, fontSize: 9.5, color: FAINT, marginTop: 12 }}>Showing top {typeItems.length} of {byType.length} types \u00b7 full list in the analytics export.</div>}
+            {byType.length > typeItems.length && <div style={{ ...mono, fontSize: 9.5, color: FAINT, marginTop: 12 }}>Showing top {typeItems.length} of {byType.length} types{" \u00b7 "}full list in the analytics export.</div>}
           </div>
 
           {byMonth.length >= 2 && (
