@@ -669,6 +669,7 @@ function BookingFlow({ state, direct, slotTaken, onCancel, onComplete, onLogin, 
   const [serviceId, setServiceId] = useState(direct?.serviceId || null);
   const [addonIds, setAddonIds] = useState([]);
   const [openCats, setOpenCats] = useState({});
+  const [openDesc, setOpenDesc] = useState({});
   const [holdId, setHoldId] = useState("");
   const holdRef = useRef("");
   const [acct, setAcct] = useState({ name: (authedClient && authedClient.name) || direct?.recipient || "", email: (authedClient && authedClient.email) || "", phone: "", password: "", signature: "" });
@@ -746,14 +747,17 @@ function BookingFlow({ state, direct, slotTaken, onCancel, onComplete, onLogin, 
   const stepDefs = direct ? [{ n: 2, label: stepLabel2 }, { n: 3, label: "Confirm & Pay" }] : [{ n: 1, label: "Choose" }, { n: 2, label: stepLabel2 }, { n: 3, label: "Confirm & Pay" }];
 
   /* STEP 0 — WELCOME */
-  const renderServiceBtn = (s) => { const sel = serviceId === s.id; return (
-    <button key={s.id} onClick={() => { setServiceId(s.id); setAddonIds([]); }} style={{ width: "100%", textAlign: "left", marginBottom: 10, padding: "15px 17px", borderRadius: 10, cursor: "pointer", border: `1.5px solid ${sel ? GROUPS[group].color : LINE}`, background: sel ? AB : PAPER }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 10 }}>
+  const renderServiceBtn = (s) => { const sel = serviceId === s.id; const dOpen = !!openDesc[s.id]; return (
+    <div key={s.id} role="button" tabIndex={0} onClick={() => { setServiceId(s.id); setAddonIds([]); }} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setServiceId(s.id); setAddonIds([]); } }} style={{ width: "100%", textAlign: "left", marginBottom: 10, padding: "15px 17px", borderRadius: 10, cursor: "pointer", border: `1.5px solid ${sel ? GROUPS[group].color : LINE}`, background: sel ? AB : PAPER }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10 }}>
         <span style={{ ...display, fontWeight: 600, fontSize: 17, color: INK }}>{s.name}</span>
-        <span style={{ ...mono, fontSize: 14, color: A, fontWeight: 500 }}>{s.price ? money(s.price) : "Quote"}</span>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
+          <span style={{ ...mono, fontSize: 14, color: A, fontWeight: 500 }}>{s.price ? money(s.price) : "Quote"}</span>
+          {s.description && <button onClick={(e) => { e.stopPropagation(); setOpenDesc((o) => ({ ...o, [s.id]: !o[s.id] })); }} aria-label={dOpen ? "Hide details" : "Show details"} style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 26, height: 26, borderRadius: 7, cursor: "pointer", color: STONE, background: dOpen ? LINE : "transparent", border: "none", padding: 0 }}><ChevronDown size={16} style={{ transform: dOpen ? "rotate(180deg)" : "none", transition: "transform 200ms" }} /></button>}
+        </div>
       </div>
-      {s.description && <div style={{ fontSize: 12.5, color: BODY, lineHeight: 1.5, marginTop: 5 }}>{s.description}</div>}
-    </button>
+      {s.description && dOpen && <div style={{ fontSize: 12.5, color: BODY, lineHeight: 1.5, marginTop: 9 }}>{s.description}</div>}
+    </div>
   ); };
 
   const availDates = Array.from(new Set((availability || []).map((a) => a.date)));
