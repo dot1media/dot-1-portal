@@ -8,7 +8,7 @@ import {
   Plus, Trash2, Pencil, Check, AlertTriangle, Tag, Link2, ListPlus,
   Star, CreditCard, Wallet, CalendarDays, ChevronLeft, ChevronRight,
   ArrowRight, ArrowLeft, CalendarClock, X, Copy, LogIn, Sparkles,
-  MessageCircle, Smartphone, Link as LinkIcon, Ban, EyeOff, XCircle, CalendarPlus, ChevronDown, Settings, Download, ListChecks,
+  MessageCircle, Smartphone, Link as LinkIcon, Ban, EyeOff, XCircle, CalendarPlus, ChevronDown, Settings, Download, ListChecks, FileText,
 } from "lucide-react";
 
 // Persist to the browser's localStorage (works in a real browser, unlike the
@@ -111,6 +111,15 @@ const DOC_META = {
   minor_release: { label: "Minor Release & Waiver", pdf: PDF_MINOR },
 };
 const DOC_USAGE = { A: "Portfolio Use", B: "Full Commercial Use", C: "Private Use" };
+const BRIEF_FIELDS = [
+  { key: "objective", label: "Project objective", help: "What should this project accomplish?" },
+  { key: "audience", label: "Audience", help: "Who needs to see this, and what should they feel or do?" },
+  { key: "keyMessages", label: "Key messages", help: "What must viewers understand or remember?" },
+  { key: "visualDirection", label: "Visual direction", help: "Look and feel, tone, and any references or examples." },
+  { key: "participants", label: "People / participants", help: "Who will be filmed or photographed? Names and roles." },
+  { key: "locations", label: "Locations", help: "Where will we work? Address, parking, and access notes." },
+  { key: "requirements", label: "Special requirements", help: "Wardrobe, accessibility, safety, timing, or anything else." },
+];
 
 const CLIENT_SERVICES_SUMMARY = `Key terms for your booking. The full agreement is linked below.
 
@@ -1209,10 +1218,13 @@ function ClientView({ session, sessions, clientId, setClientId, addComment, onRe
   const [reschedOpen, setReschedOpen] = useState(false);
   const [reschedDate, setReschedDate] = useState("");
   const fileRef = useRef(null);
-  useEffect(() => { if (!session) return; setReschedDate(session.date || ""); setReschedOpen(false); setMsg(""); }, [clientId]);
+  useEffect(() => { if (!session) return; setReschedDate(session.date || ""); setReschedOpen(false); setMsg(""); setBrief(session.brief || {}); setBriefMsg(""); }, [clientId]);
   const [docs, setDocs] = useState([]);
   const [payingBalance, setPayingBalance] = useState(false);
   const [payErr, setPayErr] = useState("");
+  const [briefOpen, setBriefOpen] = useState(false);
+  const [brief, setBrief] = useState({});
+  const [briefMsg, setBriefMsg] = useState("");
   useEffect(() => { (async () => { try { const r = await fetch("/api/agreements"); const d = await r.json(); if (r.ok) setDocs(Array.isArray(d.agreements) ? d.agreements : []); } catch (e) {} })(); }, []);
   if (!session) return <div style={{ ...mono, fontSize: 13, color: STONE, padding: "48px 4px", textAlign: "center" }}>No session to show yet. When you book, it will appear here.</div>;
   const stage = session.currentStage;
@@ -1229,6 +1241,9 @@ function ClientView({ session, sessions, clientId, setClientId, addComment, onRe
   const balancePaid = session.balanceStatus === "paid";
   const balanceDue = (depositPaid && !balancePaid) ? Math.max(0, payTotal - payPaid) : 0;
   const fullyPaid = payTotal > 0 && (balancePaid || (depositPaid && payPaid >= payTotal));
+  const briefSubmitted = !!(session.brief && session.brief.submitted);
+  const briefHasContent = !!(session.brief && BRIEF_FIELDS.some((f) => (session.brief[f.key] || "").trim()));
+  const briefStatusText = briefSubmitted ? "Submitted \u2014 thank you" : briefHasContent ? "Draft saved \u00b7 not yet submitted" : "Tell us about your project so we can prepare";
   const isLastStage = session.currentStage >= stagesFor(session).length - 1;
   const statusLine = session.status === "cancelled" ? "This booking has been cancelled." : session.status === "closed" ? "This booking has been closed." : isLastStage ? ("Your " + session.type + " is complete. Thank you for creating with Dot One.") : ("Your " + session.type + " is currently at \u201c" + curStage(session).label + ".\u201d We\u2019ll notify you when the next step is ready \u2014 no action is needed from you right now.");
 
@@ -1241,6 +1256,13 @@ function ClientView({ session, sessions, clientId, setClientId, addComment, onRe
       setPayErr((d && d.error) || "Could not start checkout. Please try again.");
     } catch (e) { setPayErr("Could not start checkout. Please try again."); }
     setPayingBalance(false);
+  };
+  const saveBrief = (submit) => {
+    const already = !!(session.brief && session.brief.submitted);
+    const now = new Date().toISOString();
+    const next = { ...brief, submitted: submit ? true : already, submittedAt: (submit && !already) ? now : ((session.brief && session.brief.submittedAt) || ""), updatedAt: now };
+    patchSession(session.id, { brief: next });
+    setBriefMsg(submit ? "Brief submitted \u2014 thank you! We\u2019ll be in touch." : "Draft saved.");
   };
   const onPickImage = async (e) => {
     const file = e.target.files && e.target.files[0];
@@ -1348,6 +1370,36 @@ function ClientView({ session, sessions, clientId, setClientId, addComment, onRe
             <div style={{ marginTop: 12, ...mono, fontSize: 11.5, letterSpacing: "0.04em", color: STONE }}>We\u2019re confirming your payment. This will update automatically.</div>
           ) : null}
           <div style={{ ...mono, fontSize: 9, color: FAINT, marginTop: 11 }}>Payments are processed securely through Square.</div>
+        </div>
+      )}
+
+      {status === "active" && (
+        <div style={{ marginTop: 22 }}>
+          <button onClick={() => setBriefOpen(!briefOpen)} style={{ width: "100%", display: "flex", alignItems: "center", gap: 12, background: PAPER, border: `1px solid ${LINE}`, borderRadius: briefOpen ? "12px 12px 0 0" : 12, padding: "15px 18px", cursor: "pointer", textAlign: "left" }}>
+            <FileText size={17} color={grp.color} style={{ flexShrink: 0 }} />
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ ...display, fontWeight: 600, fontSize: 15, color: INK }}>Production brief</div>
+              <div style={{ ...mono, fontSize: 10, color: briefSubmitted ? "#2e7d4f" : STONE, marginTop: 2 }}>{briefStatusText}</div>
+            </div>
+            <ChevronDown size={18} color={STONE} style={{ flexShrink: 0, transform: briefOpen ? "rotate(180deg)" : "none", transition: "transform 200ms" }} />
+          </button>
+          {briefOpen && (
+            <div style={{ border: `1px solid ${LINE}`, borderTop: "none", borderRadius: "0 0 12px 12px", padding: "18px 18px 20px" }}>
+              <div style={{ fontSize: 13, color: BODY, lineHeight: 1.55, marginBottom: 18 }}>Help us prepare for your project. The more you share, the better we can bring your vision to life. You can save a draft and finish later.</div>
+              {BRIEF_FIELDS.map((f) => (
+                <div key={f.key} style={{ marginBottom: 16 }}>
+                  <div style={{ ...display, fontWeight: 600, fontSize: 13.5, color: INK }}>{f.label}</div>
+                  <div style={{ fontSize: 11.5, color: STONE, marginTop: 1, marginBottom: 7, lineHeight: 1.4 }}>{f.help}</div>
+                  <textarea value={brief[f.key] || ""} onChange={(e) => setBrief({ ...brief, [f.key]: e.target.value })} rows={3} style={{ width: "100%", border: `1px solid ${LINE}`, borderRadius: 8, padding: "10px 12px", fontSize: 13.5, fontFamily: "inherit", resize: "vertical", background: CREAM, color: BODY, boxSizing: "border-box" }} />
+                </div>
+              ))}
+              <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 4 }}>
+                <button onClick={() => saveBrief(false)} style={{ ...mono, fontSize: 11, letterSpacing: "0.06em", textTransform: "uppercase", color: STONE, background: "transparent", border: `1px solid ${LINE}`, borderRadius: 8, padding: "11px 16px", cursor: "pointer" }}>Save draft</button>
+                <button onClick={() => saveBrief(true)} style={{ ...btnSolid, background: grp.color }}>{briefSubmitted ? "Save & update studio" : "Submit brief"}</button>
+              </div>
+              {briefMsg && <div style={{ ...mono, fontSize: 11.5, color: "#2e7d4f", marginTop: 12, display: "flex", alignItems: "center", gap: 7 }}><CheckCircle2 size={14} /> {briefMsg}</div>}
+            </div>
+          )}
         </div>
       )}
 
@@ -1586,6 +1638,18 @@ function AdminSessions({ state, adminId, setAdminId, requestSetStage, addComment
           ); })}
         </div>
         <div style={{ ...mono, fontSize: 9.5, color: FAINT, marginBottom: 26, letterSpacing: "0.04em" }}>You'll be asked to confirm — advancing sends the client a status email.</div>
+
+        <div style={{ background: CREAM, border: `1px solid ${LINE}`, borderRadius: 9, padding: "16px 18px", marginBottom: 26 }}>
+          <div style={{ ...mono, fontSize: 10, letterSpacing: "0.16em", textTransform: "uppercase", color: STONE, marginBottom: 12, display: "flex", alignItems: "center", gap: 7 }}><FileText size={13} /> Production brief{session.brief && session.brief.submitted && <span style={{ ...mono, fontSize: 8.5, letterSpacing: "0.08em", color: "#2e7d4f", background: "#eaf7ef", border: "1px solid #bfe6cc", borderRadius: 20, padding: "3px 8px" }}>SUBMITTED</span>}</div>
+          {session.brief && BRIEF_FIELDS.some((f) => (session.brief[f.key] || "").trim()) ? (
+            BRIEF_FIELDS.filter((f) => (session.brief[f.key] || "").trim()).map((f) => (
+              <div key={f.key} style={{ marginBottom: 13 }}>
+                <div style={{ ...mono, fontSize: 9, letterSpacing: "0.12em", textTransform: "uppercase", color: FAINT, marginBottom: 3 }}>{f.label}</div>
+                <div style={{ fontSize: 13, color: BODY, lineHeight: 1.55, whiteSpace: "pre-wrap" }}>{session.brief[f.key]}</div>
+              </div>
+            ))
+          ) : <div style={{ fontSize: 12.5, color: FAINT, fontStyle: "italic" }}>The client hasn't filled out their production brief yet.</div>}
+        </div>
 
         <div style={{ background: CREAM, border: `1px solid ${LINE}`, borderRadius: 9, padding: "16px 18px", marginBottom: 26 }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>

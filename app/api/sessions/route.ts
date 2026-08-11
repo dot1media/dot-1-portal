@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { sql } from "@/lib/db";
 import { verifyToken, verifyClientToken, ADMIN_COOKIE, CLIENT_COOKIE } from "@/lib/auth";
-import { sendEmail, bookingStudioEmail, bookingClientEmail, stageClientEmail, messageEmail, stageLabelFor } from "@/lib/email";
+import { sendEmail, bookingStudioEmail, bookingClientEmail, stageClientEmail, messageEmail, stageLabelFor, briefStudioEmail } from "@/lib/email";
 
 export const runtime = "nodejs";
 
@@ -75,7 +75,7 @@ export async function PATCH(request: Request) {
   let allowed: any = patch;
   if (me.role === "client") {
     allowed = {};
-    for (const k of ["comments", "clientImage"]) if (k in patch) allowed[k] = patch[k];
+    for (const k of ["comments", "clientImage", "brief"]) if (k in patch) allowed[k] = patch[k];
   }
   const merged = { ...cur.data, ...allowed };
   const dataStr = JSON.stringify(merged);
@@ -97,6 +97,9 @@ export async function PATCH(request: Request) {
     } else if (last && last.author === "studio") {
       await sendEmail({ to: merged.clientEmail, subject: "New reply from Dot One Media", html: messageEmail(merged, false, last.body), replyTo: "contact@dot1.media" });
     }
+  }
+  if (me.role === "client" && allowed.brief && allowed.brief.submitted && !(old.brief && old.brief.submitted)) {
+    await sendEmail({ to: merged.notifyEmail || "contact@dot1.media", subject: (merged.clientName || "A client") + " submitted their production brief", html: briefStudioEmail(merged), replyTo: merged.clientEmail });
   }
 
   return NextResponse.json({ ok: true, session: merged });

@@ -119,6 +119,12 @@ export function bookingClientEmail(s: any): string {
   return shell(brand, "Booking Confirmed", isConsultBooking ? "Your consultation is confirmed" : "Your session is confirmed", body);
 }
 
+export function briefStudioEmail(s: any): string {
+  const brand = BRAND_MAIN;
+  const body = para(esc(s.clientName || "A client") + " has submitted their production brief for " + esc(s.type || "their project") + ". Open the studio dashboard to review the details and start preparing.") +
+    button(brand, PORTAL, "Open the studio dashboard");
+  return shell(brand, "Production Brief", "A production brief is ready to review", body);
+}
 export const CONSULT_STAGE_LABELS = ["Consultation Scheduled", "Confirmed", "Consultation Complete"];
 export function stageLabelFor(s: any, idx: number): string {
   const L = /consult/i.test((s && s.type) || "") ? CONSULT_STAGE_LABELS : STAGE_LABELS;
