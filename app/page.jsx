@@ -214,15 +214,15 @@ export default function App() {
 
   useEffect(() => {
     (async () => {
-      try { const r = await storage.get(STORAGE_KEY); if (r && r.value) { const p = JSON.parse(r.value); if (p) { const { sessions, takenSlots, ...rest } = p; setState((prev) => ({ ...prev, ...rest })); } } } catch (e) {}
+      try { const r = await storage.get(STORAGE_KEY); if (r && r.value) { const p = JSON.parse(r.value); if (p) { const { sessions, takenSlots, directLinks, ...rest } = p; setState((prev) => ({ ...prev, ...rest })); } } } catch (e) {}
       setLoaded(true);
     })();
   }, []);
   const [catalogLoaded, setCatalogLoaded] = useState(false);
   const [catalogError, setCatalogError] = useState(false);
-  useEffect(() => { if (!loaded) return; (async () => { try { const { services, addons, availability, sessions, takenSlots, ...rest } = state; await storage.set(STORAGE_KEY, JSON.stringify(rest)); } catch (e) {} })(); }, [state, loaded]);
+  useEffect(() => { if (!loaded) return; (async () => { try { const { services, addons, availability, sessions, takenSlots, directLinks, ...rest } = state; await storage.set(STORAGE_KEY, JSON.stringify(rest)); } catch (e) {} })(); }, [state, loaded]);
   useEffect(() => { (async () => { try { const res = await fetch("/api/services"); const data = await res.json(); if (!res.ok) throw new Error(); setState((s) => ({ ...s, services: data.services || [], addons: data.addons || [] })); setCatalogError(false); } catch (e) { setCatalogError(true); } finally { setCatalogLoaded(true); } })(); }, []);
-  useEffect(() => { (async () => { try { const a = await fetch("/api/auth/me").then((r) => r.json()).catch(() => null); if (a && a.admin) { setView("admin"); const sd = await fetch("/api/sessions").then((r) => r.json()).catch(() => ({})); if (sd && sd.sessions) setState((s) => ({ ...s, sessions: sd.sessions })); return; } const c = await fetch("/api/client-me").then((r) => r.json()).catch(() => null); if (c && c.client && c.email) { setClientAuth({ name: "", email: c.email }); const sd = await fetch("/api/sessions").then((r) => r.json()).catch(() => ({})); const sess = (sd && sd.sessions) || []; if (sess.length) { setClientAuth({ name: sess[0].clientName || "", email: c.email }); setState((s) => ({ ...s, sessions: sess })); setClientId(sess[0].id); setView("client"); } } } catch (e) {} })(); }, []);
+  useEffect(() => { (async () => { try { const onBook = typeof window !== "undefined" && /^\/book\/dl_/.test(window.location.pathname); const a = await fetch("/api/auth/me").then((r) => r.json()).catch(() => null); if (a && a.admin) { if (!onBook) setView("admin"); const sd = await fetch("/api/sessions").then((r) => r.json()).catch(() => ({})); if (sd && sd.sessions) setState((s) => ({ ...s, sessions: sd.sessions })); loadDirectLinks(); return; } const c = await fetch("/api/client-me").then((r) => r.json()).catch(() => null); if (c && c.client && c.email) { setClientAuth({ name: "", email: c.email }); const sd = await fetch("/api/sessions").then((r) => r.json()).catch(() => ({})); const sess = (sd && sd.sessions) || []; if (sess.length) { setClientAuth({ name: sess[0].clientName || "", email: c.email }); setState((s) => ({ ...s, sessions: sess })); setClientId(sess[0].id); if (!onBook) setView("client"); } } } catch (e) {} })(); }, []);
   useEffect(() => { (async () => { try { const res = await fetch("/api/availability"); const data = await res.json(); if (res.ok) setState((s) => ({ ...s, availability: data.availability || [] })); } catch (e) {} })(); }, []);
   useEffect(() => { (async () => { try { const res = await fetch("/api/sessions?slots=1"); const data = await res.json(); if (res.ok) setState((s) => ({ ...s, takenSlots: data.takenSlots || [] })); } catch (e) {} })(); }, []);
   const refreshSlots = async () => { try { const res = await fetch("/api/sessions?slots=1"); const data = await res.json(); if (res.ok) setState((s) => ({ ...s, takenSlots: data.takenSlots || [] })); } catch (e) {} };
@@ -244,6 +244,7 @@ export default function App() {
   useEffect(() => { try { setGuideSeen(localStorage.getItem("dot1_guide_seen") === "1"); } catch (e) {} }, []);
   useEffect(() => { try { const k = localStorage.getItem("dot1_theme_key") || "default"; const a = localStorage.getItem("dot1_theme_accent") || ""; setThemeKey(k); setCustomAccent(a); applyTheme(k, a); } catch (e) {} }, []);
   useEffect(() => { applyServerTheme(); }, []);
+  useEffect(() => { try { const m = window.location.pathname.match(/^\/book\/(dl_[A-Za-z0-9]+)/); if (!m) return; setView("book"); fetch("/api/direct-link?token=" + encodeURIComponent(m[1])).then((r) => r.json()).then((d) => { if (d && d.link) setDirectContext({ ...d.link, id: d.link.token }); else showToast(d && d.reason === "used" ? "This booking link has already been used." : "This booking link is no longer available. You can still book below."); }).catch(() => {}); } catch (e) {} }, []);
   useEffect(() => {
     if (poppingRef.current) { poppingRef.current = false; return; }
     const st = { view };
@@ -322,14 +323,21 @@ export default function App() {
     return inSlots || inLinks;
   };
 
-  const createDirectLink = (payload) => {
+  const createDirectLink = async (payload) => {
     if (slotTaken(payload.date, payload.time)) return { ok: false, error: "That date and time is already reserved. Choose another slot." };
-    const link = { id: uid("dl"), token: "dl_" + Math.random().toString(36).slice(2, 9).toUpperCase(), status: "active", createdAt: Date.now(), ...payload };
+    const token = "dl_" + Math.random().toString(36).slice(2, 9).toUpperCase();
+    try {
+      const res = await fetch("/api/direct-links", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ token, data: payload }) });
+      const d = await res.json().catch(() => ({}));
+      if (!res.ok) return { ok: false, error: d.error || "Could not create the link." };
+    } catch (e) { return { ok: false, error: "Network error creating the link." }; }
+    const link = { id: token, token, status: "active", createdAt: Date.now(), ...payload };
     setState((s) => ({ ...s, directLinks: [link, ...s.directLinks] }));
     return { ok: true, link };
   };
-  const revokeDirectLink = (id) => setState((s) => ({ ...s, directLinks: s.directLinks.filter((l) => l.id !== id) }));
-  const consumeDirectLink = (id) => setState((s) => ({ ...s, directLinks: s.directLinks.map((l) => (l.id === id ? { ...l, status: "used" } : l)) }));
+  const revokeDirectLink = (id) => { setState((s) => ({ ...s, directLinks: s.directLinks.filter((l) => l.id !== id) })); try { fetch("/api/direct-links?token=" + encodeURIComponent(id), { method: "DELETE" }); } catch (e) {} };
+  const consumeDirectLink = (id) => { setState((s) => ({ ...s, directLinks: s.directLinks.map((l) => (l.id === id ? { ...l, status: "used" } : l)) })); try { fetch("/api/direct-link", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ token: id }) }); } catch (e) {} };
+  const loadDirectLinks = async () => { try { const r = await fetch("/api/direct-links"); const d = await r.json().catch(() => ({})); if (r.ok && Array.isArray(d.links)) setState((s) => ({ ...s, directLinks: d.links })); } catch (e) {} };
   const openDirectLink = (link) => { setDirectContext(link); setView("book"); };
 
   const createBooking = (booking) => {
@@ -369,7 +377,7 @@ export default function App() {
     try {
       const res = await fetch("/api/auth/login", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ email: (email || "").trim(), password: password || "" }) });
       const data = await res.json().catch(() => ({}));
-      if (res.ok && data.ok) { setView("admin"); const sd = await fetch("/api/sessions").then((r) => r.json()).catch(() => ({})); if (sd && sd.sessions) setState((s) => ({ ...s, sessions: sd.sessions })); applyServerTheme(); showToast("Signed in to the studio dashboard."); return { ok: true }; }
+      if (res.ok && data.ok) { setView("admin"); const sd = await fetch("/api/sessions").then((r) => r.json()).catch(() => ({})); if (sd && sd.sessions) setState((s) => ({ ...s, sessions: sd.sessions })); applyServerTheme(); loadDirectLinks(); showToast("Signed in to the studio dashboard."); return { ok: true }; }
       return { ok: false, error: data.error || "Incorrect email or password." };
     } catch (e) {
       return { ok: false, error: "Could not reach the server. Please try again." };
@@ -1074,10 +1082,10 @@ function DirectLinks({ state, createDirectLink, revokeDirectLink, openDirectLink
   const groupServices = state.services.filter((s) => s.group === group);
   const svc = state.services.find((s) => s.id === serviceId);
 
-  const generate = () => {
+  const generate = async () => {
     if (!svc) { showToast("Choose a service first."); return; }
     if (!date || !time) { showToast("Pick a date and time."); return; }
-    const res = createDirectLink({ group, serviceId: svc.id, serviceName: svc.name, price: Number(svc.price) || 0, date, time, recipient: recipient.trim() });
+    const res = await createDirectLink({ group, serviceId: svc.id, serviceName: svc.name, price: Number(svc.price) || 0, date, time, recipient: recipient.trim() });
     if (!res.ok) { showToast(res.error); return; }
     setJustMade(res.link);
     setServiceId(""); setDate(""); setTime(""); setRecipient("");
