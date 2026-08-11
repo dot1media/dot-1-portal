@@ -1437,13 +1437,33 @@ function ClientActionPanel({ session, grp, draft, setDraft, onSubmit }) {
     );
   }
   if (stage === 6) {
-    const link = isVideo ? session.deliveryVideo : session.deliveryPhoto;
+    const vault = [
+      ...(session.deliveryVideo ? [{ label: "Final Film", url: session.deliveryVideo, note: isVideo ? "Watch & download on Frame.io" : "Video file", kind: "film" }] : []),
+      ...(session.deliveryPhoto ? [{ label: "Full Gallery", url: session.deliveryPhoto, note: "View & download your photos", kind: "image" }] : []),
+      ...((Array.isArray(session.deliverables) ? session.deliverables : []).filter((d) => d && d.url).map((d) => ({ label: d.label || "Deliverable", url: d.url, note: d.note || "", kind: "file" }))),
+    ];
     return (
       <div style={{ marginTop: 4 }}>
         <div style={{ background: CREAM, border: `1px solid ${LINE}`, borderRadius: 10, padding: "18px" }}>
-          <div style={{ ...mono, fontSize: 10, letterSpacing: "0.16em", textTransform: "uppercase", color: g.color, marginBottom: 10 }}>Your finished work is ready</div>
-          {link ? <a href={link} target="_blank" rel="noopener noreferrer" style={{ display: "inline-flex", alignItems: "center", gap: 9, background: g.color, color: "#fff", textDecoration: "none", padding: "12px 20px", borderRadius: 8, fontSize: 14.5 }}>{isVideo ? <Film size={17} /> : <ImageIcon size={17} />} {isVideo ? "Watch & download on Frame.io" : "View & download your gallery"}</a> : <div style={{ ...mono, fontSize: 11, color: FAINT }}>Delivery link is being prepared.</div>}
-          <div style={{ ...mono, fontSize: 10, color: FAINT, marginTop: 12, letterSpacing: "0.05em" }}>{isVideo ? "Delivered via Frame.io" : "Delivered via your online gallery"} · please download and back up your files</div>
+          <div style={{ ...mono, fontSize: 10, letterSpacing: "0.16em", textTransform: "uppercase", color: g.color, marginBottom: 14 }}>Your finished work is ready</div>
+          {vault.length ? (
+            <div style={{ display: "grid", gap: 10 }}>
+              {vault.map((it, i) => {
+                const Ic = it.kind === "film" ? Film : it.kind === "image" ? ImageIcon : Download;
+                return (
+                  <a key={i} href={it.url} target="_blank" rel="noopener noreferrer" style={{ display: "flex", alignItems: "center", gap: 13, background: PAPER, border: `1px solid ${LINE}`, borderRadius: 10, padding: "13px 15px", textDecoration: "none" }}>
+                    <div style={{ width: 38, height: 38, borderRadius: 9, background: g.bg, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}><Ic size={18} color={g.color} /></div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ ...display, fontWeight: 600, fontSize: 15, color: INK }}>{it.label}</div>
+                      {it.note && <div style={{ ...mono, fontSize: 10, color: STONE, marginTop: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{it.note}</div>}
+                    </div>
+                    <div style={{ ...mono, fontSize: 10, letterSpacing: "0.06em", textTransform: "uppercase", color: "#fff", background: g.color, borderRadius: 7, padding: "8px 12px", display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}><Download size={13} /> Get</div>
+                  </a>
+                );
+              })}
+            </div>
+          ) : <div style={{ ...mono, fontSize: 11, color: FAINT }}>Your files are being prepared. We'll email you the moment they're ready.</div>}
+          <div style={{ ...mono, fontSize: 10, color: FAINT, marginTop: 14, letterSpacing: "0.05em" }}>Please download and back up your files. Galleries may be removed after 6 months.</div>
         </div>
         <div style={{ background: PAPER, border: `1px solid ${LINE}`, borderRadius: 10, padding: "16px 18px", marginTop: 12, display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
           <Star size={22} color="#f5b301" fill="#f5b301" style={{ flexShrink: 0 }} />
@@ -1468,6 +1488,9 @@ function AdminSessions({ state, adminId, setAdminId, requestSetStage, addComment
   const [videoLink, setVideoLink] = useState("");
   const [photoLink, setPhotoLink] = useState("");
   const [reviewLink, setReviewLink] = useState("");
+  const [delivLabel, setDelivLabel] = useState("");
+  const [delivUrl, setDelivUrl] = useState("");
+  const [delivNote, setDelivNote] = useState("");
   const [reschedOpen, setReschedOpen] = useState(false);
   const [reschedDate, setReschedDate] = useState("");
   const [reschedTime, setReschedTime] = useState("");
@@ -1476,6 +1499,7 @@ function AdminSessions({ state, adminId, setAdminId, requestSetStage, addComment
   const sg = GROUPS[session.serviceLine] || GROUPS.video;
   const status = session.status || "active";
   const saveLinks = () => { patchSession(session.id, { deliveryVideo: videoLink.trim(), deliveryPhoto: photoLink.trim(), reviewLink: reviewLink.trim() }); setEditLinks(false); };
+  const addDeliverable = () => { if (!delivLabel.trim() || !delivUrl.trim()) return; const item = { id: "d" + Date.now(), label: delivLabel.trim(), url: delivUrl.trim(), note: delivNote.trim() }; patchSession(session.id, { deliverables: [...(session.deliverables || []), item] }); setDelivLabel(""); setDelivUrl(""); setDelivNote(""); };
   const reschedClash = slotTaken(reschedDate, reschedTime, session.id);
 
   return (
@@ -1582,6 +1606,30 @@ function AdminSessions({ state, adminId, setAdminId, requestSetStage, addComment
           ) : (
             <div><LinkRow label="Preview / review" url={session.reviewLink} /><LinkRow label="Final video (Frame.io)" url={session.deliveryVideo} /><LinkRow label="Final photos (gallery)" url={session.deliveryPhoto} /></div>
           )}
+        </div>
+
+        <div style={{ background: CREAM, border: `1px solid ${LINE}`, borderRadius: 9, padding: "16px 18px", marginBottom: 26 }}>
+          <div style={{ ...mono, fontSize: 10, letterSpacing: "0.16em", textTransform: "uppercase", color: STONE, marginBottom: 4, display: "flex", alignItems: "center", gap: 7 }}><PackageCheck size={13} /> Deliverables vault</div>
+          <div style={{ ...mono, fontSize: 9.5, color: FAINT, marginBottom: 12, lineHeight: 1.5 }}>Extra labeled downloads the client sees in their vault (the Final video and photo links above appear there automatically).</div>
+          {(session.deliverables || []).length > 0 && (
+            <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 12 }}>
+              {(session.deliverables || []).map((d, i) => (
+                <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, background: PAPER, border: `1px solid ${LINE}`, borderRadius: 8, padding: "9px 12px" }}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: INK }}>{d.label}</div>
+                    <div style={{ ...mono, fontSize: 9.5, color: STONE, marginTop: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{d.note ? d.note + " \u00b7 " : ""}{d.url}</div>
+                  </div>
+                  <button onClick={() => patchSession(session.id, { deliverables: (session.deliverables || []).filter((_, j) => j !== i) })} style={{ ...mono, fontSize: 9.5, letterSpacing: "0.06em", textTransform: "uppercase", color: "#b5271b", background: "transparent", border: `1px solid ${LINE}`, borderRadius: 6, padding: "5px 9px", cursor: "pointer", flexShrink: 0 }}>Remove</button>
+                </div>
+              ))}
+            </div>
+          )}
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            <input value={delivLabel} onChange={(e) => setDelivLabel(e.target.value)} placeholder="Label (e.g. Social Cut \u00b7 1080\u00d71920)" style={{ border: `1px solid ${LINE}`, borderRadius: 7, padding: "9px 11px", fontSize: 12.5, fontFamily: "inherit", background: PAPER, color: BODY, boxSizing: "border-box" }} />
+            <input value={delivUrl} onChange={(e) => setDelivUrl(e.target.value)} placeholder="Download URL" style={{ border: `1px solid ${LINE}`, borderRadius: 7, padding: "9px 11px", fontSize: 12.5, fontFamily: "inherit", background: PAPER, color: BODY, boxSizing: "border-box" }} />
+            <input value={delivNote} onChange={(e) => setDelivNote(e.target.value)} placeholder="Note (optional, e.g. ProRes 422 \u00b7 18.7 GB)" style={{ border: `1px solid ${LINE}`, borderRadius: 7, padding: "9px 11px", fontSize: 12.5, fontFamily: "inherit", background: PAPER, color: BODY, boxSizing: "border-box" }} />
+            <button onClick={addDeliverable} disabled={!delivLabel.trim() || !delivUrl.trim()} style={{ ...mono, fontSize: 10, letterSpacing: "0.08em", textTransform: "uppercase", color: "#fff", background: (delivLabel.trim() && delivUrl.trim()) ? sg.color : FAINT, border: "none", borderRadius: 7, padding: "9px 13px", cursor: (delivLabel.trim() && delivUrl.trim()) ? "pointer" : "default", alignSelf: "flex-start", display: "flex", alignItems: "center", gap: 6 }}><Plus size={12} /> Add deliverable</button>
+          </div>
         </div>
 
         <div style={{ ...mono, fontSize: 10.5, letterSpacing: "0.18em", textTransform: "uppercase", color: STONE, marginBottom: 12, display: "flex", alignItems: "center", gap: 8 }}><MessageSquare size={13} /> Client messages & requests</div>
