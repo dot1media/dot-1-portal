@@ -1211,6 +1211,8 @@ function ClientView({ session, sessions, clientId, setClientId, addComment, onRe
   const fileRef = useRef(null);
   useEffect(() => { if (!session) return; setReschedDate(session.date || ""); setReschedOpen(false); setMsg(""); }, [clientId]);
   const [docs, setDocs] = useState([]);
+  const [payingBalance, setPayingBalance] = useState(false);
+  const [payErr, setPayErr] = useState("");
   useEffect(() => { (async () => { try { const r = await fetch("/api/agreements"); const d = await r.json(); if (r.ok) setDocs(Array.isArray(d.agreements) ? d.agreements : []); } catch (e) {} })(); }, []);
   if (!session) return <div style={{ ...mono, fontSize: 13, color: STONE, padding: "48px 4px", textAlign: "center" }}>No session to show yet. When you book, it will appear here.</div>;
   const stage = session.currentStage;
@@ -1220,9 +1222,26 @@ function ClientView({ session, sessions, clientId, setClientId, addComment, onRe
   const unreadReplies = session.comments.filter((c) => c.author === "studio" && !c.read).length;
   const today = new Date().toISOString().slice(0, 10);
   const sortedSessions = [...(sessions || [])].sort((a, b) => { const ad = a.date || "9999-99", bd = b.date || "9999-99"; const aUp = ad >= today, bUp = bd >= today; if (aUp !== bUp) return aUp ? -1 : 1; if (aUp) return ad.localeCompare(bd); return bd.localeCompare(ad); });
+  const payTotal = Number(session.total) || 0;
+  const depositPaid = session.paymentStatus === "paid";
+  const paymentPending = session.paymentStatus === "pending";
+  const payPaid = depositPaid ? (Number(session.payAmount) || 0) : 0;
+  const balancePaid = session.balanceStatus === "paid";
+  const balanceDue = (depositPaid && !balancePaid) ? Math.max(0, payTotal - payPaid) : 0;
+  const fullyPaid = payTotal > 0 && (balancePaid || (depositPaid && payPaid >= payTotal));
   const isLastStage = session.currentStage >= stagesFor(session).length - 1;
   const statusLine = session.status === "cancelled" ? "This booking has been cancelled." : session.status === "closed" ? "This booking has been closed." : isLastStage ? ("Your " + session.type + " is complete. Thank you for creating with Dot One.") : ("Your " + session.type + " is currently at \u201c" + curStage(session).label + ".\u201d We\u2019ll notify you when the next step is ready \u2014 no action is needed from you right now.");
 
+  const payBalance = async () => {
+    setPayErr(""); setPayingBalance(true);
+    try {
+      const r = await fetch("/api/pay-balance-client", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ sessionId: session.id }) });
+      const d = await r.json().catch(() => ({}));
+      if (r.ok && d.url) { window.location.href = d.url; return; }
+      setPayErr((d && d.error) || "Could not start checkout. Please try again.");
+    } catch (e) { setPayErr("Could not start checkout. Please try again."); }
+    setPayingBalance(false);
+  };
   const onPickImage = async (e) => {
     const file = e.target.files && e.target.files[0];
     if (!file) return;
@@ -1309,6 +1328,26 @@ function ClientView({ session, sessions, clientId, setClientId, addComment, onRe
         <div style={{ background: grp.bg, border: `1px solid ${grp.border}`, borderRadius: 10, padding: "16px 20px", marginBottom: 20 }}>
           <div style={{ fontSize: 13.5, color: grp.text, lineHeight: 1.5, marginBottom: 15 }}>{statusLine}</div>
           <ProgressBar stages={stagesFor(session)} current={session.currentStage} accent={grp.color} />
+        </div>
+      )}
+
+      {payTotal > 0 && status === "active" && (
+        <div style={{ marginTop: 22, border: `1px solid ${LINE}`, borderRadius: 12, padding: "18px 20px", background: PAPER }}>
+          <div style={{ ...mono, fontSize: 10.5, letterSpacing: "0.16em", textTransform: "uppercase", color: STONE, marginBottom: 12 }}>Payment</div>
+          <Row k="Project total" v={money(payTotal)} />
+          {payPaid > 0 && balanceDue > 0 && <Row k="Deposit paid" v={money(payPaid)} sub />}
+          {balanceDue > 0 && <Row k="Balance due" v={money(balanceDue)} bold red />}
+          {fullyPaid ? (
+            <div style={{ marginTop: 13, display: "flex", alignItems: "center", gap: 8 }}><CheckCircle2 size={15} color="#2e9e5b" /><span style={{ ...mono, fontSize: 11.5, letterSpacing: "0.05em", color: "#2e7d4f" }}>PAID IN FULL \u2014 THANK YOU</span></div>
+          ) : balanceDue > 0 ? (
+            <>
+              <button onClick={payBalance} disabled={payingBalance} style={{ ...btnSolid, background: grp.color, marginTop: 15, width: "100%", justifyContent: "center", opacity: payingBalance ? 0.7 : 1, cursor: payingBalance ? "default" : "pointer" }}>{payingBalance ? "Starting secure checkout\u2026" : "Pay balance securely \u00b7 " + money(balanceDue)}</button>
+              {payErr && <div style={{ marginTop: 10, fontSize: 12.5, color: "#b5271b", display: "flex", alignItems: "center", gap: 7 }}><AlertTriangle size={14} /> {payErr}</div>}
+            </>
+          ) : paymentPending ? (
+            <div style={{ marginTop: 12, ...mono, fontSize: 11.5, letterSpacing: "0.04em", color: STONE }}>We\u2019re confirming your payment. This will update automatically.</div>
+          ) : null}
+          <div style={{ ...mono, fontSize: 9, color: FAINT, marginTop: 11 }}>Payments are processed securely through Square.</div>
         </div>
       )}
 
