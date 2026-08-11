@@ -92,6 +92,15 @@ const CONSULT_STAGES = [
 function isConsult(s) { return !!(s && /consult/i.test(s.type || "")); }
 function stagesFor(s) { return isConsult(s) ? CONSULT_STAGES : STAGES; }
 function curStage(s) { const st = stagesFor(s); return st[Math.min(Math.max((s && s.currentStage) || 0, 0), st.length - 1)] || st[0]; }
+function sessionBucket(s, today) {
+  const st = (s && s.status) || "active";
+  if (st === "cancelled" || st === "closed") return "completed";
+  const d = (s && s.date) || "";
+  if (!d) return "upcoming";
+  if (d < today) return "completed";
+  if (d === today) return "today";
+  return "upcoming";
+}
 
 const GOOGLE_REVIEW_URL = "https://g.page/r/Ceb1aSxQSvm6EBM/review/";
 const ADMINS = ["video@dot1.media", "photo@dot1.media"]; // studio login accounts
@@ -214,15 +223,15 @@ export default function App() {
 
   useEffect(() => {
     (async () => {
-      try { const r = await storage.get(STORAGE_KEY); if (r && r.value) { const p = JSON.parse(r.value); if (p) { const { sessions, takenSlots, directLinks, ...rest } = p; setState((prev) => ({ ...prev, ...rest })); } } } catch (e) {}
+      try { const r = await storage.get(STORAGE_KEY); if (r && r.value) { const p = JSON.parse(r.value); if (p) { const { sessions, takenSlots, ...rest } = p; setState((prev) => ({ ...prev, ...rest })); } } } catch (e) {}
       setLoaded(true);
     })();
   }, []);
   const [catalogLoaded, setCatalogLoaded] = useState(false);
   const [catalogError, setCatalogError] = useState(false);
-  useEffect(() => { if (!loaded) return; (async () => { try { const { services, addons, availability, sessions, takenSlots, directLinks, ...rest } = state; await storage.set(STORAGE_KEY, JSON.stringify(rest)); } catch (e) {} })(); }, [state, loaded]);
+  useEffect(() => { if (!loaded) return; (async () => { try { const { services, addons, availability, sessions, takenSlots, ...rest } = state; await storage.set(STORAGE_KEY, JSON.stringify(rest)); } catch (e) {} })(); }, [state, loaded]);
   useEffect(() => { (async () => { try { const res = await fetch("/api/services"); const data = await res.json(); if (!res.ok) throw new Error(); setState((s) => ({ ...s, services: data.services || [], addons: data.addons || [] })); setCatalogError(false); } catch (e) { setCatalogError(true); } finally { setCatalogLoaded(true); } })(); }, []);
-  useEffect(() => { (async () => { try { const onBook = typeof window !== "undefined" && /^\/book\/dl_/.test(window.location.pathname); const a = await fetch("/api/auth/me").then((r) => r.json()).catch(() => null); if (a && a.admin) { if (!onBook) setView("admin"); const sd = await fetch("/api/sessions").then((r) => r.json()).catch(() => ({})); if (sd && sd.sessions) setState((s) => ({ ...s, sessions: sd.sessions })); loadDirectLinks(); return; } const c = await fetch("/api/client-me").then((r) => r.json()).catch(() => null); if (c && c.client && c.email) { setClientAuth({ name: "", email: c.email }); const sd = await fetch("/api/sessions").then((r) => r.json()).catch(() => ({})); const sess = (sd && sd.sessions) || []; if (sess.length) { setClientAuth({ name: sess[0].clientName || "", email: c.email }); setState((s) => ({ ...s, sessions: sess })); setClientId(sess[0].id); if (!onBook) setView("client"); } } } catch (e) {} })(); }, []);
+  useEffect(() => { (async () => { try { const a = await fetch("/api/auth/me").then((r) => r.json()).catch(() => null); if (a && a.admin) { setView("admin"); const sd = await fetch("/api/sessions").then((r) => r.json()).catch(() => ({})); if (sd && sd.sessions) setState((s) => ({ ...s, sessions: sd.sessions })); return; } const c = await fetch("/api/client-me").then((r) => r.json()).catch(() => null); if (c && c.client && c.email) { setClientAuth({ name: "", email: c.email }); const sd = await fetch("/api/sessions").then((r) => r.json()).catch(() => ({})); const sess = (sd && sd.sessions) || []; if (sess.length) { setClientAuth({ name: sess[0].clientName || "", email: c.email }); setState((s) => ({ ...s, sessions: sess })); setClientId(sess[0].id); setView("client"); } } } catch (e) {} })(); }, []);
   useEffect(() => { (async () => { try { const res = await fetch("/api/availability"); const data = await res.json(); if (res.ok) setState((s) => ({ ...s, availability: data.availability || [] })); } catch (e) {} })(); }, []);
   useEffect(() => { (async () => { try { const res = await fetch("/api/sessions?slots=1"); const data = await res.json(); if (res.ok) setState((s) => ({ ...s, takenSlots: data.takenSlots || [] })); } catch (e) {} })(); }, []);
   const refreshSlots = async () => { try { const res = await fetch("/api/sessions?slots=1"); const data = await res.json(); if (res.ok) setState((s) => ({ ...s, takenSlots: data.takenSlots || [] })); } catch (e) {} };
@@ -244,7 +253,6 @@ export default function App() {
   useEffect(() => { try { setGuideSeen(localStorage.getItem("dot1_guide_seen") === "1"); } catch (e) {} }, []);
   useEffect(() => { try { const k = localStorage.getItem("dot1_theme_key") || "default"; const a = localStorage.getItem("dot1_theme_accent") || ""; setThemeKey(k); setCustomAccent(a); applyTheme(k, a); } catch (e) {} }, []);
   useEffect(() => { applyServerTheme(); }, []);
-  useEffect(() => { try { const m = window.location.pathname.match(/^\/book\/(dl_[A-Za-z0-9]+)/); if (!m) return; setView("book"); fetch("/api/direct-link?token=" + encodeURIComponent(m[1])).then((r) => r.json()).then((d) => { if (d && d.link) setDirectContext({ ...d.link, id: d.link.token }); else showToast(d && d.reason === "used" ? "This booking link has already been used." : "This booking link is no longer available. You can still book below."); }).catch(() => {}); } catch (e) {} }, []);
   useEffect(() => {
     if (poppingRef.current) { poppingRef.current = false; return; }
     const st = { view };
@@ -323,21 +331,14 @@ export default function App() {
     return inSlots || inLinks;
   };
 
-  const createDirectLink = async (payload) => {
+  const createDirectLink = (payload) => {
     if (slotTaken(payload.date, payload.time)) return { ok: false, error: "That date and time is already reserved. Choose another slot." };
-    const token = "dl_" + Math.random().toString(36).slice(2, 9).toUpperCase();
-    try {
-      const res = await fetch("/api/direct-links", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ token, data: payload }) });
-      const d = await res.json().catch(() => ({}));
-      if (!res.ok) return { ok: false, error: d.error || "Could not create the link." };
-    } catch (e) { return { ok: false, error: "Network error creating the link." }; }
-    const link = { id: token, token, status: "active", createdAt: Date.now(), ...payload };
+    const link = { id: uid("dl"), token: "dl_" + Math.random().toString(36).slice(2, 9).toUpperCase(), status: "active", createdAt: Date.now(), ...payload };
     setState((s) => ({ ...s, directLinks: [link, ...s.directLinks] }));
     return { ok: true, link };
   };
-  const revokeDirectLink = (id) => { setState((s) => ({ ...s, directLinks: s.directLinks.filter((l) => l.id !== id) })); try { fetch("/api/direct-links?token=" + encodeURIComponent(id), { method: "DELETE" }); } catch (e) {} };
-  const consumeDirectLink = (id) => { setState((s) => ({ ...s, directLinks: s.directLinks.map((l) => (l.id === id ? { ...l, status: "used" } : l)) })); try { fetch("/api/direct-link", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ token: id }) }); } catch (e) {} };
-  const loadDirectLinks = async () => { try { const r = await fetch("/api/direct-links"); const d = await r.json().catch(() => ({})); if (r.ok && Array.isArray(d.links)) setState((s) => ({ ...s, directLinks: d.links })); } catch (e) {} };
+  const revokeDirectLink = (id) => setState((s) => ({ ...s, directLinks: s.directLinks.filter((l) => l.id !== id) }));
+  const consumeDirectLink = (id) => setState((s) => ({ ...s, directLinks: s.directLinks.map((l) => (l.id === id ? { ...l, status: "used" } : l)) }));
   const openDirectLink = (link) => { setDirectContext(link); setView("book"); };
 
   const createBooking = (booking) => {
@@ -377,7 +378,7 @@ export default function App() {
     try {
       const res = await fetch("/api/auth/login", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ email: (email || "").trim(), password: password || "" }) });
       const data = await res.json().catch(() => ({}));
-      if (res.ok && data.ok) { setView("admin"); const sd = await fetch("/api/sessions").then((r) => r.json()).catch(() => ({})); if (sd && sd.sessions) setState((s) => ({ ...s, sessions: sd.sessions })); applyServerTheme(); loadDirectLinks(); showToast("Signed in to the studio dashboard."); return { ok: true }; }
+      if (res.ok && data.ok) { setView("admin"); const sd = await fetch("/api/sessions").then((r) => r.json()).catch(() => ({})); if (sd && sd.sessions) setState((s) => ({ ...s, sessions: sd.sessions })); applyServerTheme(); showToast("Signed in to the studio dashboard."); return { ok: true }; }
       return { ok: false, error: data.error || "Incorrect email or password." };
     } catch (e) {
       return { ok: false, error: "Could not reach the server. Please try again." };
@@ -1082,10 +1083,10 @@ function DirectLinks({ state, createDirectLink, revokeDirectLink, openDirectLink
   const groupServices = state.services.filter((s) => s.group === group);
   const svc = state.services.find((s) => s.id === serviceId);
 
-  const generate = async () => {
+  const generate = () => {
     if (!svc) { showToast("Choose a service first."); return; }
     if (!date || !time) { showToast("Pick a date and time."); return; }
-    const res = await createDirectLink({ group, serviceId: svc.id, serviceName: svc.name, price: Number(svc.price) || 0, date, time, recipient: recipient.trim() });
+    const res = createDirectLink({ group, serviceId: svc.id, serviceName: svc.name, price: Number(svc.price) || 0, date, time, recipient: recipient.trim() });
     if (!res.ok) { showToast(res.error); return; }
     setJustMade(res.link);
     setServiceId(""); setDate(""); setTime(""); setRecipient("");
@@ -1450,7 +1451,7 @@ function ClientView({ session, sessions, clientId, setClientId, addComment, onRe
         </div>
       )}
 
-      {status === "active" && session.serviceLine === "video" && (
+      {status === "active" && (
         <div style={{ marginTop: 22 }}>
           <button onClick={() => setBriefOpen(!briefOpen)} style={{ width: "100%", display: "flex", alignItems: "center", gap: 12, background: PAPER, border: `1px solid ${LINE}`, borderRadius: briefOpen ? "12px 12px 0 0" : 12, padding: "15px 18px", cursor: "pointer", textAlign: "left" }}>
             <FileText size={17} color={grp.color} style={{ flexShrink: 0 }} />
@@ -1635,15 +1636,33 @@ function AdminSessions({ state, adminId, setAdminId, requestSetStage, addComment
     <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "260px 1fr", gap: isMobile ? 20 : 26 }}>
       <div>
         <div style={{ ...mono, fontSize: 10.5, letterSpacing: "0.2em", textTransform: "uppercase", color: RED, marginBottom: 14 }}>Sessions</div>
-        {state.sessions.map((s) => { const selected = s.id === adminId; const grp = GROUPS[s.serviceLine] || GROUPS.video; const unread = s.comments.filter((c) => c.author === "client" && !c.read).length; return (
-          <button key={s.id} onClick={() => { setAdminId(s.id); markMessagesRead(s.id, "client"); }} style={{ width: "100%", textAlign: "left", marginBottom: 8, padding: "12px 14px", borderRadius: 9, cursor: "pointer", border: `1px solid ${selected ? INK : LINE}`, background: selected ? INK : PAPER, color: selected ? "#fff" : BODY }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, marginBottom: 3 }}>
-              <span style={{ ...display, fontWeight: 600, fontSize: 15 }}>{s.clientName}</span>
-              {unread > 0 && <span style={{ ...mono, background: RED, color: "#fff", borderRadius: 20, fontSize: 9.5, minWidth: 16, height: 16, padding: "0 5px", display: "inline-flex", alignItems: "center", justifyContent: "center" }}>{unread}</span>}
+        {(() => {
+          const now = new Date();
+          const todayStr = now.getFullYear() + "-" + String(now.getMonth() + 1).padStart(2, "0") + "-" + String(now.getDate()).padStart(2, "0");
+          const groups = { today: [], upcoming: [], completed: [] };
+          for (const s of (state.sessions || [])) groups[sessionBucket(s, todayStr)].push(s);
+          groups.today.sort((a, b) => (a.time || "").localeCompare(b.time || ""));
+          groups.upcoming.sort((a, b) => ((a.date || "") + (a.time || "")).localeCompare((b.date || "") + (b.time || "")));
+          groups.completed.sort((a, b) => ((b.date || "") + (b.time || "")).localeCompare((a.date || "") + (a.time || "")));
+          const renderBtn = (s) => { const selected = s.id === adminId; const grp = GROUPS[s.serviceLine] || GROUPS.video; const unread = s.comments.filter((c) => c.author === "client" && !c.read).length; return (
+            <button key={s.id} onClick={() => { setAdminId(s.id); markMessagesRead(s.id, "client"); }} style={{ width: "100%", textAlign: "left", marginBottom: 8, padding: "12px 14px", borderRadius: 9, cursor: "pointer", border: `1px solid ${selected ? INK : LINE}`, background: selected ? INK : PAPER, color: selected ? "#fff" : BODY }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, marginBottom: 3 }}>
+                <span style={{ ...display, fontWeight: 600, fontSize: 15 }}>{s.clientName}</span>
+                {unread > 0 && <span style={{ ...mono, background: RED, color: "#fff", borderRadius: 20, fontSize: 9.5, minWidth: 16, height: 16, padding: "0 5px", display: "inline-flex", alignItems: "center", justifyContent: "center" }}>{unread}</span>}
+              </div>
+              <div style={{ ...mono, fontSize: 10, letterSpacing: "0.06em", color: selected ? "#c9c6bd" : STONE, display: "flex", alignItems: "center", gap: 6 }}><grp.Icon size={11} /> {s.type} · {(s.status && s.status !== "active") ? (s.status === "cancelled" ? "Cancelled" : "Closed") : curStage(s).label}</div>
+              {s.date && <div style={{ ...mono, fontSize: 9.5, letterSpacing: "0.04em", color: selected ? "#b3b0a7" : FAINT, marginTop: 3 }}>{fmtDate(s.date)}{s.time ? " \u00b7 " + fmtTime(s.time) : ""}</div>}
+            </button>
+          ); };
+          if (!(state.sessions || []).length) return null;
+          const sections = [["today", "Today"], ["upcoming", "Upcoming"], ["completed", "Completed"]];
+          return sections.map(([key, label]) => groups[key].length === 0 ? null : (
+            <div key={key} style={{ marginBottom: 16 }}>
+              <div style={{ ...mono, fontSize: 9.5, letterSpacing: "0.16em", textTransform: "uppercase", color: key === "today" ? RED : STONE, marginBottom: 8 }}>{label} <span style={{ color: FAINT }}>\u00b7 {groups[key].length}</span></div>
+              {groups[key].map(renderBtn)}
             </div>
-            <div style={{ ...mono, fontSize: 10, letterSpacing: "0.06em", color: selected ? "#c9c6bd" : STONE, display: "flex", alignItems: "center", gap: 6 }}><grp.Icon size={11} /> {s.type} · {(s.status && s.status !== "active") ? (s.status === "cancelled" ? "Cancelled" : "Closed") : curStage(s).label}</div>
-          </button>
-        ); })}
+          ));
+        })()}
       </div>
 
       <div>
@@ -1716,7 +1735,6 @@ function AdminSessions({ state, adminId, setAdminId, requestSetStage, addComment
         </div>
         <div style={{ ...mono, fontSize: 9.5, color: FAINT, marginBottom: 26, letterSpacing: "0.04em" }}>You'll be asked to confirm — advancing sends the client a status email.</div>
 
-{session.serviceLine === "video" && (
         <div style={{ background: CREAM, border: `1px solid ${LINE}`, borderRadius: 9, padding: "16px 18px", marginBottom: 26 }}>
           <div style={{ ...mono, fontSize: 10, letterSpacing: "0.16em", textTransform: "uppercase", color: STONE, marginBottom: 12, display: "flex", alignItems: "center", gap: 7 }}><FileText size={13} /> Production brief{session.brief && session.brief.submitted && <span style={{ ...mono, fontSize: 8.5, letterSpacing: "0.08em", color: "#2e7d4f", background: "#eaf7ef", border: "1px solid #bfe6cc", borderRadius: 20, padding: "3px 8px" }}>SUBMITTED</span>}</div>
           {session.brief && BRIEF_FIELDS.some((f) => (session.brief[f.key] || "").trim()) ? (
@@ -1728,7 +1746,6 @@ function AdminSessions({ state, adminId, setAdminId, requestSetStage, addComment
             ))
           ) : <div style={{ fontSize: 12.5, color: FAINT, fontStyle: "italic" }}>The client hasn't filled out their production brief yet.</div>}
         </div>
-        )}
 
         <div style={{ background: CREAM, border: `1px solid ${LINE}`, borderRadius: 9, padding: "16px 18px", marginBottom: 26 }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
