@@ -20,8 +20,8 @@ const SERIF = "Georgia, 'Times New Roman', serif";
 const SANS = "'Helvetica Neue', Helvetica, Arial, sans-serif";
 const PORTAL = "https://portal.dot1.media";
 
-const BRAND_MAIN = { accent: "#e23b2e", logo: PORTAL + "/dot1-logo.png", logoH: 42 };
-const BRAND_PHOTO = { accent: "#2f74c0", logo: PORTAL + "/dot1-photo-logo.png", logoH: 46 };
+const BRAND_MAIN = { accent: "#e23b2e", logo: PORTAL + "/dot1-logo.png", logoH: 42, tagline: "Create with purpose" };
+const BRAND_PHOTO = { accent: "#2f74c0", logo: PORTAL + "/dot1-photo-logo.png", logoH: 46, tagline: "Timeless Portraits" };
 
 function brandFor(s: any, forStudio?: boolean) {
   if (!forStudio && s && s.serviceLine === "photo") return BRAND_PHOTO;
@@ -59,7 +59,7 @@ function shell(brand: any, eyebrow: string, heading: string, bodyHtml: string): 
   <div style="max-width:600px;margin:0 auto;padding:40px 22px;font-family:${SANS};color:#2b2926;">
     <div style="text-align:center;margin-bottom:30px;">
       <img src="${brand.logo}" alt="Dot One Media" style="height:${brand.logoH}px;width:auto;display:inline-block;" />
-      <div style="font-family:${SANS};font-size:10px;letter-spacing:0.3em;text-transform:uppercase;color:${FAINT};margin-top:11px;">Create with purpose</div>
+      <div style="font-family:${SANS};font-size:10px;letter-spacing:0.3em;text-transform:uppercase;color:${FAINT};margin-top:11px;">${brand.tagline || "Create with purpose"}</div>
     </div>
     <div style="background:#ffffff;border:1px solid ${LINE};border-radius:14px;padding:36px 34px;">
       <div style="font-family:${SANS};font-size:10.5px;letter-spacing:0.22em;text-transform:uppercase;color:${brand.accent};margin-bottom:13px;">${eyebrow}</div>
@@ -89,19 +89,44 @@ export function bookingStudioEmail(s: any): string {
 
 export function bookingClientEmail(s: any): string {
   const brand = brandFor(s);
-  const body = para("Thank you for booking with Dot One Media. Your session is confirmed, and we can't wait to create with you.") +
-    detailRows([
-      ["Service", esc(s.type)],
-      ["Date", `${esc(s.date) || "TBD"} ${esc(s.time)}`],
-    ]) +
-    para("Sign in anytime with your email and password to follow your session's progress from booking through final delivery.") +
+  const isConsultBooking = /consult/i.test((s && s.type) || "");
+  const paid = s && s.paymentStatus === "paid" && Number(s.payAmount) > 0;
+  const first = s && s.clientName ? esc(String(s.clientName).split(" ")[0]) : "";
+  const rows: Array<[string, string]> = [["Service", esc(s.type)], ["Date", esc(s.date) || "To be confirmed"]];
+  if (s && s.time) rows.push(["Time", esc(s.time)]);
+  if (s && s.photographer) rows.push(["Your creator", esc(s.photographer)]);
+  if (paid) rows.push(["Paid", dollars(s.payAmount)]);
+
+  const steps = isConsultBooking
+    ? [["1", "We confirm", "We review your request and lock in the details."], ["2", "We meet", "We connect for your consultation and talk through your vision."]]
+    : [["1", "We confirm", "We review your details and prepare for your session."], ["2", "Session day", "We capture your session, then move into post-production."], ["3", "Delivery", "Your finished work arrives in your portal to view and keep."]];
+  const nextBlock = `<div style="margin:6px 0 22px;">
+    <div style="font-family:${SANS};font-size:10.5px;letter-spacing:0.16em;text-transform:uppercase;color:${STONE};margin-bottom:13px;">What happens next</div>
+    ${steps.map(([n, t, d]) => `<table role="presentation" style="width:100%;border-collapse:collapse;margin-bottom:11px;"><tr>
+      <td style="width:30px;vertical-align:top;"><div style="width:26px;height:26px;border-radius:50%;background:${brand.accent};color:#ffffff;font-family:${SANS};font-size:12px;font-weight:700;text-align:center;line-height:26px;">${n}</div></td>
+      <td style="vertical-align:top;padding-left:13px;">
+        <div style="font-family:${SERIF};font-size:15px;font-weight:600;color:${INK};line-height:1.3;">${t}</div>
+        <div style="font-family:${SANS};font-size:12.5px;color:#6b665e;line-height:1.5;">${d}</div>
+      </td></tr></table>`).join("")}
+  </div>`;
+
+  const body =
+    para(`Thank you for booking with Dot One Media${first ? ", " + first : ""}. Your ${isConsultBooking ? "consultation" : "session"} is confirmed, and we can't wait to create with you.`) +
+    detailRows(rows) +
+    nextBlock +
+    para("Sign in anytime with your email and password to follow your progress and, when it's ready, receive your finished work.") +
     button(brand, PORTAL, "Open your client portal");
-  return shell(brand, "Booking Confirmed", "Your session is confirmed", body);
+  return shell(brand, "Booking Confirmed", isConsultBooking ? "Your consultation is confirmed" : "Your session is confirmed", body);
 }
 
+export const CONSULT_STAGE_LABELS = ["Consultation Scheduled", "Confirmed", "Consultation Complete"];
+export function stageLabelFor(s: any, idx: number): string {
+  const L = /consult/i.test((s && s.type) || "") ? CONSULT_STAGE_LABELS : STAGE_LABELS;
+  return L[idx] || "Update";
+}
 export function stageClientEmail(s: any, stageIdx: number): string {
   const brand = brandFor(s);
-  const label = STAGE_LABELS[stageIdx] || "Update";
+  const label = stageLabelFor(s, stageIdx);
   const body = para(`There's an update on your <strong style="color:${INK};">${esc(s.type) || "session"}</strong>.`) +
     `<div style="background:${CREAM};border:1px solid ${LINE};border-radius:10px;padding:16px 18px;margin:6px 0 20px;">
       <div style="font-family:${SANS};font-size:10px;letter-spacing:0.16em;text-transform:uppercase;color:${STONE};">Current status</div>

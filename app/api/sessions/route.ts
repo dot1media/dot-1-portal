@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { sql } from "@/lib/db";
 import { verifyToken, verifyClientToken, ADMIN_COOKIE, CLIENT_COOKIE } from "@/lib/auth";
-import { sendEmail, bookingStudioEmail, bookingClientEmail, stageClientEmail, messageEmail, STAGE_LABELS } from "@/lib/email";
+import { sendEmail, bookingStudioEmail, bookingClientEmail, stageClientEmail, messageEmail, stageLabelFor } from "@/lib/email";
 
 export const runtime = "nodejs";
 
@@ -88,7 +88,7 @@ export async function PATCH(request: Request) {
 
   const old = (cur.data || {}) as any;
   if (me.role === "admin" && typeof allowed.currentStage === "number" && allowed.currentStage > (old.currentStage || 0)) {
-    await sendEmail({ to: merged.clientEmail, subject: "Your " + (merged.type || "session") + " status: " + (STAGE_LABELS[allowed.currentStage] || "update"), html: stageClientEmail(merged, allowed.currentStage), replyTo: "contact@dot1.media" });
+    await sendEmail({ to: merged.clientEmail, subject: "Your " + (merged.type || "session") + " status: " + stageLabelFor(merged, allowed.currentStage), html: stageClientEmail(merged, allowed.currentStage), replyTo: "contact@dot1.media" });
   }
   if (Array.isArray(allowed.comments) && allowed.comments.length > (old.comments || []).length) {
     const last = allowed.comments[allowed.comments.length - 1];

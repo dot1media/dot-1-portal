@@ -8,7 +8,7 @@ import {
   Plus, Trash2, Pencil, Check, AlertTriangle, Tag, Link2, ListPlus,
   Star, CreditCard, Wallet, CalendarDays, ChevronLeft, ChevronRight,
   ArrowRight, ArrowLeft, CalendarClock, X, Copy, LogIn, Sparkles,
-  MessageCircle, Smartphone, Link as LinkIcon, Ban, EyeOff, XCircle, CalendarPlus, ChevronDown, Settings, Download,
+  MessageCircle, Smartphone, Link as LinkIcon, Ban, EyeOff, XCircle, CalendarPlus, ChevronDown, Settings, Download, ListChecks,
 } from "lucide-react";
 
 // Persist to the browser's localStorage (works in a real browser, unlike the
@@ -64,6 +64,15 @@ const STAGES = [
   { key: "predelivery", label: "Pre-Delivery Review", Icon: Eye, desc: "Your preview is ready to review. Take a look and tell us if you'd like any changes before final delivery." },
   { key: "delivered", label: "Final Delivery", Icon: PackageCheck, desc: "All done. Your finished work is ready and delivered below. Thank you for trusting us with your story." },
 ];
+
+const CONSULT_STAGES = [
+  { key: "scheduled", label: "Consultation Scheduled", Icon: CalendarCheck, desc: "Your consultation is on the calendar. We'll confirm the details with you shortly." },
+  { key: "confirmed", label: "Confirmed", Icon: FileCheck, desc: "Your consultation is confirmed. We're looking forward to speaking with you." },
+  { key: "complete", label: "Consultation Complete", Icon: CheckCircle2, desc: "Your consultation is complete. Thank you for meeting with us. If we discussed a project, we'll follow up with next steps." },
+];
+function isConsult(s) { return !!(s && /consult/i.test(s.type || "")); }
+function stagesFor(s) { return isConsult(s) ? CONSULT_STAGES : STAGES; }
+function curStage(s) { const st = stagesFor(s); return st[Math.min(Math.max((s && s.currentStage) || 0, 0), st.length - 1)] || st[0]; }
 
 const GOOGLE_REVIEW_URL = "https://g.page/r/Ceb1aSxQSvm6EBM/review/";
 const ADMINS = ["video@dot1.media", "photo@dot1.media"]; // studio login accounts
@@ -159,6 +168,7 @@ export default function App() {
   const [clientId, setClientId] = useState("");
   const [clientAuth, setClientAuth] = useState(null);
   const [resetToken, setResetToken] = useState("");
+  const [guideSeen, setGuideSeen] = useState(true);
   const [adminId, setAdminId] = useState("");
   const [directContext, setDirectContext] = useState(null);
   const [toast, setToast] = useState(null);
@@ -194,6 +204,7 @@ export default function App() {
     const rt = new URLSearchParams(window.location.search).get("reset");
     if (rt) { setResetToken(rt); setView("resetpw"); }
   }, []);
+  useEffect(() => { try { setGuideSeen(localStorage.getItem("dot1_guide_seen") === "1"); } catch (e) {} }, []);
   useEffect(() => {
     if (poppingRef.current) { poppingRef.current = false; return; }
     const st = { view };
@@ -218,9 +229,9 @@ export default function App() {
     const advancing = idx > session.currentStage;
     setConfirm({
       title: advancing ? "Advance this session?" : "Move this session back?",
-      message: advancing ? `Advance ${session.clientName} to "${STAGES[idx].label}"? This will send a status email to the client.` : `Move ${session.clientName} back to "${STAGES[idx].label}"? No email is sent when moving backward.`,
+      message: advancing ? `Advance ${session.clientName} to "${(stagesFor(session)[idx] || {}).label}"? This will send a status email to the client.` : `Move ${session.clientName} back to "${(stagesFor(session)[idx] || {}).label}"? No email is sent when moving backward.`,
       confirmLabel: advancing ? "Advance & notify" : "Move back", danger: !advancing,
-      onYes: () => { doSetStage(session.id, idx); if (advancing) showToast(`Status email sent to ${session.clientName} — "${STAGES[idx].label}"`); setConfirm(null); },
+      onYes: () => { doSetStage(session.id, idx); if (advancing) showToast(`Status email sent to ${session.clientName} — "${(stagesFor(session)[idx] || {}).label}"`); setConfirm(null); },
     });
   };
 
@@ -378,6 +389,7 @@ export default function App() {
         {view === "resetpw" && <ResetPassword token={resetToken} onDone={() => setView("login")} showToast={showToast} />}
         {view === "client" && <ClientView session={clientSession} sessions={state.sessions} clientId={clientId} setClientId={setClientId} addComment={addComment} onRescheduleRequest={clientRescheduleRequest} markMessagesRead={markMessagesRead} patchSession={patchSession} resizeImage={resizeImage} showToast={showToast} />}
         {view === "thankyou" && <ThankYou session={clientSession} onPortal={() => setView("client")} />}
+        {view === "client" && !guideSeen && clientSession && <ClientGuide onClose={() => { setGuideSeen(true); try { localStorage.setItem("dot1_guide_seen", "1"); } catch (e) {} }} />}
         {view === "admin" && (
           <div>
             <div style={{ display: "flex", gap: 6, marginBottom: 24, borderBottom: `1px solid ${LINE}`, flexWrap: "wrap" }}>
@@ -412,7 +424,7 @@ function ThankYou({ session, onPortal }) {
   const isPhoto = session && session.serviceLine === "photo";
   return (
     <div style={{ maxWidth: 580, margin: "0 auto", padding: "44px 24px 40px", textAlign: "center" }}>
-      <img src={isPhoto ? "/dot1-photo-logo.png" : "/dot1-logo.png"} alt="Dot One Media" style={{ height: isPhoto ? 52 : 44, width: "auto", margin: "0 auto 26px", display: "block" }} />
+      <div style={{ marginBottom: 26 }}><img src={isPhoto ? "/dot1-photo-logo.png" : "/dot1-logo.png"} alt="Dot One Media" style={{ height: isPhoto ? 52 : 44, width: "auto", margin: "0 auto", display: "block" }} />{isPhoto && <div style={{ ...mono, fontSize: 9, letterSpacing: "0.28em", textTransform: "uppercase", color: "#2f74c0", textAlign: "center", marginTop: 6 }}>Timeless Portraits</div>}</div>
       <div style={{ width: 56, height: 56, borderRadius: "50%", background: grp.bg, border: `1.5px solid ${grp.border}`, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 20px" }}>
         <Check size={27} color={grp.color} />
       </div>
@@ -1140,6 +1152,51 @@ function ConfirmDialog({ title, message, confirmLabel = "Confirm", danger, onYes
 }
 
 /* ============================ CLIENT VIEW ============================ */
+function timeGreeting() { const h = new Date().getHours(); return h < 12 ? "Good morning" : h < 18 ? "Good afternoon" : "Good evening"; }
+
+function ProgressBar({ stages, current, accent }) {
+  const target = stages.length > 1 ? Math.max(0, Math.min(1, current / (stages.length - 1))) * 100 : 0;
+  const [w, setW] = useState(0);
+  useEffect(() => { const t = setTimeout(() => setW(target), 90); return () => clearTimeout(t); }, [target]);
+  return (
+    <div>
+      <div style={{ position: "relative", height: 8, background: LINE, borderRadius: 5, overflow: "hidden" }}>
+        <div style={{ position: "absolute", top: 0, bottom: 0, left: 0, width: w + "%", background: `linear-gradient(90deg, ${accent}bb, ${accent})`, borderRadius: 5, transition: "width 1100ms cubic-bezier(0.22, 1, 0.36, 1)" }} />
+      </div>
+      <div style={{ display: "flex", justifyContent: "space-between", gap: 4, marginTop: 9 }}>
+        {stages.map((s, i) => (
+          <span key={s.key} style={{ ...mono, fontSize: 8.5, letterSpacing: "0.06em", textTransform: "uppercase", color: i <= current ? accent : FAINT, fontWeight: i === current ? 700 : 500, flex: 1, textAlign: i === 0 ? "left" : i === stages.length - 1 ? "right" : "center", whiteSpace: "nowrap", overflow: "hidden" }}>{s.label.split(" ")[0]}</span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function ClientGuide({ onClose }) {
+  const items = [
+    { Icon: ListChecks, title: "Your project timeline", body: "Follow your session from booking to final delivery. Each step updates here, and we'll email you along the way." },
+    { Icon: MessageCircle, title: "Message us anytime", body: "Have a question? Send a note right from your project. Everything stays in one place." },
+    { Icon: CalendarCheck, title: "Add it to your calendar", body: "Save your session to Google or Apple Calendar so you never miss it." },
+    { Icon: Download, title: "Receive your work", body: "When your project is ready, your finished photos and films appear here to view and download." },
+  ];
+  return (
+    <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(20,19,17,0.55)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20, zIndex: 200 }}>
+      <div onClick={(e) => e.stopPropagation()} style={{ background: CREAM, borderRadius: 16, maxWidth: 440, width: "100%", padding: "28px 26px", border: `1px solid ${LINE}`, maxHeight: "88vh", overflowY: "auto" }}>
+        <div style={{ ...mono, fontSize: 10.5, letterSpacing: "0.2em", textTransform: "uppercase", color: RED, marginBottom: 8 }}>Welcome</div>
+        <div style={{ ...display, fontWeight: 700, fontSize: 24, color: INK, lineHeight: 1.15, marginBottom: 8 }}>Welcome to your Dot One portal</div>
+        <div style={{ fontSize: 13.5, color: BODY, lineHeight: 1.55, marginBottom: 22 }}>This is your home for everything we create together. Here's what you can do:</div>
+        {items.map((it, i) => { const It = it.Icon; return (
+          <div key={i} style={{ display: "flex", gap: 13, marginBottom: 16 }}>
+            <div style={{ flexShrink: 0, width: 34, height: 34, borderRadius: 9, background: PAPER, border: `1px solid ${LINE}`, display: "flex", alignItems: "center", justifyContent: "center" }}><It size={16} color={RED} /></div>
+            <div><div style={{ ...display, fontWeight: 600, fontSize: 14.5, color: INK, marginBottom: 2 }}>{it.title}</div><div style={{ fontSize: 12.5, color: BODY, lineHeight: 1.5 }}>{it.body}</div></div>
+          </div>
+        ); })}
+        <button onClick={onClose} style={{ ...btnSolid, background: RED, width: "100%", justifyContent: "center", marginTop: 8, padding: "12px" }}>Got it, let's go</button>
+      </div>
+    </div>
+  );
+}
+
 function ClientView({ session, sessions, clientId, setClientId, addComment, onRescheduleRequest, markMessagesRead, patchSession, resizeImage, showToast }) {
   const [draft, setDraft] = useState("");
   const [msg, setMsg] = useState("");
@@ -1155,6 +1212,8 @@ function ClientView({ session, sessions, clientId, setClientId, addComment, onRe
   const unreadReplies = session.comments.filter((c) => c.author === "studio" && !c.read).length;
   const today = new Date().toISOString().slice(0, 10);
   const sortedSessions = [...(sessions || [])].sort((a, b) => { const ad = a.date || "9999-99", bd = b.date || "9999-99"; const aUp = ad >= today, bUp = bd >= today; if (aUp !== bUp) return aUp ? -1 : 1; if (aUp) return ad.localeCompare(bd); return bd.localeCompare(ad); });
+  const isLastStage = session.currentStage >= stagesFor(session).length - 1;
+  const statusLine = session.status === "cancelled" ? "This booking has been cancelled." : session.status === "closed" ? "This booking has been closed." : isLastStage ? ("Your " + session.type + " is complete. Thank you for creating with Dot One.") : ("Your " + session.type + " is currently at \u201c" + curStage(session).label + ".\u201d We\u2019ll notify you when the next step is ready \u2014 no action is needed from you right now.");
 
   const onPickImage = async (e) => {
     const file = e.target.files && e.target.files[0];
@@ -1166,7 +1225,7 @@ function ClientView({ session, sessions, clientId, setClientId, addComment, onRe
 
   return (
     <div>
-      {session.serviceLine === "photo" && <img src="/dot1-photo-logo.png" alt="Dot One Photography" style={{ height: 52, width: "auto", display: "block", margin: "2px auto 22px" }} />}
+      {session.serviceLine === "photo" && <div style={{ textAlign: "center", marginBottom: 22 }}><img src="/dot1-photo-logo.png" alt="Dot One Photography" style={{ height: 52, width: "auto", display: "block", margin: "2px auto 6px" }} /><div style={{ ...mono, fontSize: 9, letterSpacing: "0.28em", textTransform: "uppercase", color: "#2f74c0" }}>Timeless Portraits</div></div>}
       {sortedSessions.length > 1 && (
         <div style={{ marginBottom: 24 }}>
           <div style={{ ...mono, fontSize: 10, letterSpacing: "0.16em", textTransform: "uppercase", color: STONE, marginBottom: 10 }}>Your bookings · {sortedSessions.length}</div>
@@ -1217,7 +1276,7 @@ function ClientView({ session, sessions, clientId, setClientId, addComment, onRe
           <input ref={fileRef} type="file" accept="image/*" onChange={onPickImage} style={{ display: "none" }} />
         </div>
         <div>
-          <div style={{ marginBottom: 4 }}><span style={{ ...mono, fontSize: 11, letterSpacing: "0.2em", textTransform: "uppercase", color: grp.soft }}>Welcome back</span></div>
+          <div style={{ marginBottom: 4 }}><span style={{ ...mono, fontSize: 11, letterSpacing: "0.2em", textTransform: "uppercase", color: grp.soft }}>{timeGreeting()}</span></div>
           <h1 style={{ ...display, fontWeight: 700, fontSize: 32, color: INK, lineHeight: 1.05, letterSpacing: "-0.015em" }}>{session.clientName}</h1>
         </div>
       </div>
@@ -1235,8 +1294,15 @@ function ClientView({ session, sessions, clientId, setClientId, addComment, onRe
         <SummaryCell label="Service" value={grp.label} />
         <SummaryCell label="Date" value={session.date ? fmtDate(session.date) + (session.time ? " · " + fmtTime(session.time) : "") : "TBD"} />
         <SummaryCell label="Your creator" value={session.photographer} />
-        <div style={{ marginLeft: "auto" }}><StatusBadge stage={stage} group={session.serviceLine} /></div>
+        <div style={{ marginLeft: "auto" }}><StatusBadge stage={stage} group={session.serviceLine} consult={isConsult(session)} /></div>
       </div>
+
+      {status === "active" && (
+        <div style={{ background: grp.bg, border: `1px solid ${grp.border}`, borderRadius: 10, padding: "16px 20px", marginBottom: 20 }}>
+          <div style={{ fontSize: 13.5, color: grp.text, lineHeight: 1.5, marginBottom: 15 }}>{statusLine}</div>
+          <ProgressBar stages={stagesFor(session)} current={session.currentStage} accent={grp.color} />
+        </div>
+      )}
 
       <div style={{ marginBottom: 26 }}>
         {!reschedOpen ? (
@@ -1350,7 +1416,7 @@ function AdminSessions({ state, adminId, setAdminId, requestSetStage, addComment
               <span style={{ ...display, fontWeight: 600, fontSize: 15 }}>{s.clientName}</span>
               {unread > 0 && <span style={{ ...mono, background: RED, color: "#fff", borderRadius: 20, fontSize: 9.5, minWidth: 16, height: 16, padding: "0 5px", display: "inline-flex", alignItems: "center", justifyContent: "center" }}>{unread}</span>}
             </div>
-            <div style={{ ...mono, fontSize: 10, letterSpacing: "0.06em", color: selected ? "#c9c6bd" : STONE, display: "flex", alignItems: "center", gap: 6 }}><grp.Icon size={11} /> {s.type} · {(s.status && s.status !== "active") ? (s.status === "cancelled" ? "Cancelled" : "Closed") : STAGES[s.currentStage].label}</div>
+            <div style={{ ...mono, fontSize: 10, letterSpacing: "0.06em", color: selected ? "#c9c6bd" : STONE, display: "flex", alignItems: "center", gap: 6 }}><grp.Icon size={11} /> {s.type} · {(s.status && s.status !== "active") ? (s.status === "cancelled" ? "Cancelled" : "Closed") : curStage(s).label}</div>
           </button>
         ); })}
       </div>
@@ -1412,14 +1478,14 @@ function AdminSessions({ state, adminId, setAdminId, requestSetStage, addComment
           )}
         </div>
 
-        {status === "active" && (session.currentStage < STAGES.length - 1 ? (
-          <button onClick={() => requestSetStage(session, session.currentStage + 1)} style={{ ...btnSolid, background: sg.color, marginBottom: 18, fontSize: 14, padding: "12px 20px" }}>{session.currentStage === 0 ? "Confirm booking" : "Advance to: " + STAGES[session.currentStage + 1].label} <ArrowRight size={16} /></button>
+        {status === "active" && (session.currentStage < stagesFor(session).length - 1 ? (
+          <button onClick={() => requestSetStage(session, session.currentStage + 1)} style={{ ...btnSolid, background: sg.color, marginBottom: 18, fontSize: 14, padding: "12px 20px" }}>{session.currentStage === 0 ? "Confirm booking" : "Advance to: " + stagesFor(session)[session.currentStage + 1].label} <ArrowRight size={16} /></button>
         ) : (
           <div style={{ ...mono, fontSize: 10.5, letterSpacing: "0.14em", textTransform: "uppercase", color: sg.color, marginBottom: 18 }}>Final delivery reached. This session is complete.</div>
         ))}
         <div style={{ ...mono, fontSize: 10.5, letterSpacing: "0.18em", textTransform: "uppercase", color: STONE, marginBottom: 12 }}>Advance the session — click a stage to set it current</div>
         <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 8 }}>
-          {STAGES.map((st, i) => { const done = i < session.currentStage, current = i === session.currentStage, St = st.Icon; return (
+          {stagesFor(session).map((st, i) => { const done = i < session.currentStage, current = i === session.currentStage, St = st.Icon; return (
             <button key={st.key} onClick={() => requestSetStage(session, i)} style={{ display: "flex", alignItems: "center", gap: 7, padding: "9px 12px", borderRadius: 8, cursor: "pointer", fontSize: 12.5, border: `1px solid ${current ? sg.color : done ? sg.border : LINE}`, background: current ? sg.color : done ? sg.bg : PAPER, color: current ? "#fff" : done ? sg.text : STONE }}><St size={13} /> <span style={mono}>{i + 1}</span> {st.label}</button>
           ); })}
         </div>
@@ -1746,8 +1812,8 @@ function Timeline({ session, actionPanel, accent = RED }) {
   const cur = session.currentStage;
   return (
     <div style={{ position: "relative" }}>
-      {STAGES.map((st, i) => {
-        const done = i < cur, current = i === cur, upcoming = i > cur, St = st.Icon, last = i === STAGES.length - 1;
+      {stagesFor(session).map((st, i) => {
+        const done = i < cur, current = i === cur, upcoming = i > cur, St = st.Icon, last = i === stagesFor(session).length - 1;
         return (
           <div key={st.key} style={{ display: "flex", gap: 16, position: "relative", paddingBottom: last ? 0 : 22 }}>
             {!last && <div style={{ position: "absolute", left: 17, top: 36, bottom: 0, width: 2, background: done ? accent : LINE }} />}
@@ -1781,8 +1847,9 @@ function SummaryCell({ label, value, icon }) {
   return <div><div style={{ ...mono, fontSize: 9, letterSpacing: "0.14em", textTransform: "uppercase", color: FAINT, marginBottom: 3 }}>{label}</div><div style={{ fontSize: 14, color: INK, fontWeight: 500, display: "flex", alignItems: "center", gap: 6 }}>{icon}{value}</div></div>;
 }
 
-function StatusBadge({ stage, group }) {
-  const st = STAGES[stage], St = st.Icon, delivered = stage === 6;
+function StatusBadge({ stage, group, consult }) {
+  const stArr = consult ? CONSULT_STAGES : STAGES;
+  const st = stArr[Math.min(stage, stArr.length - 1)] || stArr[0], St = st.Icon, delivered = stage >= stArr.length - 1;
   const g = GROUPS[group] || GROUPS.video;
   const bg = delivered ? "#eaf7ef" : g.bg, bd = delivered ? "#bfe6cc" : g.border, tx = delivered ? "#2e7d4f" : g.text, ic = delivered ? "#2e9e5b" : g.color;
   return <div style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "8px 14px", borderRadius: 24, background: bg, border: `1px solid ${bd}` }}><St size={14} color={ic} /><span style={{ ...mono, fontSize: 11, letterSpacing: "0.06em", color: tx }}>{st.label}</span></div>;
@@ -1820,7 +1887,7 @@ function BusinessSettings({ sessions, showToast }) {
   const exportSessions = () => {
     if (rows.length === 0) { showToast("No sessions in that date range."); return; }
     const out = [["Date", "Time", "Client", "Email", "Service", "Group", "Status", "Stage", "Total ($)", "Collected ($)", "Payment", "Add-ons"]];
-    rows.forEach((s) => out.push([s.date || "", s.time || "", s.clientName || "", s.clientEmail || "", s.type || "", s.serviceLine || "", s.status || "active", (STAGES[s.currentStage] || {}).label || "", (Number(s.total) || 0).toFixed(2), (s.paymentStatus === "paid" ? (Number(s.payAmount) || 0) : 0).toFixed(2), s.paymentStatus || "none", (s.selectedAddons || []).map((a) => a.name).join("; ")]));
+    rows.forEach((s) => out.push([s.date || "", s.time || "", s.clientName || "", s.clientEmail || "", s.type || "", s.serviceLine || "", s.status || "active", curStage(s).label || "", (Number(s.total) || 0).toFixed(2), (s.paymentStatus === "paid" ? (Number(s.payAmount) || 0) : 0).toFixed(2), s.paymentStatus || "none", (s.selectedAddons || []).map((a) => a.name).join("; ")]));
     downloadCsv(out, "dot-one-media-sessions" + ((start || end) ? "_" + (start || "start") + "_to_" + (end || "end") : "_all") + ".csv");
     showToast("Exported " + rows.length + " sessions.");
   };
