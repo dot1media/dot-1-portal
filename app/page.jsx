@@ -409,8 +409,8 @@ export default function App() {
       <FontLoader />
       <header style={{ borderBottom: `1px solid ${LINE}`, background: PAPER }}>
         <div style={{ maxWidth: 1120, margin: "0 auto", padding: "16px 22px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
-          <div style={{ display: "flex", alignItems: "baseline", gap: 12 }}>
-            <img src="/dot1-logo.png" alt="Dot One Media" style={{ height: 26, width: "auto", display: "block" }} />
+          <div style={{ display: "flex", alignItems: "center", gap: 11 }}>
+            <img src="/dot1-logo-gray.png" alt="Dot One Media" style={{ height: 32, width: "auto", display: "block" }} />
             <span style={{ ...mono, fontSize: 10, letterSpacing: "0.22em", textTransform: "uppercase", color: FAINT }}>Client Portal</span>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
