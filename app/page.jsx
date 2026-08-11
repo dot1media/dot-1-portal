@@ -243,6 +243,7 @@ export default function App() {
   }, []);
   useEffect(() => { try { setGuideSeen(localStorage.getItem("dot1_guide_seen") === "1"); } catch (e) {} }, []);
   useEffect(() => { try { const k = localStorage.getItem("dot1_theme_key") || "default"; const a = localStorage.getItem("dot1_theme_accent") || ""; setThemeKey(k); setCustomAccent(a); applyTheme(k, a); } catch (e) {} }, []);
+  useEffect(() => { applyServerTheme(); }, []);
   useEffect(() => {
     if (poppingRef.current) { poppingRef.current = false; return; }
     const st = { view };
@@ -362,20 +363,23 @@ export default function App() {
     setClientAuth({ name: (data.name) || (sess[0] && sess[0].clientName) || "", email: (email || "").trim().toLowerCase() });
     if (sess.length) { setClientId(sess[0].id); setView("client"); showToast("Welcome back, " + sess[0].clientName + "!"); }
     else { setClientId(""); setView("client"); showToast("Signed in. You don't have any sessions yet."); }
+    applyServerTheme();
   };
   const loginAsStudio = async (email, password) => {
     try {
       const res = await fetch("/api/auth/login", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ email: (email || "").trim(), password: password || "" }) });
       const data = await res.json().catch(() => ({}));
-      if (res.ok && data.ok) { setView("admin"); const sd = await fetch("/api/sessions").then((r) => r.json()).catch(() => ({})); if (sd && sd.sessions) setState((s) => ({ ...s, sessions: sd.sessions })); showToast("Signed in to the studio dashboard."); return { ok: true }; }
+      if (res.ok && data.ok) { setView("admin"); const sd = await fetch("/api/sessions").then((r) => r.json()).catch(() => ({})); if (sd && sd.sessions) setState((s) => ({ ...s, sessions: sd.sessions })); applyServerTheme(); showToast("Signed in to the studio dashboard."); return { ok: true }; }
       return { ok: false, error: data.error || "Incorrect email or password." };
     } catch (e) {
       return { ok: false, error: "Could not reach the server. Please try again." };
     }
   };
-  const adminLogout = async () => { try { await fetch("/api/auth/logout", { method: "POST" }); } catch (e) {} setState((s) => ({ ...s, sessions: [] })); setAdminId(""); setView("landing"); showToast("Signed out of the studio."); };
-  const clientLogout = async () => { try { await fetch("/api/client-logout", { method: "POST" }); } catch (e) {} setState((s) => ({ ...s, sessions: [] })); setClientId(""); setClientAuth(null); setView("landing"); showToast("Signed out."); };
-  const setTheme = (key, accent) => { setThemeKey(key); setCustomAccent(accent || ""); applyTheme(key, accent || ""); try { localStorage.setItem("dot1_theme_key", key); localStorage.setItem("dot1_theme_accent", accent || ""); } catch (e) {} };
+  const adminLogout = async () => { try { await fetch("/api/auth/logout", { method: "POST" }); } catch (e) {} setState((s) => ({ ...s, sessions: [] })); setAdminId(""); setView("landing"); resetThemeLocal(); showToast("Signed out of the studio."); };
+  const clientLogout = async () => { try { await fetch("/api/client-logout", { method: "POST" }); } catch (e) {} setState((s) => ({ ...s, sessions: [] })); setClientId(""); setClientAuth(null); resetThemeLocal(); setView("landing"); showToast("Signed out."); };
+  const setTheme = (key, accent) => { setThemeKey(key); setCustomAccent(accent || ""); applyTheme(key, accent || ""); try { localStorage.setItem("dot1_theme_key", key); localStorage.setItem("dot1_theme_accent", accent || ""); } catch (e) {} try { fetch("/api/theme", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ key, accent: accent || "" }) }); } catch (e) {} };
+  const applyServerTheme = async () => { try { const r = await fetch("/api/theme"); const d = await r.json().catch(() => ({})); if (r.ok && d && d.theme) { const k = d.theme.key || "default"; const a = d.theme.accent || ""; setThemeKey(k); setCustomAccent(a); applyTheme(k, a); try { localStorage.setItem("dot1_theme_key", k); localStorage.setItem("dot1_theme_accent", a); } catch (e) {} } } catch (e) {} };
+  const resetThemeLocal = () => { applyTheme("default", ""); setThemeKey("default"); setCustomAccent(""); try { localStorage.removeItem("dot1_theme_key"); localStorage.removeItem("dot1_theme_accent"); } catch (e) {} };
   const requestReset = async (email) => { try { await fetch("/api/reset-request", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ email: (email || "").trim() }) }); } catch (e) {} };
   const requestSendBalance = async (session) => { try { const res = await fetch("/api/pay-balance", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ sessionId: session.id }) }); const data = await res.json().catch(() => ({})); if (res.ok) { showToast("Balance payment link emailed to " + session.clientEmail + "."); setState((s) => ({ ...s, sessions: s.sessions.map((x) => x.id === session.id ? { ...x, balanceStatus: "sent" } : x) })); } else { showToast(data.error || "Could not send the balance link."); } } catch (e) { showToast("Network error."); } };
 
