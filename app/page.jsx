@@ -105,6 +105,12 @@ const RELEASE_VERSION = "1.0";
 const PDF_CLIENT_SERVICES = "/Dot-One-Media-Client-Services-Agreement.pdf";
 const PDF_RELEASE = "/Dot-One-Media-Release-and-Waiver.pdf";
 const PDF_MINOR = "/Dot-One-Media-Minor-Release-and-Waiver.pdf";
+const DOC_META = {
+  client_services: { label: "Client Services Agreement", pdf: PDF_CLIENT_SERVICES },
+  media_release: { label: "Media Release & Waiver", pdf: PDF_RELEASE },
+  minor_release: { label: "Minor Release & Waiver", pdf: PDF_MINOR },
+};
+const DOC_USAGE = { A: "Portfolio Use", B: "Full Commercial Use", C: "Private Use" };
 
 const CLIENT_SERVICES_SUMMARY = `Key terms for your booking. The full agreement is linked below.
 
@@ -1204,6 +1210,8 @@ function ClientView({ session, sessions, clientId, setClientId, addComment, onRe
   const [reschedDate, setReschedDate] = useState("");
   const fileRef = useRef(null);
   useEffect(() => { if (!session) return; setReschedDate(session.date || ""); setReschedOpen(false); setMsg(""); }, [clientId]);
+  const [docs, setDocs] = useState([]);
+  useEffect(() => { (async () => { try { const r = await fetch("/api/agreements"); const d = await r.json(); if (r.ok) setDocs(Array.isArray(d.agreements) ? d.agreements : []); } catch (e) {} })(); }, []);
   if (!session) return <div style={{ ...mono, fontSize: 13, color: STONE, padding: "48px 4px", textAlign: "center" }}>No session to show yet. When you book, it will appear here.</div>;
   const stage = session.currentStage;
   const grp = GROUPS[session.serviceLine] || GROUPS.video;
@@ -1344,6 +1352,31 @@ function ClientView({ session, sessions, clientId, setClientId, addComment, onRe
           <button onClick={() => { addComment(session.id, "client", msg); setMsg(""); }} style={{ ...btnSolid, background: grp.color, whiteSpace: "nowrap" }}><Send size={14} /> Send</button>
         </div>
       </div>
+
+      {docs.length > 0 && (
+        <div style={{ marginTop: 28 }}>
+          <div style={{ ...mono, fontSize: 10.5, letterSpacing: "0.16em", textTransform: "uppercase", color: STONE, marginBottom: 12 }}>Your documents</div>
+          <div style={{ border: `1px solid ${LINE}`, borderRadius: 10, overflow: "hidden" }}>
+            {docs.map((d, i) => {
+              const meta = DOC_META[d.agreement_type] || { label: String(d.agreement_type || "Document").replace(/_/g, " "), pdf: null };
+              const usage = d.usage_option ? (DOC_USAGE[d.usage_option] || d.usage_option) : null;
+              const when = d.signed_at ? new Date(d.signed_at).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" }) : "";
+              return (
+                <div key={i} style={{ display: "flex", alignItems: "center", gap: 11, padding: "13px 16px", borderTop: i === 0 ? "none" : `1px solid ${LINE}`, background: PAPER }}>
+                  <FileCheck size={16} color={grp.color} style={{ flexShrink: 0 }} />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ ...display, fontWeight: 600, fontSize: 14, color: INK }}>{meta.label}</div>
+                    <div style={{ ...mono, fontSize: 9.5, color: STONE, marginTop: 2 }}>Signed{when ? " " + when : ""}{d.signed_name ? " by " + d.signed_name : ""}{usage ? " \u00b7 " + usage : ""}</div>
+                  </div>
+                  <span style={{ ...mono, fontSize: 9, letterSpacing: "0.08em", textTransform: "uppercase", color: "#2e7d4f", background: "#eaf7ef", border: "1px solid #bfe6cc", borderRadius: 20, padding: "4px 9px", flexShrink: 0 }}>Signed</span>
+                  {meta.pdf && <a href={meta.pdf} target="_blank" rel="noopener noreferrer" style={{ ...mono, fontSize: 10.5, letterSpacing: "0.04em", color: grp.color, textDecoration: "none", flexShrink: 0 }}>View</a>}
+                </div>
+              );
+            })}
+          </div>
+          <div style={{ ...mono, fontSize: 9.5, color: FAINT, marginTop: 8, lineHeight: 1.5 }}>These are the agreements on file for your account. Keep this for your records.</div>
+        </div>
+      )}
     </div>
   );
 }

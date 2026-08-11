@@ -1,7 +1,28 @@
 import { NextResponse } from "next/server";
+import { cookies } from "next/headers";
 import { sql } from "@/lib/db";
+import { verifyClientToken, CLIENT_COOKIE } from "@/lib/auth";
 
 export const runtime = "nodejs";
+
+// Return the signed agreements for the logged-in client (found via their session cookie).
+export async function GET() {
+  const store = await cookies();
+  const v = verifyClientToken(store.get(CLIENT_COOKIE)?.value);
+  const email = v?.email ? String(v.email).trim().toLowerCase() : "";
+  if (!email) return NextResponse.json({ agreements: [] });
+  try {
+    const users = await sql`SELECT id FROM users WHERE email = ${email} LIMIT 1`;
+    if (users.length === 0) return NextResponse.json({ agreements: [] });
+    const userId = users[0].id as string;
+    const rows = await sql`
+      SELECT agreement_type, version, signed_name, usage_option, signed_at
+      FROM agreements WHERE user_id = ${userId} ORDER BY signed_at DESC`;
+    return NextResponse.json({ agreements: rows });
+  } catch (e) {
+    return NextResponse.json({ agreements: [] });
+  }
+}
 
 // Record one or more signed agreements for a user (found by email).
 // Accepts a batch: { email, signedName, agreements: [{ type, version, usageOption, details }] }
