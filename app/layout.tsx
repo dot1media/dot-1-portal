@@ -5,7 +5,7 @@ export const metadata: Metadata = {
   title: "Dot One Portal",
   description:
     "Your studio's home for the work we make together — book sessions, follow your project from start to finish, and receive your finished work.",
-  icons: { icon: "/dot1-logo.png" },
+  icons: { icon: "/dot1-icon.png?v=1", apple: "/dot1-icon.png?v=1" },
   openGraph: {
     title: "Dot One Portal",
     description: "Book sessions, follow your project, and receive your finished work.",
