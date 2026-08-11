@@ -1442,7 +1442,7 @@ function ClientView({ session, sessions, clientId, setClientId, addComment, onRe
         </div>
       )}
 
-      {status === "active" && (
+      {status === "active" && session.serviceLine === "video" && (
         <div style={{ marginTop: 22 }}>
           <button onClick={() => setBriefOpen(!briefOpen)} style={{ width: "100%", display: "flex", alignItems: "center", gap: 12, background: PAPER, border: `1px solid ${LINE}`, borderRadius: briefOpen ? "12px 12px 0 0" : 12, padding: "15px 18px", cursor: "pointer", textAlign: "left" }}>
             <FileText size={17} color={grp.color} style={{ flexShrink: 0 }} />
@@ -1708,6 +1708,7 @@ function AdminSessions({ state, adminId, setAdminId, requestSetStage, addComment
         </div>
         <div style={{ ...mono, fontSize: 9.5, color: FAINT, marginBottom: 26, letterSpacing: "0.04em" }}>You'll be asked to confirm — advancing sends the client a status email.</div>
 
+{session.serviceLine === "video" && (
         <div style={{ background: CREAM, border: `1px solid ${LINE}`, borderRadius: 9, padding: "16px 18px", marginBottom: 26 }}>
           <div style={{ ...mono, fontSize: 10, letterSpacing: "0.16em", textTransform: "uppercase", color: STONE, marginBottom: 12, display: "flex", alignItems: "center", gap: 7 }}><FileText size={13} /> Production brief{session.brief && session.brief.submitted && <span style={{ ...mono, fontSize: 8.5, letterSpacing: "0.08em", color: "#2e7d4f", background: "#eaf7ef", border: "1px solid #bfe6cc", borderRadius: 20, padding: "3px 8px" }}>SUBMITTED</span>}</div>
           {session.brief && BRIEF_FIELDS.some((f) => (session.brief[f.key] || "").trim()) ? (
@@ -1719,6 +1720,7 @@ function AdminSessions({ state, adminId, setAdminId, requestSetStage, addComment
             ))
           ) : <div style={{ fontSize: 12.5, color: FAINT, fontStyle: "italic" }}>The client hasn't filled out their production brief yet.</div>}
         </div>
+        )}
 
         <div style={{ background: CREAM, border: `1px solid ${LINE}`, borderRadius: 9, padding: "16px 18px", marginBottom: 26 }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
