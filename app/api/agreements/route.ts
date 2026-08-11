@@ -16,7 +16,7 @@ export async function GET() {
     if (users.length === 0) return NextResponse.json({ agreements: [] });
     const userId = users[0].id as string;
     const rows = await sql`
-      SELECT agreement_type, version, signed_name, usage_option, signed_at
+      SELECT id, agreement_type, version, signed_name, usage_option, signed_at
       FROM agreements WHERE user_id = ${userId} ORDER BY signed_at DESC`;
     return NextResponse.json({ agreements: rows });
   } catch (e) {

@@ -1460,7 +1460,7 @@ function ClientView({ session, sessions, clientId, setClientId, addComment, onRe
                     <div style={{ ...mono, fontSize: 9.5, color: STONE, marginTop: 2 }}>Signed{when ? " " + when : ""}{d.signed_name ? " by " + d.signed_name : ""}{usage ? " \u00b7 " + usage : ""}</div>
                   </div>
                   <span style={{ ...mono, fontSize: 9, letterSpacing: "0.08em", textTransform: "uppercase", color: "#2e7d4f", background: "#eaf7ef", border: "1px solid #bfe6cc", borderRadius: 20, padding: "4px 9px", flexShrink: 0 }}>Signed</span>
-                  {meta.pdf && <a href={meta.pdf} target="_blank" rel="noopener noreferrer" style={{ ...mono, fontSize: 10.5, letterSpacing: "0.04em", color: grp.color, textDecoration: "none", flexShrink: 0 }}>View</a>}
+                  {d.id && <a href={"/api/signed-doc?id=" + encodeURIComponent(d.id)} target="_blank" rel="noopener noreferrer" style={{ ...mono, fontSize: 10.5, letterSpacing: "0.04em", color: grp.color, textDecoration: "none", flexShrink: 0 }}>View</a>}
                 </div>
               );
             })}
