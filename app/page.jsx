@@ -117,6 +117,9 @@ const gcalLink = (session) => { const s = calDate(session.date, session.time); c
 const icsContent = (session) => { const s = calDate(session.date, session.time); const e = calDate(session.date, addMinutes(session.time, session.durationMin || 60)); return ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//Dot One Media//Portal//EN", "CALSCALE:GREGORIAN", "BEGIN:VEVENT", "UID:" + (session.id || "ses") + "@dot1.media", "DTSTAMP:" + s, "DTSTART:" + s, "DTEND:" + e, "SUMMARY:Dot One Media - " + (session.type || "Session"), "DESCRIPTION:Your session with Dot One Media. Questions? contact@dot1.media", "LOCATION:" + (session.location || ""), "END:VEVENT", "END:VCALENDAR"].join("\r\n"); };
 const downloadIcs = (session) => { try { const blob = new Blob([icsContent(session)], { type: "text/calendar;charset=utf-8" }); const url = URL.createObjectURL(blob); const a = document.createElement("a"); a.href = url; a.download = "dot-one-media-session.ics"; document.body.appendChild(a); a.click(); document.body.removeChild(a); setTimeout(() => URL.revokeObjectURL(url), 1500); } catch (e) {} };
 const money = (n) => "$" + (Number(n) || 0).toLocaleString();
+const compactMoney = (n) => { n = Number(n) || 0; if (n >= 10000) return "$" + Math.round(n / 1000) + "k"; if (n >= 1000) return "$" + (n / 1000).toFixed(1) + "k"; return "$" + Math.round(n); };
+const MONTH_ABBR = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+const monthShort = (k) => { const p = String(k).split("-"); return (MONTH_ABBR[parseInt(p[1], 10) - 1] || p[1] || "") + " " + (p[0] || "").slice(2); };
 
 const DEFAULT_STATE = {
   sessions: [],
@@ -2151,6 +2154,58 @@ function downloadCsv(rows, filename) {
   } catch (e) {}
 }
 
+function DonutChart({ segments, size = 148, thickness = 24, centerLabel, centerSub }) {
+  const total = segments.reduce((s, x) => s + (x.value || 0), 0);
+  const r = (size - thickness) / 2, cx = size / 2, cy = size / 2, circ = 2 * Math.PI * r;
+  let offset = 0;
+  return (
+    <div style={{ position: "relative", width: size, height: size, flexShrink: 0 }}>
+      <svg width={size} height={size} viewBox={"0 0 " + size + " " + size}>
+        <circle cx={cx} cy={cy} r={r} fill="none" stroke={LINE} strokeWidth={thickness} />
+        {total > 0 && segments.map((seg, i) => { const len = ((seg.value || 0) / total) * circ; const el = <circle key={i} cx={cx} cy={cy} r={r} fill="none" stroke={seg.color} strokeWidth={thickness} strokeDasharray={len + " " + (circ - len)} strokeDashoffset={-offset} transform={"rotate(-90 " + cx + " " + cy + ")"} />; offset += len; return el; })}
+      </svg>
+      {centerLabel !== undefined && <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", pointerEvents: "none" }}><div style={{ ...display, fontSize: 19, fontWeight: 600, color: INK }}>{centerLabel}</div>{centerSub && <div style={{ ...mono, fontSize: 8.5, letterSpacing: "0.1em", textTransform: "uppercase", color: STONE, marginTop: 1 }}>{centerSub}</div>}</div>}
+    </div>
+  );
+}
+
+function HBars({ items }) {
+  const max = Math.max(1, ...items.map((x) => x.value || 0));
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 11 }}>
+      {items.map((x, i) => (
+        <div key={i}>
+          <div style={{ display: "flex", justifyContent: "space-between", gap: 12, marginBottom: 5, alignItems: "baseline" }}>
+            <span style={{ ...display, fontSize: 13.5, color: INK, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{x.label}</span>
+            <span style={{ ...mono, fontSize: 10.5, color: STONE, flexShrink: 0, letterSpacing: "0.02em" }}>{x.right}</span>
+          </div>
+          <div style={{ height: 9, borderRadius: 5, background: LINE, overflow: "hidden" }}>
+            <div style={{ height: "100%", width: (100 * (x.value || 0) / max) + "%", background: x.color || RED, borderRadius: 5 }} />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function MiniColumns({ items }) {
+  const max = Math.max(1, ...items.map((x) => x.value || 0));
+  const barArea = 96;
+  return (
+    <div style={{ display: "flex", alignItems: "flex-end", gap: 6, overflowX: "auto", paddingBottom: 2 }}>
+      {items.map((x, i) => (
+        <div key={i} style={{ flex: "1 0 36px", minWidth: 36, display: "flex", flexDirection: "column", alignItems: "center", gap: 5 }}>
+          <div style={{ ...mono, fontSize: 8.5, color: STONE, whiteSpace: "nowrap" }}>{x.top}</div>
+          <div style={{ display: "flex", alignItems: "flex-end", height: barArea, width: "100%", maxWidth: 44 }}>
+            <div style={{ width: "100%", background: x.color || RED, borderRadius: "4px 4px 0 0", height: Math.max(3, Math.round(barArea * (x.value || 0) / max)) }} />
+          </div>
+          <div style={{ ...mono, fontSize: 8.5, color: FAINT, whiteSpace: "nowrap" }}>{x.label}</div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function BusinessSettings({ sessions, showToast }) {
   const isMobile = useIsMobile();
   const [start, setStart] = useState("");
@@ -2163,6 +2218,18 @@ function BusinessSettings({ sessions, showToast }) {
   const collected = rows.reduce((sum, s) => sum + (s.paymentStatus === "paid" ? (Number(s.payAmount) || 0) : 0), 0);
   const outstanding = rows.reduce((sum, s) => { if (s.status === "cancelled") return sum; const paid = s.paymentStatus === "paid" ? (Number(s.payAmount) || 0) : 0; return sum + Math.max(0, (Number(s.total) || 0) - paid); }, 0);
   const activeCount = rows.filter((s) => s.status !== "cancelled").length;
+  const arows = rows.filter((s) => s.status !== "cancelled");
+  const bookedRevenue = arows.reduce((sum, s) => sum + (Number(s.total) || 0), 0);
+  const avgValue = arows.length ? bookedRevenue / arows.length : 0;
+  const typeAgg = {}; arows.forEach((s) => { const k = s.type || "Other"; if (!typeAgg[k]) typeAgg[k] = { label: k, line: s.serviceLine || "video", count: 0, revenue: 0 }; typeAgg[k].count++; typeAgg[k].revenue += Number(s.total) || 0; });
+  const byType = Object.values(typeAgg).sort((a, b) => b.count - a.count || b.revenue - a.revenue);
+  const lineAgg = {}; arows.forEach((s) => { const k = GROUP_KEYS.indexOf(s.serviceLine) >= 0 ? s.serviceLine : "video"; if (!lineAgg[k]) lineAgg[k] = { key: k, count: 0, revenue: 0 }; lineAgg[k].count++; lineAgg[k].revenue += Number(s.total) || 0; });
+  const byLine = GROUP_KEYS.map((k) => lineAgg[k]).filter(Boolean);
+  const monthAgg = {}; arows.forEach((s) => { if (!s.date) return; const k = s.date.slice(0, 7); if (!monthAgg[k]) monthAgg[k] = { key: k, count: 0, revenue: 0 }; monthAgg[k].count++; monthAgg[k].revenue += Number(s.total) || 0; });
+  const byMonth = Object.keys(monthAgg).sort().slice(-12).map((k) => monthAgg[k]);
+  const lineSegments = byLine.map((l) => ({ label: GROUPS[l.key].label, value: l.revenue, count: l.count, color: GROUPS[l.key].color }));
+  const typeItems = byType.slice(0, 10).map((t) => ({ label: t.label, value: t.count, right: t.count + (t.count === 1 ? " booking" : " bookings") + " \u00b7 " + money(t.revenue), color: (GROUPS[t.line] || GROUPS.video).color }));
+  const monthItems = byMonth.map((m) => ({ label: monthShort(m.key), value: m.revenue, top: compactMoney(m.revenue), color: RED }));
 
   const exportSessions = () => {
     if (rows.length === 0) { showToast("No sessions in that date range."); return; }
@@ -2180,6 +2247,24 @@ function BusinessSettings({ sessions, showToast }) {
     downloadCsv(out, "dot-one-media-clients.csv");
     showToast("Exported " + clients.length + " clients.");
   };
+  const exportAnalytics = () => {
+    if (arows.length === 0) { showToast("No booking data to export yet."); return; }
+    const out = [];
+    out.push(["Dot One Media \u2014 Booking analytics"]);
+    out.push(["Period", (start || "all time") + (end ? " to " + end : (start ? " onward" : ""))]);
+    out.push(["Bookings", String(arows.length), "Booked revenue ($)", bookedRevenue.toFixed(2), "Avg per booking ($)", avgValue.toFixed(2), "Collected ($)", collected.toFixed(2), "Outstanding ($)", outstanding.toFixed(2)]);
+    out.push([]);
+    out.push(["Session type", "Bookings", "Revenue ($)", "Avg per booking ($)"]);
+    byType.forEach((t) => out.push([t.label, String(t.count), t.revenue.toFixed(2), (t.count ? t.revenue / t.count : 0).toFixed(2)]));
+    out.push([]);
+    out.push(["Service line", "Bookings", "Revenue ($)"]);
+    byLine.forEach((l) => out.push([GROUPS[l.key].label, String(l.count), l.revenue.toFixed(2)]));
+    out.push([]);
+    out.push(["Month", "Bookings", "Revenue ($)"]);
+    Object.keys(monthAgg).sort().forEach((k) => out.push([k, String(monthAgg[k].count), monthAgg[k].revenue.toFixed(2)]));
+    downloadCsv(out, "dot-one-media-analytics" + ((start || end) ? "_" + (start || "start") + "_to_" + (end || "end") : "_all") + ".csv");
+    showToast("Analytics exported.");
+  };
   const statCard = (val, label, color) => (
     <div style={{ border: `1px solid ${LINE}`, borderRadius: 10, padding: "14px 16px", background: PAPER }}>
       <div style={{ ...display, fontSize: 24, color: color || INK }}>{val}</div>
@@ -2195,7 +2280,7 @@ function BusinessSettings({ sessions, showToast }) {
   return (
     <div>
       <div style={{ ...mono, fontSize: 11, letterSpacing: "0.18em", textTransform: "uppercase", color: RED, marginBottom: 6, display: "flex", alignItems: "center", gap: 8 }}><Settings size={13} /> Business settings</div>
-      <div style={{ fontSize: 13, color: BODY, lineHeight: 1.5, marginBottom: 24, maxWidth: 600 }}>Export your records, review revenue for a period, and confirm payments and email are live.</div>
+      <div style={{ fontSize: 13, color: BODY, lineHeight: 1.5, marginBottom: 24, maxWidth: 600 }}>See which service lines and session types drive your bookings and revenue, review any period, export your records, and confirm payments and email are live.</div>
 
       <div style={{ ...mono, fontSize: 10.5, letterSpacing: "0.16em", textTransform: "uppercase", color: STONE, marginBottom: 10 }}>System status</div>
       <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 10, marginBottom: 28 }}>
@@ -2209,16 +2294,55 @@ function BusinessSettings({ sessions, showToast }) {
         <div><FieldLabel>To</FieldLabel><input type="date" value={end} onChange={(e) => setEnd(e.target.value)} style={{ ...inputStyle, width: "auto" }} /></div>
         {(start || end) && <button onClick={() => { setStart(""); setEnd(""); }} style={{ ...mono, fontSize: 10.5, letterSpacing: "0.06em", color: STONE, background: "transparent", border: `1px solid ${LINE}`, borderRadius: 7, padding: "9px 12px", cursor: "pointer" }}>All time</button>}
       </div>
-      <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr 1fr", gap: 10, marginBottom: 26 }}>
+      <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "1fr 1fr 1fr", gap: 10, marginBottom: 26 }}>
         {statCard(activeCount, "Bookings")}
+        {statCard(money(bookedRevenue), "Booked revenue")}
+        {statCard(money(Math.round(avgValue)), "Avg value")}
         {statCard(money(collected), "Collected", "#3f7a3f")}
         {statCard(money(outstanding), "Outstanding", "#a97a2e")}
       </div>
+
+      <div style={{ ...mono, fontSize: 10.5, letterSpacing: "0.16em", textTransform: "uppercase", color: STONE, marginBottom: 12 }}>Insights</div>
+      {arows.length === 0 ? (
+        <div style={{ marginBottom: 28 }}><EmptyHint text="Charts will appear here as bookings come in. They update automatically and follow the date range above." /></div>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: 16, marginBottom: 28 }}>
+          <div style={{ border: `1px solid ${LINE}`, borderRadius: 12, padding: "18px 20px", background: PAPER }}>
+            <div style={{ ...mono, fontSize: 10, letterSpacing: "0.12em", textTransform: "uppercase", color: STONE, marginBottom: 16 }}>Revenue by service line</div>
+            <div style={{ display: "flex", gap: 22, alignItems: "center", flexWrap: "wrap" }}>
+              <DonutChart segments={lineSegments} centerLabel={compactMoney(bookedRevenue)} centerSub="booked" />
+              <div style={{ flex: 1, minWidth: 190, display: "flex", flexDirection: "column", gap: 9 }}>
+                {lineSegments.map((seg) => { const pct = bookedRevenue > 0 ? Math.round(100 * seg.value / bookedRevenue) : 0; return (
+                  <div key={seg.label} style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                    <span style={{ width: 11, height: 11, borderRadius: 3, background: seg.color, flexShrink: 0 }} />
+                    <span style={{ ...display, fontSize: 13, color: INK, flex: 1 }}>{seg.label}</span>
+                    <span style={{ ...mono, fontSize: 11, color: STONE }}>{money(seg.value)} \u00b7 {pct}%</span>
+                  </div>
+                ); })}
+              </div>
+            </div>
+          </div>
+
+          <div style={{ border: `1px solid ${LINE}`, borderRadius: 12, padding: "18px 20px", background: PAPER }}>
+            <div style={{ ...mono, fontSize: 10, letterSpacing: "0.12em", textTransform: "uppercase", color: STONE, marginBottom: 16 }}>Bookings by session type</div>
+            <HBars items={typeItems} />
+            {byType.length > typeItems.length && <div style={{ ...mono, fontSize: 9.5, color: FAINT, marginTop: 12 }}>Showing top {typeItems.length} of {byType.length} types \u00b7 full list in the analytics export.</div>}
+          </div>
+
+          {byMonth.length >= 2 && (
+            <div style={{ border: `1px solid ${LINE}`, borderRadius: 12, padding: "18px 20px", background: PAPER }}>
+              <div style={{ ...mono, fontSize: 10, letterSpacing: "0.12em", textTransform: "uppercase", color: STONE, marginBottom: 16 }}>Revenue by month</div>
+              <MiniColumns items={monthItems} />
+            </div>
+          )}
+        </div>
+      )}
 
       <div style={{ ...mono, fontSize: 10.5, letterSpacing: "0.16em", textTransform: "uppercase", color: STONE, marginBottom: 10 }}>Export</div>
       <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
         <button onClick={exportSessions} style={{ ...btnSolid, background: RED }}><Download size={14} /> Export sessions (CSV)</button>
         <button onClick={exportClients} style={{ ...btnGhost, display: "inline-flex", alignItems: "center", gap: 7 }}><Download size={14} /> Export clients (CSV)</button>
+        <button onClick={exportAnalytics} style={{ ...btnGhost, display: "inline-flex", alignItems: "center", gap: 7 }}><Download size={14} /> Export analytics (CSV)</button>
       </div>
       <div style={{ ...mono, fontSize: 10, color: FAINT, marginTop: 12, lineHeight: 1.5, maxWidth: 560 }}>The sessions export uses the date range above (all-time if blank). Each row lists the total, what you collected, and payment status, ready for bookkeeping and taxes.</div>
     </div>
