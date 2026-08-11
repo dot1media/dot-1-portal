@@ -8,7 +8,7 @@ import {
   Plus, Trash2, Pencil, Check, AlertTriangle, Tag, Link2, ListPlus,
   Star, CreditCard, Wallet, CalendarDays, ChevronLeft, ChevronRight,
   ArrowRight, ArrowLeft, CalendarClock, X, Copy, LogIn, Sparkles,
-  MessageCircle, Smartphone, Link as LinkIcon, Ban, EyeOff, XCircle, CalendarPlus, ChevronDown, Settings, Download, ListChecks, FileText,
+  MessageCircle, Smartphone, Link as LinkIcon, Ban, EyeOff, XCircle, CalendarPlus, ChevronDown, Settings, Download, ListChecks, FileText, Palette,
 } from "lucide-react";
 
 // Persist to the browser's localStorage (works in a real browser, unlike the
@@ -20,14 +20,33 @@ const storage = {
 };
 
 /* ---------- brand tokens ---------- */
-const RED = "#e23b2e";
-const INK = "#1a1a17";
-const BODY = "#33322d";
-const STONE = "#6f6d65";
-const FAINT = "#9a988f";
-const LINE = "#e2ded4";
-const PAPER = "#ffffff";
-const CREAM = "#faf8f3";
+const RED = "var(--d1-accent, #e23b2e)";
+const INK = "var(--d1-ink, #1a1a17)";
+const BODY = "var(--d1-body, #33322d)";
+const STONE = "var(--d1-stone, #6f6d65)";
+const FAINT = "var(--d1-faint, #9a988f)";
+const LINE = "var(--d1-line, #e2ded4)";
+const PAPER = "var(--d1-paper, #ffffff)";
+const CREAM = "var(--d1-cream, #faf8f3)";
+
+const THEME_VARS = ["--d1-accent", "--d1-cream", "--d1-paper", "--d1-line", "--d1-ink", "--d1-body", "--d1-stone", "--d1-faint"];
+const THEMES = {
+  default:  { name: "Warm Paper", swatch: "#e23b2e", bg: "#faf8f3", vars: null },
+  slate:    { name: "Cool Slate", swatch: "#4f5b93", bg: "#f3f4f7", vars: { "--d1-accent": "#4f5b93", "--d1-cream": "#f3f4f7", "--d1-paper": "#ffffff", "--d1-line": "#e0e2e9", "--d1-ink": "#1b1d26", "--d1-body": "#343642", "--d1-stone": "#666a78", "--d1-faint": "#9a9dab" } },
+  sand:     { name: "Warm Sand", swatch: "#c26b3e", bg: "#f7f2ea", vars: { "--d1-accent": "#c26b3e", "--d1-cream": "#f7f2ea", "--d1-paper": "#fffdf9", "--d1-line": "#e8e0d2", "--d1-ink": "#241f18", "--d1-body": "#3b3529", "--d1-stone": "#726a5b", "--d1-faint": "#a49c8b" } },
+  forest:   { name: "Forest", swatch: "#3f7d4f", bg: "#f1f4ef", vars: { "--d1-accent": "#3f7d4f", "--d1-cream": "#f1f4ef", "--d1-paper": "#ffffff", "--d1-line": "#dde5da", "--d1-ink": "#18201a", "--d1-body": "#313a32", "--d1-stone": "#65705f", "--d1-faint": "#9aa593" } },
+  graphite: { name: "Graphite", swatch: "#2f2f2f", bg: "#f5f5f4", vars: { "--d1-accent": "#2f2f2f", "--d1-cream": "#f5f5f4", "--d1-paper": "#ffffff", "--d1-line": "#e4e4e2", "--d1-ink": "#161616", "--d1-body": "#333333", "--d1-stone": "#6a6a68", "--d1-faint": "#9c9c99" } },
+  plum:     { name: "Plum", swatch: "#7c4a94", bg: "#f5f2f6", vars: { "--d1-accent": "#7c4a94", "--d1-cream": "#f5f2f6", "--d1-paper": "#ffffff", "--d1-line": "#e7e0ea", "--d1-ink": "#1f1922", "--d1-body": "#39303e", "--d1-stone": "#6e6474", "--d1-faint": "#a29aa8" } },
+};
+const ACCENT_SWATCHES = ["#e23b2e", "#2f74c0", "#3f7d4f", "#7c4a94", "#c26b3e", "#2f2f2f", "#0d9488", "#d4348a"];
+function applyTheme(key, accent) {
+  if (typeof document === "undefined") return;
+  const root = document.documentElement;
+  const t = THEMES[key] || THEMES.default;
+  if (t.vars) { for (const k of THEME_VARS) root.style.setProperty(k, t.vars[k]); }
+  else { for (const k of THEME_VARS) root.style.removeProperty(k); }
+  if (accent) root.style.setProperty("--d1-accent", accent);
+}
 
 const display = { fontFamily: "'Bodoni Moda', Georgia, serif" };
 const mono = { fontFamily: "'IBM Plex Mono', ui-monospace, monospace" };
@@ -184,6 +203,9 @@ export default function App() {
   const [clientAuth, setClientAuth] = useState(null);
   const [resetToken, setResetToken] = useState("");
   const [guideSeen, setGuideSeen] = useState(true);
+  const [themeKey, setThemeKey] = useState("default");
+  const [customAccent, setCustomAccent] = useState("");
+  const [themeOpen, setThemeOpen] = useState(false);
   const [adminId, setAdminId] = useState("");
   const [directContext, setDirectContext] = useState(null);
   const [toast, setToast] = useState(null);
@@ -220,6 +242,7 @@ export default function App() {
     if (rt) { setResetToken(rt); setView("resetpw"); }
   }, []);
   useEffect(() => { try { setGuideSeen(localStorage.getItem("dot1_guide_seen") === "1"); } catch (e) {} }, []);
+  useEffect(() => { try { const k = localStorage.getItem("dot1_theme_key") || "default"; const a = localStorage.getItem("dot1_theme_accent") || ""; setThemeKey(k); setCustomAccent(a); applyTheme(k, a); } catch (e) {} }, []);
   useEffect(() => {
     if (poppingRef.current) { poppingRef.current = false; return; }
     const st = { view };
@@ -352,6 +375,7 @@ export default function App() {
   };
   const adminLogout = async () => { try { await fetch("/api/auth/logout", { method: "POST" }); } catch (e) {} setState((s) => ({ ...s, sessions: [] })); setAdminId(""); setView("landing"); showToast("Signed out of the studio."); };
   const clientLogout = async () => { try { await fetch("/api/client-logout", { method: "POST" }); } catch (e) {} setState((s) => ({ ...s, sessions: [] })); setClientId(""); setClientAuth(null); setView("landing"); showToast("Signed out."); };
+  const setTheme = (key, accent) => { setThemeKey(key); setCustomAccent(accent || ""); applyTheme(key, accent || ""); try { localStorage.setItem("dot1_theme_key", key); localStorage.setItem("dot1_theme_accent", accent || ""); } catch (e) {} };
   const requestReset = async (email) => { try { await fetch("/api/reset-request", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ email: (email || "").trim() }) }); } catch (e) {} };
   const requestSendBalance = async (session) => { try { const res = await fetch("/api/pay-balance", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ sessionId: session.id }) }); const data = await res.json().catch(() => ({})); if (res.ok) { showToast("Balance payment link emailed to " + session.clientEmail + "."); setState((s) => ({ ...s, sessions: s.sessions.map((x) => x.id === session.id ? { ...x, balanceStatus: "sent" } : x) })); } else { showToast(data.error || "Could not send the balance link."); } } catch (e) { showToast("Network error."); } };
 
@@ -374,6 +398,7 @@ export default function App() {
             <span style={{ ...mono, fontSize: 10, letterSpacing: "0.22em", textTransform: "uppercase", color: FAINT }}>Client Portal</span>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+            {(view === "admin" || view === "client" || view === "thankyou") && <button onClick={() => setThemeOpen(true)} title="Appearance" aria-label="Appearance" style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 34, height: 34, borderRadius: 7, cursor: "pointer", color: STONE, background: "transparent", border: `1px solid ${LINE}`, padding: 0 }}><Palette size={15} /></button>}
             {view === "admin" ? (
               <>
                 <span style={{ ...mono, fontSize: 10, letterSpacing: "0.16em", textTransform: "uppercase", color: STONE }}>Studio</span>
@@ -405,6 +430,7 @@ export default function App() {
         {view === "client" && <ClientView session={clientSession} sessions={state.sessions} clientId={clientId} setClientId={setClientId} addComment={addComment} onRescheduleRequest={clientRescheduleRequest} markMessagesRead={markMessagesRead} patchSession={patchSession} resizeImage={resizeImage} showToast={showToast} />}
         {view === "thankyou" && <ThankYou session={clientSession} onPortal={() => setView("client")} />}
         {view === "client" && !guideSeen && clientSession && <ClientGuide onClose={() => { setGuideSeen(true); try { localStorage.setItem("dot1_guide_seen", "1"); } catch (e) {} }} />}
+        {themeOpen && <ThemePicker themeKey={themeKey} customAccent={customAccent} onPick={(k, a) => setTheme(k, a)} onClose={() => setThemeOpen(false)} />}
         {view === "admin" && (
           <div>
             <div style={{ display: "flex", gap: 6, marginBottom: 24, borderBottom: `1px solid ${LINE}`, flexWrap: "wrap" }}>
@@ -551,7 +577,7 @@ function LandingPage({ onBook, onClientLogin, onStudioLogin }) {
           <div style={{ ...mono, fontSize: 11, letterSpacing: "0.06em", marginTop: 14, display: "flex", alignItems: "center", gap: 6 }}>Get started <ArrowRight size={13} /></div>
         </button>
         <button onClick={onClientLogin} style={{ textAlign: "left", cursor: "pointer", background: PAPER, border: `1px solid ${LINE}`, borderRadius: 14, padding: "22px 24px", color: INK }}>
-          <User size={22} color={STONE} style={{ marginBottom: 12 }} />
+          <User size={22} color="#6f6d65" style={{ marginBottom: 12 }} />
           <div style={{ ...display, fontWeight: 700, fontSize: 20, marginBottom: 4 }}>Client login</div>
           <div style={{ fontSize: 13, lineHeight: 1.5, color: STONE }}>Already booked with us? Sign in to check the status of your session.</div>
           <div style={{ ...mono, fontSize: 11, letterSpacing: "0.06em", marginTop: 14, color: STONE, display: "flex", alignItems: "center", gap: 6 }}>Sign in <ArrowRight size={13} /></div>
@@ -870,7 +896,7 @@ function BookingFlow({ state, direct, slotTaken, onCancel, onComplete, onLogin, 
                     <div key={cat} style={{ marginTop: 10, border: `1px solid ${LINE}`, borderRadius: 10, overflow: "hidden" }}>
                       <div onClick={() => setOpenCats((pp) => ({ ...pp, [cat]: !pp[cat] }))} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "13px 15px", cursor: "pointer", background: open ? CREAM : PAPER }}>
                         <div style={{ ...mono, fontSize: 11, letterSpacing: "0.14em", textTransform: "uppercase", color: INK }}>{label} <span style={{ color: FAINT }}>· {inCat.length}</span></div>
-                        <ChevronDown size={16} color={STONE} style={{ transform: open ? "rotate(180deg)" : "none", transition: "transform 0.15s" }} />
+                        <ChevronDown size={16} color="#6f6d65" style={{ transform: open ? "rotate(180deg)" : "none", transition: "transform 0.15s" }} />
                       </div>
                       {open && <div style={{ padding: "4px 12px 12px" }}>{inCat.map(renderServiceBtn)}</div>}
                     </div>
@@ -1191,6 +1217,41 @@ function ProgressBar({ stages, current, accent }) {
   );
 }
 
+function ThemePicker({ themeKey, customAccent, onPick, onClose }) {
+  const acc = customAccent || "";
+  return (
+    <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(20,19,17,0.55)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20, zIndex: 250 }}>
+      <div onClick={(e) => e.stopPropagation()} style={{ background: CREAM, borderRadius: 16, maxWidth: 470, width: "100%", padding: "26px 26px 24px", border: `1px solid ${LINE}`, maxHeight: "88vh", overflowY: "auto" }}>
+        <div style={{ ...mono, fontSize: 10.5, letterSpacing: "0.2em", textTransform: "uppercase", color: RED, marginBottom: 6 }}>Appearance</div>
+        <div style={{ ...display, fontWeight: 700, fontSize: 22, color: INK, marginBottom: 4 }}>Portal color theme</div>
+        <div style={{ fontSize: 12.5, color: STONE, lineHeight: 1.5, marginBottom: 18 }}>Choose a palette for your portal. Your choice is saved on this device.</div>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 22 }}>
+          {Object.keys(THEMES).map((k) => { const t = THEMES[k]; const sel = themeKey === k; return (
+            <button key={k} onClick={() => onPick(k, "")} style={{ display: "flex", alignItems: "center", gap: 11, textAlign: "left", cursor: "pointer", border: `1.5px solid ${sel ? t.swatch : LINE}`, borderRadius: 11, padding: "11px 13px", background: t.bg }}>
+              <span style={{ width: 26, height: 26, borderRadius: "50%", background: t.swatch, flexShrink: 0, boxShadow: "inset 0 0 0 1px rgba(0,0,0,0.08)" }} />
+              <span style={{ ...display, fontWeight: 600, fontSize: 13.5, color: "#1a1a17" }}>{t.name}</span>
+              {sel && <Check size={15} color={t.swatch} style={{ marginLeft: "auto", flexShrink: 0 }} />}
+            </button>
+          ); })}
+        </div>
+        <div style={{ ...mono, fontSize: 10, letterSpacing: "0.14em", textTransform: "uppercase", color: STONE, marginBottom: 11 }}>Custom accent</div>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center" }}>
+          {ACCENT_SWATCHES.map((c) => { const sel = acc.toLowerCase() === c.toLowerCase(); return (
+            <button key={c} onClick={() => onPick(themeKey, c)} aria-label={"Accent " + c} style={{ width: 30, height: 30, borderRadius: "50%", background: c, cursor: "pointer", border: sel ? "2px solid #1a1a17" : "2px solid transparent", boxShadow: "inset 0 0 0 1px rgba(0,0,0,0.08)", padding: 0 }} />
+          ); })}
+          <label style={{ display: "inline-flex", alignItems: "center", gap: 6, cursor: "pointer", ...mono, fontSize: 10.5, color: STONE, border: `1px dashed ${LINE}`, borderRadius: 8, padding: "6px 10px" }}>
+            <input type="color" value={/^#[0-9a-fA-F]{6}$/.test(acc) ? acc : "#e23b2e"} onChange={(e) => onPick(themeKey, e.target.value)} style={{ width: 18, height: 18, border: "none", background: "transparent", padding: 0, cursor: "pointer" }} /> Custom
+          </label>
+        </div>
+        <div style={{ display: "flex", gap: 8, marginTop: 22, flexWrap: "wrap" }}>
+          <button onClick={() => onPick("default", "")} style={{ ...mono, fontSize: 10.5, letterSpacing: "0.06em", textTransform: "uppercase", color: STONE, background: "transparent", border: `1px solid ${LINE}`, borderRadius: 8, padding: "10px 14px", cursor: "pointer" }}>Reset to default</button>
+          <button onClick={onClose} style={{ ...btnSolid, background: RED, flex: 1, justifyContent: "center" }}>Done</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function ClientGuide({ onClose }) {
   const items = [
     { Icon: ListChecks, title: "Your project timeline", body: "Follow your session from booking to final delivery. Each step updates here, and we'll email you along the way." },
@@ -1206,7 +1267,7 @@ function ClientGuide({ onClose }) {
         <div style={{ fontSize: 13.5, color: BODY, lineHeight: 1.55, marginBottom: 22 }}>This is your home for everything we create together. Here's what you can do:</div>
         {items.map((it, i) => { const It = it.Icon; return (
           <div key={i} style={{ display: "flex", gap: 13, marginBottom: 16 }}>
-            <div style={{ flexShrink: 0, width: 34, height: 34, borderRadius: 9, background: PAPER, border: `1px solid ${LINE}`, display: "flex", alignItems: "center", justifyContent: "center" }}><It size={16} color={RED} /></div>
+            <div style={{ flexShrink: 0, width: 34, height: 34, borderRadius: 9, background: PAPER, border: `1px solid ${LINE}`, display: "flex", alignItems: "center", justifyContent: "center" }}><It size={16} color="#e23b2e" /></div>
             <div><div style={{ ...display, fontWeight: 600, fontSize: 14.5, color: INK, marginBottom: 2 }}>{it.title}</div><div style={{ fontSize: 12.5, color: BODY, lineHeight: 1.5 }}>{it.body}</div></div>
           </div>
         ); })}
@@ -1385,7 +1446,7 @@ function ClientView({ session, sessions, clientId, setClientId, addComment, onRe
               <div style={{ ...display, fontWeight: 600, fontSize: 15, color: INK }}>Production brief</div>
               <div style={{ ...mono, fontSize: 10, color: briefSubmitted ? "#2e7d4f" : STONE, marginTop: 2 }}>{briefStatusText}</div>
             </div>
-            <ChevronDown size={18} color={STONE} style={{ flexShrink: 0, transform: briefOpen ? "rotate(180deg)" : "none", transition: "transform 200ms" }} />
+            <ChevronDown size={18} color="#6f6d65" style={{ flexShrink: 0, transform: briefOpen ? "rotate(180deg)" : "none", transition: "transform 200ms" }} />
           </button>
           {briefOpen && (
             <div style={{ border: `1px solid ${LINE}`, borderTop: "none", borderRadius: "0 0 12px 12px", padding: "18px 18px 20px" }}>
@@ -1434,7 +1495,7 @@ function ClientView({ session, sessions, clientId, setClientId, addComment, onRe
           const isNew = c.author === "studio" && !c.read;
           return (
             <div key={i} style={{ display: "flex", gap: 10, marginBottom: 8 }}>
-              <div style={{ width: 26, height: 26, borderRadius: "50%", flexShrink: 0, background: c.author === "client" ? grp.bg : CREAM, border: `1px solid ${LINE}`, display: "flex", alignItems: "center", justifyContent: "center" }}>{c.author === "client" ? <User size={12} color={grp.color} /> : <Camera size={12} color={STONE} />}</div>
+              <div style={{ width: 26, height: 26, borderRadius: "50%", flexShrink: 0, background: c.author === "client" ? grp.bg : CREAM, border: `1px solid ${LINE}`, display: "flex", alignItems: "center", justifyContent: "center" }}>{c.author === "client" ? <User size={12} color={grp.color} /> : <Camera size={12} color="#6f6d65" />}</div>
               <div style={{ background: isNew ? grp.bg : PAPER, border: `1px solid ${isNew ? grp.border : LINE}`, borderRadius: 8, padding: "8px 12px", flex: 1 }}>
                 <div style={{ fontSize: 13.5, lineHeight: 1.5 }}>{c.body}</div>
                 <div style={{ ...mono, fontSize: 9.5, color: isNew ? grp.text : FAINT, marginTop: 3, letterSpacing: "0.06em" }}>{c.author === "client" ? "You" : "Studio"} · {c.time}{isNew ? " · new" : ""}</div>
@@ -1532,7 +1593,7 @@ function ClientActionPanel({ session, grp, draft, setDraft, onSubmit }) {
       </div>
     );
   }
-  return <div style={{ display: "flex", alignItems: "center", gap: 9, color: STONE, fontSize: 13, marginTop: 4, background: CREAM, border: `1px dashed ${LINE}`, borderRadius: 10, padding: "13px 16px" }}><Clock size={15} color={FAINT} /> We'll email you the moment your next update is ready.</div>;
+  return <div style={{ display: "flex", alignItems: "center", gap: 9, color: STONE, fontSize: 13, marginTop: 4, background: CREAM, border: `1px dashed ${LINE}`, borderRadius: 10, padding: "13px 16px" }}><Clock size={15} color="#9a988f" /> We'll email you the moment your next update is ready.</div>;
 }
 
 /* ============================ ADMIN — SESSIONS ============================ */
