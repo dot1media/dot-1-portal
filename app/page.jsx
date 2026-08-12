@@ -412,7 +412,7 @@ export default function App() {
   const unreadClientTotal = state.sessions.reduce((n, s) => n + s.comments.filter((c) => c.author === "client" && !c.read).length, 0);
 
   return (
-    <div style={{ background: CREAM, minHeight: "100vh", fontFamily: "'Archivo', system-ui, sans-serif", color: BODY }}>
+    <div style={{ background: CREAM, minHeight: "100vh", fontFamily: "'Archivo', system-ui, sans-serif", color: BODY, WebkitFontSmoothing: "antialiased", MozOsxFontSmoothing: "grayscale" }}>
       <FontLoader />
       <header style={{ borderBottom: `1px solid ${LINE}`, background: PAPER, position: "sticky", top: 0, zIndex: 50 }}>
         <div style={{ maxWidth: 1120, margin: "0 auto", padding: "16px 22px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
@@ -1152,7 +1152,7 @@ function DirectLinks({ state, createDirectLink, revokeDirectLink, openDirectLink
         {/* just-made + share */}
         <div>
           {justMade ? (
-            <div style={{ background: "#fbf3f2", border: `1px solid #f2cdc9`, borderRadius: 12, padding: "18px 20px", marginBottom: 18 }}>
+            <div style={{ background: `color-mix(in srgb, ${RED} 7%, ${PAPER})`, border: `1px solid color-mix(in srgb, ${RED} 22%, ${LINE})`, borderRadius: 12, padding: "18px 20px", marginBottom: 18 }}>
               <div style={{ ...mono, fontSize: 10, letterSpacing: "0.14em", textTransform: "uppercase", color: RED, marginBottom: 10, display: "flex", alignItems: "center", gap: 7 }}><Check size={13} /> Link ready — slot reserved</div>
               <div style={{ fontSize: 13, color: BODY, marginBottom: 4 }}>{justMade.serviceName}</div>
               <div style={{ ...mono, fontSize: 11, color: "#b5271b", marginBottom: 12 }}>{fmtDate(justMade.date)} at {fmtTime(justMade.time)}{justMade.recipient ? ` · for ${justMade.recipient}` : ""}</div>
@@ -1292,7 +1292,7 @@ function ClientGuide({ onClose }) {
         <div style={{ fontSize: 13.5, color: BODY, lineHeight: 1.55, marginBottom: 22 }}>This is your home for everything we create together. Here's what you can do:</div>
         {items.map((it, i) => { const It = it.Icon; return (
           <div key={i} style={{ display: "flex", gap: 13, marginBottom: 16 }}>
-            <div style={{ flexShrink: 0, width: 34, height: 34, borderRadius: 9, background: PAPER, border: `1px solid ${LINE}`, display: "flex", alignItems: "center", justifyContent: "center" }}><It size={16} color="#e23b2e" /></div>
+            <div style={{ flexShrink: 0, width: 34, height: 34, borderRadius: 9, background: PAPER, border: `1px solid ${LINE}`, display: "flex", alignItems: "center", justifyContent: "center" }}><It size={16} color={RED} /></div>
             <div><div style={{ ...display, fontWeight: 600, fontSize: 14.5, color: INK, marginBottom: 2 }}>{it.title}</div><div style={{ fontSize: 12.5, color: BODY, lineHeight: 1.5 }}>{it.body}</div></div>
           </div>
         ); })}
@@ -1467,7 +1467,7 @@ function ClientView({ session, sessions, clientId, setClientId, addComment, onRe
       )}
 
       {Array.isArray(session.charges) && session.charges.length > 0 && status === "active" && (
-        <div style={{ ...card, marginTop: 18, padding: "22px 24px", border: `1px solid ${session.charges.some((c) => c.status !== "paid") ? "rgba(226,59,46,0.28)" : LINE}` }}>
+        <div style={{ ...card, marginTop: 18, padding: "22px 24px", border: `1px solid ${session.charges.some((c) => c.status !== "paid") ? `color-mix(in srgb, ${grp.color} 32%, transparent)` : LINE}` }}>
           <div style={{ ...mono, fontSize: 10.5, letterSpacing: "0.16em", textTransform: "uppercase", color: session.charges.some((c) => c.status !== "paid") ? grp.color : STONE, marginBottom: 5, display: "flex", alignItems: "center", gap: 8 }}>{session.charges.some((c) => c.status !== "paid") && <span style={{ width: 6, height: 6, borderRadius: "50%", background: grp.color, display: "inline-block" }} />}Payment requests</div>
           <div style={{ fontSize: 12.5, color: STONE, marginBottom: 4 }}>Extra items your studio has added to this project.</div>
           {session.charges.map((c) => (
@@ -1834,7 +1834,7 @@ function AdminSessions({ state, adminId, setAdminId, requestSetStage, addComment
               <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
                 <input value={chgLabel} onChange={(e) => setChgLabel(e.target.value)} placeholder={"What's it for? (USB of files, overtime\u2026)"} style={{ flex: "1 1 200px", minWidth: 0, border: `1px solid ${LINE}`, borderRadius: 7, padding: "9px 11px", fontSize: 13, color: INK, background: PAPER, fontFamily: "inherit" }} />
                 <input value={chgAmt} onChange={(e) => setChgAmt(e.target.value.replace(/[^0-9.]/g, ""))} inputMode="decimal" placeholder="$0.00" style={{ width: 92, border: `1px solid ${LINE}`, borderRadius: 7, padding: "9px 11px", fontSize: 13, color: INK, background: PAPER, fontFamily: "inherit" }} />
-                <button onClick={async () => { const amt = parseFloat(chgAmt); if (!chgLabel.trim() || !(amt > 0)) { showToast("Add a description and an amount."); return; } await onSendCharge(session, chgLabel.trim(), amt); }} style={{ ...mono, fontSize: 10, letterSpacing: "0.06em", textTransform: "uppercase", color: "#fff", background: "#c0392b", border: "none", borderRadius: 7, padding: "9px 14px", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 6 }}><Wallet size={12} /> Send request</button>
+                <button onClick={async () => { const amt = parseFloat(chgAmt); if (!chgLabel.trim() || !(amt > 0)) { showToast("Add a description and an amount."); return; } await onSendCharge(session, chgLabel.trim(), amt); }} style={{ ...mono, fontSize: 10, letterSpacing: "0.06em", textTransform: "uppercase", color: "#fff", background: RED, border: "none", borderRadius: 7, padding: "9px 14px", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 6 }}><Wallet size={12} /> Send request</button>
               </div>
             )}
           </div>
@@ -2020,7 +2020,7 @@ function DayCell({ day, isToday, sessions, holds, accent, onSelect }) {
   const many = items.length > 2;
   const shown = many && !open ? items.slice(0, 1) : items;
   return (
-    <div style={{ minHeight: 80, border: `1px solid ${LINE}`, borderRadius: 7, padding: 5, background: isToday ? "#fbf3f2" : PAPER }}>
+    <div style={{ minHeight: 80, border: `1px solid ${LINE}`, borderRadius: 7, padding: 5, background: isToday ? `color-mix(in srgb, ${accent} 8%, ${PAPER})` : PAPER }}>
       <div style={{ ...mono, fontSize: 10.5, color: isToday ? RED : STONE, fontWeight: isToday ? 600 : 400, marginBottom: 3 }}>{day}</div>
       {shown.map((it, idx) => it.type === "session" ? (
         <div key={"s" + idx} onClick={() => onSelect(it.s.id)} title={it.s.clientName + " — " + it.s.type + (it.s.time ? " @ " + fmtTime(it.s.time) : "")} style={{ background: accent, color: "#fff", borderRadius: 4, padding: "2px 5px", marginBottom: 3, cursor: "pointer", fontSize: 9.5, lineHeight: 1.3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{it.s.clientName}</div>
@@ -2598,6 +2598,11 @@ function FontLoader() {
     const l = document.createElement("link"); l.id = id; l.rel = "stylesheet";
     l.href = "https://fonts.googleapis.com/css2?family=Bodoni+Moda:opsz,wght@6..96,400..700&family=Archivo:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap";
     document.head.appendChild(l);
+    if (!document.getElementById("dot1-global")) {
+      const s = document.createElement("style"); s.id = "dot1-global";
+      s.textContent = "::selection{background:color-mix(in srgb, var(--d1-accent,#e23b2e) 22%, transparent);}input::placeholder,textarea::placeholder{color:var(--d1-faint,#9a988f);opacity:1;}button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-visible,[role=switch]:focus-visible{outline:2px solid color-mix(in srgb, var(--d1-accent,#e23b2e) 55%, transparent);outline-offset:2px;}";
+      document.head.appendChild(s);
+    }
   }, []);
   return null;
 }
