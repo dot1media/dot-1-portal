@@ -27,11 +27,11 @@ const STONE = "var(--d1-stone, #6f6d65)";
 const FAINT = "var(--d1-faint, #9a988f)";
 const LINE = "var(--d1-line, #e2ded4)";
 const PAPER = "var(--d1-paper, #ffffff)";
-const CREAM = "var(--d1-cream, #faf8f3)";
+const CREAM = "var(--d1-cream, #f4f0e7)";
 
 const THEME_VARS = ["--d1-accent", "--d1-cream", "--d1-paper", "--d1-line", "--d1-ink", "--d1-body", "--d1-stone", "--d1-faint"];
 const THEMES = {
-  default:  { name: "Warm Paper", swatch: "#e23b2e", bg: "#faf8f3", vars: null },
+  default:  { name: "Warm Paper", swatch: "#e23b2e", bg: "#f4f0e7", vars: null },
   slate:    { name: "Cool Slate", swatch: "#4f5b93", bg: "#f3f4f7", vars: { "--d1-accent": "#4f5b93", "--d1-cream": "#f3f4f7", "--d1-paper": "#ffffff", "--d1-line": "#e0e2e9", "--d1-ink": "#1b1d26", "--d1-body": "#343642", "--d1-stone": "#666a78", "--d1-faint": "#9a9dab" } },
   sand:     { name: "Warm Sand", swatch: "#c26b3e", bg: "#f7f2ea", vars: { "--d1-accent": "#c26b3e", "--d1-cream": "#f7f2ea", "--d1-paper": "#fffdf9", "--d1-line": "#e8e0d2", "--d1-ink": "#241f18", "--d1-body": "#3b3529", "--d1-stone": "#726a5b", "--d1-faint": "#a49c8b" } },
   forest:   { name: "Forest", swatch: "#3f7d4f", bg: "#f1f4ef", vars: { "--d1-accent": "#3f7d4f", "--d1-cream": "#f1f4ef", "--d1-paper": "#ffffff", "--d1-line": "#dde5da", "--d1-ink": "#18201a", "--d1-body": "#313a32", "--d1-stone": "#65705f", "--d1-faint": "#9aa593" } },
@@ -50,6 +50,7 @@ function applyTheme(key, accent) {
 
 const display = { fontFamily: "'Bodoni Moda', Georgia, serif" };
 const mono = { fontFamily: "'IBM Plex Mono', ui-monospace, monospace" };
+const card = { background: PAPER, border: `1px solid ${LINE}`, borderRadius: 16, boxShadow: "0 1px 2px rgba(26,26,23,0.03), 0 12px 34px rgba(26,26,23,0.05)" };
 
 const GROUPS = {
   video: { label: "Video", color: "#e23b2e", soft: "#e23b2e", bg: "#fbeeed", border: "#f2cdc9", text: "#b5271b", Icon: Film },
@@ -1424,7 +1425,7 @@ function ClientView({ session, sessions, clientId, setClientId, addComment, onRe
         </div>
       )}
 
-      <div style={{ background: PAPER, border: `1px solid ${LINE}`, borderRadius: 10, padding: "18px 22px", marginBottom: 14, display: "flex", gap: 26, flexWrap: "wrap", alignItems: "center" }}>
+      <div style={{ ...card, padding: "20px 24px", marginBottom: 16, display: "flex", gap: 26, flexWrap: "wrap", alignItems: "center" }}>
         <SummaryCell label="Project" value={session.type} icon={<grp.Icon size={13} color={grp.color} />} />
         <SummaryCell label="Service" value={grp.label} />
         <SummaryCell label="Date" value={session.date ? fmtDate(session.date) + (session.time ? " · " + fmtTime(session.time) : "") : "TBD"} />
@@ -1433,14 +1434,14 @@ function ClientView({ session, sessions, clientId, setClientId, addComment, onRe
       </div>
 
       {status === "active" && (
-        <div style={{ background: grp.bg, border: `1px solid ${grp.border}`, borderRadius: 10, padding: "16px 20px", marginBottom: 20 }}>
+        <div style={{ background: grp.bg, border: `1px solid ${grp.border}`, borderRadius: 16, padding: "20px 22px", marginBottom: 18, boxShadow: "0 1px 2px rgba(26,26,23,0.03), 0 12px 34px rgba(26,26,23,0.05)" }}>
           <div style={{ fontSize: 13.5, color: grp.text, lineHeight: 1.5, marginBottom: 15 }}>{statusLine}</div>
           <ProgressBar stages={stagesFor(session)} current={session.currentStage} accent={grp.color} />
         </div>
       )}
 
       {payTotal > 0 && status === "active" && (
-        <div style={{ marginTop: 22, border: `1px solid ${LINE}`, borderRadius: 12, padding: "18px 20px", background: PAPER }}>
+        <div style={{ ...card, marginTop: 18, padding: "22px 24px" }}>
           <div style={{ ...mono, fontSize: 10.5, letterSpacing: "0.16em", textTransform: "uppercase", color: STONE, marginBottom: 12 }}>Payment</div>
           <Row k="Project total" v={money(payTotal)} />
           {payPaid > 0 && balanceDue > 0 && <Row k="Deposit paid" v={money(payPaid)} sub />}
@@ -1460,7 +1461,7 @@ function ClientView({ session, sessions, clientId, setClientId, addComment, onRe
       )}
 
       {Array.isArray(session.charges) && session.charges.length > 0 && status === "active" && (
-        <div style={{ marginTop: 22, border: `1px solid ${session.charges.some((c) => c.status !== "paid") ? "rgba(226,59,46,0.28)" : LINE}`, borderRadius: 12, padding: "18px 20px", background: PAPER }}>
+        <div style={{ ...card, marginTop: 18, padding: "22px 24px", border: `1px solid ${session.charges.some((c) => c.status !== "paid") ? "rgba(226,59,46,0.28)" : LINE}` }}>
           <div style={{ ...mono, fontSize: 10.5, letterSpacing: "0.16em", textTransform: "uppercase", color: session.charges.some((c) => c.status !== "paid") ? grp.color : STONE, marginBottom: 5, display: "flex", alignItems: "center", gap: 8 }}>{session.charges.some((c) => c.status !== "paid") && <span style={{ width: 6, height: 6, borderRadius: "50%", background: grp.color, display: "inline-block" }} />}Payment requests</div>
           <div style={{ fontSize: 12.5, color: STONE, marginBottom: 4 }}>Extra items your studio has added to this project.</div>
           {session.charges.map((c) => (
@@ -1484,8 +1485,8 @@ function ClientView({ session, sessions, clientId, setClientId, addComment, onRe
       )}
 
       {status === "active" && (
-        <div style={{ marginTop: 22 }}>
-          <button onClick={() => setBriefOpen(!briefOpen)} style={{ width: "100%", display: "flex", alignItems: "center", gap: 12, background: PAPER, border: `1px solid ${LINE}`, borderRadius: briefOpen ? "12px 12px 0 0" : 12, padding: "15px 18px", cursor: "pointer", textAlign: "left" }}>
+        <div style={{ ...card, marginTop: 18, padding: 0, overflow: "hidden" }}>
+          <button onClick={() => setBriefOpen(!briefOpen)} style={{ width: "100%", display: "flex", alignItems: "center", gap: 12, background: "transparent", border: "none", padding: "16px 20px", cursor: "pointer", textAlign: "left" }}>
             <FileText size={17} color={grp.color} style={{ flexShrink: 0 }} />
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ ...display, fontWeight: 600, fontSize: 15, color: INK }}>Production brief</div>
@@ -1494,7 +1495,7 @@ function ClientView({ session, sessions, clientId, setClientId, addComment, onRe
             <ChevronDown size={18} color="#6f6d65" style={{ flexShrink: 0, transform: briefOpen ? "rotate(180deg)" : "none", transition: "transform 200ms" }} />
           </button>
           {briefOpen && (
-            <div style={{ border: `1px solid ${LINE}`, borderTop: "none", borderRadius: "0 0 12px 12px", padding: "18px 18px 20px" }}>
+            <div style={{ borderTop: `1px solid ${LINE}`, padding: "18px 20px 20px" }}>
               <div style={{ fontSize: 13, color: BODY, lineHeight: 1.55, marginBottom: 18 }}>Help us prepare for your project. The more you share, the better we can bring your vision to life. You can save a draft and finish later.</div>
               {BRIEF_FIELDS.map((f) => (
                 <div key={f.key} style={{ marginBottom: 16 }}>
@@ -1529,11 +1530,13 @@ function ClientView({ session, sessions, clientId, setClientId, addComment, onRe
         )}
       </div>
 
-      <div style={{ ...mono, fontSize: 11, letterSpacing: "0.2em", textTransform: "uppercase", color: STONE, marginBottom: 16 }}>Your session timeline</div>
-      <Timeline session={session} accent={grp.color} actionPanel={<ClientActionPanel session={session} grp={grp} draft={draft} setDraft={setDraft} onSubmit={() => { addComment(session.id, "client", draft); setDraft(""); }} />} />
+      <div style={{ ...card, marginTop: 18, padding: "22px 24px" }}>
+        <div style={{ ...mono, fontSize: 11, letterSpacing: "0.2em", textTransform: "uppercase", color: STONE, marginBottom: 16 }}>Your session timeline</div>
+        <Timeline session={session} accent={grp.color} actionPanel={<ClientActionPanel session={session} grp={grp} draft={draft} setDraft={setDraft} onSubmit={() => { addComment(session.id, "client", draft); setDraft(""); }} />} />
+      </div>
 
-      <div style={{ marginTop: 26 }}>
-        <div style={{ ...mono, fontSize: 10.5, letterSpacing: "0.16em", textTransform: "uppercase", color: STONE, marginBottom: 10 }}>Messages with the studio</div>
+      <div style={{ ...card, marginTop: 18, padding: "22px 24px" }}>
+        <div style={{ ...mono, fontSize: 10.5, letterSpacing: "0.16em", textTransform: "uppercase", color: STONE, marginBottom: 14 }}>Messages with the studio</div>
         {session.comments.length === 0 ? (
           <div style={{ fontSize: 13, color: FAINT, fontStyle: "italic", marginBottom: 12 }}>No messages yet. Send a note below.</div>
         ) : session.comments.map((c, i) => {
@@ -1557,7 +1560,7 @@ function ClientView({ session, sessions, clientId, setClientId, addComment, onRe
       {docs.length > 0 && (
         <div style={{ marginTop: 28 }}>
           <div style={{ ...mono, fontSize: 10.5, letterSpacing: "0.16em", textTransform: "uppercase", color: STONE, marginBottom: 12 }}>Your documents</div>
-          <div style={{ border: `1px solid ${LINE}`, borderRadius: 10, overflow: "hidden" }}>
+          <div style={{ ...card, borderRadius: 14, overflow: "hidden", padding: 0 }}>
             {docs.map((d, i) => {
               const meta = DOC_META[d.agreement_type] || { label: String(d.agreement_type || "Document").replace(/_/g, " "), pdf: null };
               const usage = d.usage_option ? (DOC_USAGE[d.usage_option] || d.usage_option) : null;
