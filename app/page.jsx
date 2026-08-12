@@ -218,6 +218,7 @@ export default function App() {
   const poppingRef = useRef(false);
   const initedRef = useRef(false);
   const [loaded, setLoaded] = useState(false);
+  const [authChecked, setAuthChecked] = useState(false);
   const [clientId, setClientId] = useState("");
   const [clientAuth, setClientAuth] = useState(null);
   const [resetToken, setResetToken] = useState("");
@@ -241,7 +242,7 @@ export default function App() {
   const [catalogError, setCatalogError] = useState(false);
   useEffect(() => { if (!loaded) return; (async () => { try { const { services, addons, availability, sessions, takenSlots, ...rest } = state; await storage.set(STORAGE_KEY, JSON.stringify(rest)); } catch (e) {} })(); }, [state, loaded]);
   useEffect(() => { (async () => { try { const res = await fetch("/api/services"); const data = await res.json(); if (!res.ok) throw new Error(); setState((s) => ({ ...s, services: data.services || [], addons: data.addons || [] })); setCatalogError(false); } catch (e) { setCatalogError(true); } finally { setCatalogLoaded(true); } })(); }, []);
-  useEffect(() => { (async () => { try { const a = await fetch("/api/auth/me").then((r) => r.json()).catch(() => null); if (a && a.admin) { setView("admin"); const sd = await fetch("/api/sessions").then((r) => r.json()).catch(() => ({})); if (sd && sd.sessions) setState((s) => ({ ...s, sessions: sd.sessions })); return; } const c = await fetch("/api/client-me").then((r) => r.json()).catch(() => null); if (c && c.client && c.email) { setClientAuth({ name: "", email: c.email }); const sd = await fetch("/api/sessions").then((r) => r.json()).catch(() => ({})); const sess = (sd && sd.sessions) || []; if (sess.length) { setClientAuth({ name: sess[0].clientName || "", email: c.email }); setState((s) => ({ ...s, sessions: sess })); setClientId(sess[0].id); setView("client"); } } } catch (e) {} })(); }, []);
+  useEffect(() => { (async () => { try { const a = await fetch("/api/auth/me").then((r) => r.json()).catch(() => null); if (a && a.admin) { setView("admin"); const sd = await fetch("/api/sessions").then((r) => r.json()).catch(() => ({})); if (sd && sd.sessions) setState((s) => ({ ...s, sessions: sd.sessions })); return; } const c = await fetch("/api/client-me").then((r) => r.json()).catch(() => null); if (c && c.client && c.email) { setClientAuth({ name: "", email: c.email }); const sd = await fetch("/api/sessions").then((r) => r.json()).catch(() => ({})); const sess = (sd && sd.sessions) || []; if (sess.length) { setClientAuth({ name: sess[0].clientName || "", email: c.email }); setState((s) => ({ ...s, sessions: sess })); setClientId(sess[0].id); setView("client"); } } } catch (e) {} finally { setAuthChecked(true); } })(); }, []);
   useEffect(() => { (async () => { try { const res = await fetch("/api/availability"); const data = await res.json(); if (res.ok) setState((s) => ({ ...s, availability: data.availability || [] })); } catch (e) {} })(); }, []);
   useEffect(() => { (async () => { try { const res = await fetch("/api/sessions?slots=1"); const data = await res.json(); if (res.ok) setState((s) => ({ ...s, takenSlots: data.takenSlots || [] })); } catch (e) {} })(); }, []);
   const refreshSlots = async () => { try { const res = await fetch("/api/sessions?slots=1"); const data = await res.json(); if (res.ok) setState((s) => ({ ...s, takenSlots: data.takenSlots || [] })); } catch (e) {} };
@@ -411,6 +412,8 @@ export default function App() {
 
   const clientSession = state.sessions.find((s) => s.id === clientId) || state.sessions[0] || null;
   const unreadClientTotal = state.sessions.reduce((n, s) => n + s.comments.filter((c) => c.author === "client" && !c.read).length, 0);
+
+  if (!authChecked) return <PortalSplash />;
 
   return (
     <div style={{ background: CREAM, minHeight: "100vh", fontFamily: "'Archivo', system-ui, sans-serif", color: BODY, WebkitFontSmoothing: "antialiased", MozOsxFontSmoothing: "grayscale" }}>
@@ -900,19 +903,13 @@ function BookingFlow({ state, direct, slotTaken, onCancel, onComplete, onLogin, 
             ); })}
           </div>
           {!catalogLoaded ? (
-            <div style={{ textAlign: "center", padding: "44px", color: STONE, fontSize: 13 }}>Loading services…</div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>{[0, 1, 2].map((i) => (<div key={i} style={{ ...card, padding: "18px 20px" }}><Skeleton w="42%" h={16} style={{ marginBottom: 11 }} /><Skeleton w="72%" h={11} style={{ marginBottom: 8 }} /><Skeleton w="28%" h={11} /></div>))}</div>
           ) : catalogError ? (
-            <div style={{ border: `1px solid ${LINE}`, borderRadius: 10, padding: "26px", textAlign: "center", background: PAPER }}>
-              <div style={{ ...display, fontSize: 16, color: INK, marginBottom: 6 }}>We couldn't load services right now</div>
-              <div style={{ fontSize: 13, color: STONE, lineHeight: 1.5 }}>Please refresh the page, or reach out to us directly and we'll help you book.</div>
-            </div>
+            <div style={{ ...card }}><EmptyState icon={AlertTriangle} title="We couldn't load services right now" text="Please refresh the page, or reach out to us directly and we'll help you book." /></div>
           ) : (
             <div>
               {groupServices.length === 0 ? (
-                <div style={{ border: `1px dashed ${LINE}`, borderRadius: 10, padding: "28px", textAlign: "center", background: PAPER }}>
-                  <div style={{ ...display, fontSize: 17, color: INK, marginBottom: 6 }}>No {GROUPS[group].label} services available yet</div>
-                  <div style={{ fontSize: 13, color: STONE, lineHeight: 1.5 }}>Please check back soon, or reach out to us directly and we'll help you book.</div>
-                </div>
+                <div style={{ ...card }}><EmptyState icon={GROUPS[group].Icon} title={"No " + GROUPS[group].label + " services yet"} text="Please check back soon, or reach out to us directly and we'll help you book." /></div>
               ) : group === "photo" ? (
                 PHOTO_CATEGORIES.concat(["__other"]).map((cat) => {
                   const inCat = groupServices.filter((s) => cat === "__other" ? !PHOTO_CATEGORIES.includes(s.category) : s.category === cat);
@@ -1181,7 +1178,7 @@ function DirectLinks({ state, createDirectLink, revokeDirectLink, openDirectLink
       <div style={{ marginTop: 8 }}>
         <div style={{ ...mono, fontSize: 10.5, letterSpacing: "0.16em", textTransform: "uppercase", color: STONE, margin: "18px 0 12px" }}>Sent & reserved links</div>
         {state.directLinks.length === 0 ? (
-          <div style={{ fontSize: 13, color: FAINT, fontStyle: "italic" }}>No booking links yet.</div>
+          <EmptyState icon={Link2} title="No booking links yet" text="Create a link above to reserve a slot for a client and let them book it directly." style={{ padding: "30px 16px" }} />
         ) : (
           state.directLinks.map((l) => { const used = l.status === "used"; return (
             <div key={l.id} style={{ background: PAPER, border: `1px solid ${LINE}`, borderRadius: 10, padding: "13px 16px", marginBottom: 8, display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
@@ -1546,7 +1543,7 @@ function ClientView({ session, sessions, clientId, setClientId, addComment, onRe
       <div style={{ ...card, marginTop: 18, padding: "22px 24px" }}>
         <div style={{ ...mono, fontSize: 10.5, letterSpacing: "0.16em", textTransform: "uppercase", color: STONE, marginBottom: 14 }}>Messages with the studio</div>
         {session.comments.length === 0 ? (
-          <div style={{ fontSize: 13, color: FAINT, fontStyle: "italic", marginBottom: 12 }}>No messages yet. Send a note below.</div>
+          <div style={{ marginBottom: 12 }}><EmptyState icon={MessageSquare} title="No messages yet" text="Send a note below and we'll get right back to you." style={{ padding: "22px 14px" }} /></div>
         ) : session.comments.map((c, i) => {
           const isNew = c.author === "studio" && !c.read;
           return (
@@ -1705,7 +1702,7 @@ function StudioHome({ state, setAdminId, setAdminTab }) {
       <div style={{ ...cardDense, padding: "18px 20px", marginBottom: 18 }}>
         <div style={{ ...mono, fontSize: 10.5, letterSpacing: "0.16em", textTransform: "uppercase", color: STONE, marginBottom: 14 }}>Upcoming sessions</div>
         {upcoming.length === 0 ? (
-          <div style={{ fontSize: 13, color: FAINT, fontStyle: "italic" }}>Nothing scheduled yet. New bookings show up here automatically.</div>
+          <EmptyState icon={CalendarClock} title="Nothing scheduled" text="New bookings appear here automatically as clients book." style={{ padding: "22px 14px" }} />
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             {upcoming.slice(0, 5).map((s) => { const grp = GROUPS[s.serviceLine] || GROUPS.video; return (
@@ -1749,7 +1746,7 @@ function AdminSessions({ state, adminId, setAdminId, requestSetStage, addComment
   const [reschedDate, setReschedDate] = useState("");
   const [reschedTime, setReschedTime] = useState("");
   useEffect(() => { if (!session) return; setVideoLink(session.deliveryVideo || ""); setPhotoLink(session.deliveryPhoto || ""); setReviewLink(session.reviewLink || ""); setEditLinks(false); setReschedOpen(false); setReschedDate(session.date || ""); setReschedTime(session.time || ""); }, [adminId]);
-  if (!session) return <div style={{ ...mono, fontSize: 13, color: STONE, padding: "48px 4px", textAlign: "center" }}>No bookings yet. When a client books a session, it will show up here.</div>;
+  if (!session) return <div style={{ ...card, marginTop: 4 }}><EmptyState icon={CalendarClock} title="No bookings yet" text="When a client books a session, it appears here automatically. Share your Direct Booking Link to bring in your first one." /></div>;
   const sg = GROUPS[session.serviceLine] || GROUPS.video;
   const status = session.status || "active";
   const saveLinks = () => { patchSession(session.id, { deliveryVideo: videoLink.trim(), deliveryPhoto: photoLink.trim(), reviewLink: reviewLink.trim() }); setEditLinks(false); };
@@ -1946,7 +1943,7 @@ function AdminSessions({ state, adminId, setAdminId, requestSetStage, addComment
         </div>
 
         <div style={{ ...mono, fontSize: 10.5, letterSpacing: "0.18em", textTransform: "uppercase", color: STONE, marginBottom: 12, display: "flex", alignItems: "center", gap: 8 }}><MessageSquare size={13} /> Client messages & requests</div>
-        {session.comments.filter((c) => c.author === "client").length === 0 ? <div style={{ fontSize: 13, color: FAINT, fontStyle: "italic", marginBottom: 20 }}>No messages yet.</div> : session.comments.filter((c) => c.author === "client").map((c, i) => (
+        {session.comments.filter((c) => c.author === "client").length === 0 ? <div style={{ marginBottom: 20 }}><EmptyState icon={MessageSquare} title="No messages yet" text="Client messages and requests will show up here." style={{ padding: "24px 14px" }} /></div> : session.comments.filter((c) => c.author === "client").map((c, i) => (
           <div key={i} style={{ background: sg.bg, border: `1px solid ${sg.border}`, borderRadius: 8, padding: "10px 13px", marginBottom: 8 }}>
             <div style={{ fontSize: 13.5, lineHeight: 1.5, color: BODY }}>{c.body}</div>
             <div style={{ ...mono, fontSize: 9.5, color: sg.text, marginTop: 3, letterSpacing: "0.06em" }}>{session.clientName} · {c.time}</div>
@@ -2130,7 +2127,7 @@ function ServiceCatalog({ state, addService, updateService, deleteService, addAd
             {!svcForm && <button onClick={startNewService} style={{ ...mono, fontSize: 10.5, letterSpacing: "0.06em", textTransform: "uppercase", color: "#fff", background: g.color, border: "none", borderRadius: 7, padding: "8px 12px", cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}><Plus size={13} /> New service</button>}
           </div>
           {svcForm && <ServiceForm form={svcForm} setForm={setSvcForm} onSave={saveService} onCancel={() => setSvcForm(null)} group={group} groupAddons={groupAddons} />}
-          {groupServices.length === 0 && !svcForm && <EmptyHint text={`No ${g.label.toLowerCase()} services yet. Click "New service" to create your first appointment type.`} />}
+          {groupServices.length === 0 && !svcForm && <EmptyState icon={g.Icon} title={"No " + g.label.toLowerCase() + " services yet"} text={'Click "New service" to create your first appointment type.'} style={{ padding: "32px 16px" }} />}
           {groupServices.map((s) => <ServiceCard key={s.id} svc={s} groupAddons={groupAddons} onEdit={() => setSvcForm({ ...s, addonIds: s.addonIds || [] })} onDelete={() => setConfirm({ title: "Delete this appointment type?", message: "\u201c" + s.name + "\u201d will be permanently removed as a bookable appointment type. This cannot be undone.", confirmLabel: "Delete", danger: true, onYes: async () => { setConfirm(null); const r = await deleteService(s.id); if (r && r.ok) showToast("Appointment type deleted."); else showToast((r && r.error) || "Could not delete the service."); } })} onToggleVisible={async () => { const r = await updateService(s.id, { visible: s.visible === false }); if (r && !r.ok) showToast(r.error || "Could not update."); }} />)}
         </div>
         <div>
@@ -2139,7 +2136,7 @@ function ServiceCatalog({ state, addService, updateService, deleteService, addAd
             {!addonForm && <button onClick={startNewAddon} style={{ ...mono, fontSize: 10.5, letterSpacing: "0.06em", textTransform: "uppercase", color: g.color, background: "transparent", border: `1px solid ${g.color}`, borderRadius: 7, padding: "8px 12px", cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}><Plus size={13} /> New add-on</button>}
           </div>
           {addonForm && <AddonForm form={addonForm} setForm={setAddonForm} onSave={saveAddon} onCancel={() => setAddonForm(null)} accent={g.color} />}
-          {groupAddons.length === 0 && !addonForm && <EmptyHint text={`No ${g.label.toLowerCase()} add-ons yet. Add-ons you create here can attach to any ${g.label.toLowerCase()} service.`} />}
+          {groupAddons.length === 0 && !addonForm && <EmptyState icon={Package} title={"No " + g.label.toLowerCase() + " add-ons yet"} text={"Add-ons you create here can attach to any " + g.label.toLowerCase() + " service."} style={{ padding: "30px 16px" }} />}
           {groupAddons.map((a) => <AddonCard key={a.id} addon={a} onEdit={() => setAddonForm({ ...a })} onDelete={() => setConfirm({ title: "Delete this add-on?", message: "\u201c" + a.name + "\u201d will be permanently removed. This cannot be undone.", confirmLabel: "Delete", danger: true, onYes: async () => { setConfirm(null); const r = await deleteAddon(a.id); if (r && r.ok) showToast("Add-on deleted."); else showToast((r && r.error) || "Could not delete the add-on."); } })} onToggleVisible={async () => { const r = await updateAddon(a.id, { visible: a.visible === false }); if (r && !r.ok) showToast(r.error || "Could not update."); }} />)}
         </div>
       </div>
@@ -2495,9 +2492,9 @@ function BusinessSettings({ sessions, showToast }) {
 
       <div style={{ ...mono, fontSize: 10.5, letterSpacing: "0.16em", textTransform: "uppercase", color: STONE, marginBottom: 12 }}>Receipts</div>
       {!payLoaded ? (
-        <div style={{ marginBottom: 28 }}><EmptyHint text={"Loading receipts\u2026"} /></div>
+        <div style={{ ...cardDense, overflow: "hidden", marginBottom: 28 }}>{[0, 1, 2].map((i) => (<div key={i} style={{ padding: "14px 16px", borderTop: i === 0 ? "none" : `1px solid ${LINE}`, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}><div style={{ flex: 1 }}><Skeleton w="38%" h={13} style={{ marginBottom: 7 }} /><Skeleton w="62%" h={10} /></div><Skeleton w={64} h={26} r={7} /></div>))}</div>
       ) : payments.length === 0 ? (
-        <div style={{ marginBottom: 28 }}><EmptyHint text="A receipt is saved here automatically each time a client pays by card, and emailed to the client with a PDF copy. Each one can be viewed, exported as a PDF, or re-sent from here." /></div>
+        <div style={{ ...cardDense, marginBottom: 28 }}><EmptyState icon={FileText} title="No receipts yet" text={"A receipt is saved here automatically each time a client pays by card, and emailed to them as a PDF. You'll be able to view, export, or re-send each one."} style={{ padding: "34px 20px" }} /></div>
       ) : (
         <div style={{ ...cardDense, overflow: "hidden", marginBottom: 28 }}>
           {payments.map((p, i) => (
@@ -2619,6 +2616,33 @@ function RevealController({ dep }) {
   return null;
 }
 
+function Skeleton({ w = "100%", h = 14, r = 8, style }) {
+  return <div aria-hidden="true" className="d1-skel" style={{ width: w, height: h, borderRadius: r, ...style }} />;
+}
+
+function EmptyState({ icon: Icon, title, text, action, style }) {
+  return (
+    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center", padding: "40px 22px", ...style }}>
+      {Icon && <div style={{ width: 54, height: 54, borderRadius: 15, background: CREAM, border: `1px solid ${LINE}`, display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 16 }}><Icon size={23} color={STONE} /></div>}
+      <div style={{ ...display, fontWeight: 600, fontSize: 18, color: INK, marginBottom: text ? 6 : 0 }}>{title}</div>
+      {text && <div style={{ fontSize: 13.5, color: STONE, lineHeight: 1.55, maxWidth: 380, marginBottom: action ? 18 : 0 }}>{text}</div>}
+      {action}
+    </div>
+  );
+}
+
+function PortalSplash() {
+  return (
+    <div style={{ minHeight: "100vh", background: CREAM, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 22, fontFamily: "'Archivo', system-ui, sans-serif" }}>
+      <FontLoader />
+      <img src="/dot1-logo.png" alt="Dot One Media" className="d1-breathe" style={{ height: 46, width: "auto" }} />
+      <div style={{ width: 132, height: 3, borderRadius: 3, background: LINE, overflow: "hidden" }}>
+        <div className="d1-loadbar" style={{ height: "100%", width: "40%", borderRadius: 3, background: RED }} />
+      </div>
+    </div>
+  );
+}
+
 function FontLoader() {
   useEffect(() => {
     const id = "dot1-fonts"; if (document.getElementById(id)) return;
@@ -2627,7 +2651,7 @@ function FontLoader() {
     document.head.appendChild(l);
     if (!document.getElementById("dot1-global")) {
       const s = document.createElement("style"); s.id = "dot1-global";
-      s.textContent = "@keyframes d1-pop{from{opacity:0;transform:scale(.96) translateY(6px)}to{opacity:1;transform:none}}@keyframes d1-fade{from{opacity:0}to{opacity:1}}::selection{background:color-mix(in srgb, var(--d1-accent,#e23b2e) 22%, transparent);}input::placeholder,textarea::placeholder{color:var(--d1-faint,#9a988f);opacity:1;}.d1-reveal{opacity:0;transform:translateY(14px);transition:opacity .55s cubic-bezier(.2,.7,.2,1),transform .55s cubic-bezier(.2,.7,.2,1);will-change:opacity,transform;}.d1-reveal.d1-in{opacity:1;transform:none;}.d1-modal{animation:d1-pop .3s cubic-bezier(.2,.85,.3,1) both;}.d1-overlay{animation:d1-fade .22s ease both;}.d1-lift{transition:transform .16s cubic-bezier(.2,.7,.2,1),box-shadow .18s ease,border-color .16s ease;}.d1-lift:hover{transform:translateY(-2px);box-shadow:0 3px 10px rgba(26,26,23,.05),0 16px 34px rgba(26,26,23,.09);}button{transition:background-color .16s ease,border-color .16s ease,color .16s ease,box-shadow .16s ease,transform .12s ease;}button:active{transform:translateY(1px);}button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-visible,[role=switch]:focus-visible{outline:2px solid color-mix(in srgb, var(--d1-accent,#e23b2e) 55%, transparent);outline-offset:2px;}@media (prefers-reduced-motion: reduce){.d1-reveal{opacity:1!important;transform:none!important;transition:none!important;}.d1-modal,.d1-overlay{animation:none!important;}.d1-lift{transition:none!important;}.d1-lift:hover{transform:none!important;}button{transition:none!important;}button:active{transform:none!important;}}";
+      s.textContent = "@keyframes d1-pop{from{opacity:0;transform:scale(.96) translateY(6px)}to{opacity:1;transform:none}}@keyframes d1-fade{from{opacity:0}to{opacity:1}}@keyframes d1-shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}@keyframes d1-breathe{0%,100%{opacity:.5}50%{opacity:.95}}@keyframes d1-loadbar{0%{transform:translateX(-120%)}100%{transform:translateX(330%)}}.d1-skel{background:linear-gradient(90deg,var(--d1-line,#e2ded4),color-mix(in srgb,var(--d1-line,#e2ded4) 45%,var(--d1-paper,#fff)),var(--d1-line,#e2ded4));background-size:200% 100%;animation:d1-shimmer 1.4s ease-in-out infinite;}.d1-breathe{animation:d1-breathe 1.7s ease-in-out infinite;}.d1-loadbar{animation:d1-loadbar 1.15s cubic-bezier(.5,.1,.5,.9) infinite;}::selection{background:color-mix(in srgb, var(--d1-accent,#e23b2e) 22%, transparent);}input::placeholder,textarea::placeholder{color:var(--d1-faint,#9a988f);opacity:1;}.d1-reveal{opacity:0;transform:translateY(14px);transition:opacity .55s cubic-bezier(.2,.7,.2,1),transform .55s cubic-bezier(.2,.7,.2,1);will-change:opacity,transform;}.d1-reveal.d1-in{opacity:1;transform:none;}.d1-modal{animation:d1-pop .3s cubic-bezier(.2,.85,.3,1) both;}.d1-overlay{animation:d1-fade .22s ease both;}.d1-lift{transition:transform .16s cubic-bezier(.2,.7,.2,1),box-shadow .18s ease,border-color .16s ease;}.d1-lift:hover{transform:translateY(-2px);box-shadow:0 3px 10px rgba(26,26,23,.05),0 16px 34px rgba(26,26,23,.09);}button{transition:background-color .16s ease,border-color .16s ease,color .16s ease,box-shadow .16s ease,transform .12s ease;}button:active{transform:translateY(1px);}button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-visible,[role=switch]:focus-visible{outline:2px solid color-mix(in srgb, var(--d1-accent,#e23b2e) 55%, transparent);outline-offset:2px;}@media (prefers-reduced-motion: reduce){.d1-reveal{opacity:1!important;transform:none!important;transition:none!important;}.d1-modal,.d1-overlay{animation:none!important;}.d1-lift{transition:none!important;}.d1-lift:hover{transform:none!important;}button{transition:none!important;}button:active{transform:none!important;}.d1-skel,.d1-breathe,.d1-loadbar{animation:none!important;}}";
       document.head.appendChild(s);
     }
   }, []);
