@@ -51,6 +51,7 @@ function applyTheme(key, accent) {
 const display = { fontFamily: "'Bodoni Moda', Georgia, serif" };
 const mono = { fontFamily: "'IBM Plex Mono', ui-monospace, monospace" };
 const card = { background: PAPER, border: `1px solid ${LINE}`, borderRadius: 16, boxShadow: "0 1px 2px rgba(26,26,23,0.03), 0 12px 34px rgba(26,26,23,0.05)" };
+const cardDense = { background: PAPER, border: `1px solid ${LINE}`, borderRadius: 12, boxShadow: "0 1px 2px rgba(26,26,23,0.03), 0 6px 16px rgba(26,26,23,0.045)" };
 
 const GROUPS = {
   video: { label: "Video", color: "#e23b2e", soft: "#e23b2e", bg: "#fbeeed", border: "#f2cdc9", text: "#b5271b", Icon: Film },
@@ -1728,7 +1729,7 @@ function AdminSessions({ state, adminId, setAdminId, requestSetStage, addComment
         })()}
 
         {(status === "active" || (Array.isArray(session.charges) && session.charges.length > 0)) && (
-          <div style={{ marginBottom: 22, border: `1px solid ${LINE}`, borderRadius: 10, padding: "15px 16px", background: "#faf8f3" }}>
+          <div style={{ marginBottom: 22, ...cardDense, padding: "15px 16px" }}>
             <div style={{ ...mono, fontSize: 10, letterSpacing: "0.14em", textTransform: "uppercase", color: STONE, marginBottom: 12 }}>Payment requests</div>
             {Array.isArray(session.charges) && session.charges.length > 0 && (
               <div style={{ marginBottom: status === "active" ? 14 : 0 }}>
@@ -1802,7 +1803,7 @@ function AdminSessions({ state, adminId, setAdminId, requestSetStage, addComment
         </div>
         <div style={{ ...mono, fontSize: 9.5, color: FAINT, marginBottom: 26, letterSpacing: "0.04em" }}>You'll be asked to confirm — advancing sends the client a status email.</div>
 
-        <div style={{ background: CREAM, border: `1px solid ${LINE}`, borderRadius: 9, padding: "16px 18px", marginBottom: 26 }}>
+        <div style={{ ...cardDense, padding: "16px 18px", marginBottom: 22 }}>
           <div style={{ ...mono, fontSize: 10, letterSpacing: "0.16em", textTransform: "uppercase", color: STONE, marginBottom: 12, display: "flex", alignItems: "center", gap: 7 }}><FileText size={13} /> Production brief{session.brief && session.brief.submitted && <span style={{ ...mono, fontSize: 8.5, letterSpacing: "0.08em", color: "#2e7d4f", background: "#eaf7ef", border: "1px solid #bfe6cc", borderRadius: 20, padding: "3px 8px" }}>SUBMITTED</span>}</div>
           {session.brief && BRIEF_FIELDS.some((f) => (session.brief[f.key] || "").trim()) ? (
             BRIEF_FIELDS.filter((f) => (session.brief[f.key] || "").trim()).map((f) => (
@@ -1814,7 +1815,7 @@ function AdminSessions({ state, adminId, setAdminId, requestSetStage, addComment
           ) : <div style={{ fontSize: 12.5, color: FAINT, fontStyle: "italic" }}>The client hasn't filled out their production brief yet.</div>}
         </div>
 
-        <div style={{ background: CREAM, border: `1px solid ${LINE}`, borderRadius: 9, padding: "16px 18px", marginBottom: 26 }}>
+        <div style={{ ...cardDense, padding: "16px 18px", marginBottom: 22 }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
             <div style={{ ...mono, fontSize: 10, letterSpacing: "0.16em", textTransform: "uppercase", color: STONE, display: "flex", alignItems: "center", gap: 7 }}><Link2 size={13} /> Delivery & review links</div>
             {!editLinks ? <button onClick={() => setEditLinks(true)} style={{ ...mono, fontSize: 10, letterSpacing: "0.08em", textTransform: "uppercase", color: sg.color, background: "transparent", border: `1px solid ${LINE}`, borderRadius: 6, padding: "6px 10px", cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}><Pencil size={11} /> Edit</button> : (
@@ -1835,13 +1836,13 @@ function AdminSessions({ state, adminId, setAdminId, requestSetStage, addComment
           )}
         </div>
 
-        <div style={{ background: CREAM, border: `1px solid ${LINE}`, borderRadius: 9, padding: "16px 18px", marginBottom: 26 }}>
+        <div style={{ ...cardDense, padding: "16px 18px", marginBottom: 22 }}>
           <div style={{ ...mono, fontSize: 10, letterSpacing: "0.16em", textTransform: "uppercase", color: STONE, marginBottom: 4, display: "flex", alignItems: "center", gap: 7 }}><PackageCheck size={13} /> Deliverables vault</div>
           <div style={{ ...mono, fontSize: 9.5, color: FAINT, marginBottom: 12, lineHeight: 1.5 }}>Extra labeled downloads the client sees in their vault (the Final video and photo links above appear there automatically).</div>
           {(session.deliverables || []).length > 0 && (
             <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 12 }}>
               {(session.deliverables || []).map((d, i) => (
-                <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, background: PAPER, border: `1px solid ${LINE}`, borderRadius: 8, padding: "9px 12px" }}>
+                <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, background: CREAM, border: `1px solid ${LINE}`, borderRadius: 8, padding: "9px 12px" }}>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: 13, fontWeight: 600, color: INK }}>{d.label}</div>
                     <div style={{ ...mono, fontSize: 9.5, color: STONE, marginTop: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{d.note ? d.note + " \u00b7 " : ""}{d.url}</div>
@@ -1901,7 +1902,7 @@ function AdminCalendar({ state, onSelectSession }) {
           <button key={k} onClick={() => setGroup(k)} style={{ display: "flex", alignItems: "center", gap: 8, padding: "9px 15px", borderRadius: 8, cursor: "pointer", fontSize: 13, border: `1px solid ${active ? gg.color : LINE}`, background: active ? gg.color : PAPER, color: active ? "#fff" : STONE }}><gg.Icon size={14} /> {gg.label} <span style={{ ...mono, fontSize: 10, opacity: 0.8 }}>{count}</span></button>
         ); })}
       </div>
-      <div style={{ background: PAPER, border: `1px solid ${LINE}`, borderRadius: 12, padding: "18px 20px" }}>
+      <div style={{ ...cardDense, padding: "18px 20px" }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}><g.Icon size={17} color={g.color} /><span style={{ ...display, fontWeight: 700, fontSize: 20, color: INK }}>{g.label} Calendar</span></div>
           <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
@@ -1992,7 +1993,7 @@ function AvailabilityManager({ availability, addAvailability, removeAvailability
     <div>
       <div style={{ ...mono, fontSize: 11, letterSpacing: "0.18em", textTransform: "uppercase", color: RED, marginBottom: 6, display: "flex", alignItems: "center", gap: 8 }}><CalendarCheck size={13} /> Open availability</div>
       <div style={{ fontSize: 13, color: BODY, lineHeight: 1.5, marginBottom: 16, maxWidth: 560 }}>Open specific days with the hours you're available. Clients can only book a day and time you have opened here.</div>
-      <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "flex-end", background: PAPER, border: `1px solid ${LINE}`, borderRadius: 10, padding: "16px", marginBottom: 24 }}>
+      <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "flex-end", ...cardDense, padding: "16px", marginBottom: 24 }}>
         <div><FieldLabel>Day</FieldLabel><input type="date" value={date} onChange={(e) => setDate(e.target.value)} style={{ ...inputStyle, width: "auto" }} /></div>
         <div><FieldLabel>Open from</FieldLabel><input type="time" value={start} onChange={(e) => setStart(e.target.value)} style={{ ...inputStyle, width: "auto" }} /></div>
         <div><FieldLabel>Until</FieldLabel><input type="time" value={end} onChange={(e) => setEnd(e.target.value)} style={{ ...inputStyle, width: "auto" }} /></div>
@@ -2131,7 +2132,7 @@ function AddonForm({ form, setForm, onSave, onCancel, accent }) {
 function ServiceCard({ svc, groupAddons, onEdit, onDelete, onToggleVisible }) {
   const attached = svc.addonMode === "group" ? groupAddons : groupAddons.filter((a) => (svc.addonIds || []).includes(a.id));
   return (
-    <div style={{ border: `1px solid ${LINE}`, borderRadius: 10, padding: "14px 16px", marginBottom: 10, background: PAPER }}>
+    <div style={{ ...cardDense, padding: "14px 16px", marginBottom: 10 }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 10 }}>
         <div>
           <div style={{ ...display, fontWeight: 600, fontSize: 16, color: INK }}>{svc.name}{svc.visible === false && <span style={{ ...mono, fontSize: 8.5, letterSpacing: "0.08em", textTransform: "uppercase", color: STONE, background: CREAM, border: `1px solid ${LINE}`, borderRadius: 4, padding: "2px 6px", marginLeft: 8, verticalAlign: "middle" }}>Hidden</span>}</div>
@@ -2147,7 +2148,7 @@ function ServiceCard({ svc, groupAddons, onEdit, onDelete, onToggleVisible }) {
 
 function AddonCard({ addon, onEdit, onDelete, onToggleVisible }) {
   return (
-    <div style={{ border: `1px solid ${LINE}`, borderRadius: 9, padding: "11px 14px", marginBottom: 8, background: PAPER, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10 }}>
+    <div style={{ ...cardDense, borderRadius: 11, padding: "11px 14px", marginBottom: 8, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10 }}>
       <div><div style={{ fontSize: 13.5, color: INK, fontWeight: 500 }}>{addon.name}{addon.visible === false && <span style={{ ...mono, fontSize: 8, letterSpacing: "0.08em", textTransform: "uppercase", color: STONE, marginLeft: 6 }}>Hidden</span>}</div><div style={{ ...mono, fontSize: 10, color: STONE, marginTop: 2, letterSpacing: "0.04em" }}>{addon.price ? `+$${addon.price}` : "no charge"}{addon.addTime ? ` · +${addon.addTime} min` : ""}</div></div>
       <div style={{ display: "flex", gap: 6 }}><IconBtn onClick={onToggleVisible}>{addon.visible === false ? <EyeOff size={13} /> : <Eye size={13} />}</IconBtn><IconBtn onClick={onEdit}><Pencil size={13} /></IconBtn><IconBtn onClick={onDelete} danger><Trash2 size={13} /></IconBtn></div>
     </div>
@@ -2335,7 +2336,7 @@ function BusinessSettings({ sessions, showToast }) {
     showToast("Analytics exported.");
   };
   const statCard = (val, label, color) => (
-    <div style={{ border: `1px solid ${LINE}`, borderRadius: 10, padding: "14px 16px", background: PAPER }}>
+    <div style={{ ...cardDense, borderRadius: 11, padding: "14px 16px" }}>
       <div style={{ ...display, fontSize: 24, color: color || INK }}>{val}</div>
       <div style={{ ...mono, fontSize: 9.5, letterSpacing: "0.1em", textTransform: "uppercase", color: STONE, marginTop: 2 }}>{label}</div>
     </div>
@@ -2376,7 +2377,7 @@ function BusinessSettings({ sessions, showToast }) {
         <div style={{ marginBottom: 28 }}><EmptyHint text="Charts will appear here as bookings come in. They update automatically and follow the date range above." /></div>
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 16, marginBottom: 28 }}>
-          <div style={{ border: `1px solid ${LINE}`, borderRadius: 12, padding: "18px 20px", background: PAPER }}>
+          <div style={{ ...cardDense, padding: "16px 18px" }}>
             <div style={{ ...mono, fontSize: 10, letterSpacing: "0.12em", textTransform: "uppercase", color: STONE, marginBottom: 16 }}>Revenue by service line</div>
             <div style={{ display: "flex", gap: 22, alignItems: "center", flexWrap: "wrap" }}>
               <DonutChart segments={lineSegments} centerLabel={compactMoney(bookedRevenue)} centerSub="booked" />
@@ -2392,14 +2393,14 @@ function BusinessSettings({ sessions, showToast }) {
             </div>
           </div>
 
-          <div style={{ border: `1px solid ${LINE}`, borderRadius: 12, padding: "18px 20px", background: PAPER }}>
+          <div style={{ ...cardDense, padding: "16px 18px" }}>
             <div style={{ ...mono, fontSize: 10, letterSpacing: "0.12em", textTransform: "uppercase", color: STONE, marginBottom: 16 }}>Bookings by session type</div>
             <HBars items={typeItems} />
             {byType.length > typeItems.length && <div style={{ ...mono, fontSize: 9.5, color: FAINT, marginTop: 12 }}>Showing top {typeItems.length} of {byType.length} types{" \u00b7 "}full list in the analytics export.</div>}
           </div>
 
           {byMonth.length >= 2 && (
-            <div style={{ border: `1px solid ${LINE}`, borderRadius: 12, padding: "18px 20px", background: PAPER }}>
+            <div style={{ ...cardDense, padding: "16px 18px" }}>
               <div style={{ ...mono, fontSize: 10, letterSpacing: "0.12em", textTransform: "uppercase", color: STONE, marginBottom: 16 }}>Revenue by month</div>
               <MiniColumns items={monthItems} />
             </div>
@@ -2413,7 +2414,7 @@ function BusinessSettings({ sessions, showToast }) {
       ) : payments.length === 0 ? (
         <div style={{ marginBottom: 28 }}><EmptyHint text="A receipt is saved here automatically each time a client pays by card, and emailed to the client with a PDF copy. Each one can be viewed, exported as a PDF, or re-sent from here." /></div>
       ) : (
-        <div style={{ border: `1px solid ${LINE}`, borderRadius: 12, overflow: "hidden", marginBottom: 28 }}>
+        <div style={{ ...cardDense, overflow: "hidden", marginBottom: 28 }}>
           {payments.map((p, i) => (
             <div key={p.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "13px 16px", borderTop: i === 0 ? "none" : `1px solid ${LINE}`, background: PAPER, flexWrap: "wrap" }}>
               <div style={{ flex: 1, minWidth: 210 }}>
