@@ -172,7 +172,37 @@ export function balanceEmail(s: any, link: string, balance: number): string {
   return shell(brand, "Balance Due", "Your balance is ready to pay", body);
 }
 
-export async function sendEmail(opts: { to?: string; subject: string; html: string; replyTo?: string }): Promise<void> {
+export function chargeRequestEmail(s: any, charge: any, link: string): string {
+  const brand = brandFor(s);
+  const amt = "$" + ((Number(charge.amountCents) || 0) / 100).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const body = para(`Dot One Media has added an item to your <strong style="color:${INK};">${esc(s.type) || "project"}</strong> and sent you a request to pay for it.`) +
+    detailRows([
+      ["For", esc(charge.label)],
+      ["Amount", amt],
+    ]) +
+    button(brand, link, "Pay this request") +
+    para("You can also pay it any time from your client portal. Once it\u2019s paid, we\u2019ll email you a receipt.");
+  return shell(brand, "Payment Request", "You have a payment request", body);
+}
+
+export function receiptEmail(p: any): string {
+  const KL: Record<string, string> = { retainer: "Retainer", deposit: "Deposit", half: "Deposit", full: "Full payment", balance: "Balance payment", charge: "Add-on" };
+  const kindLabel = KL[String(p.kind || "").toLowerCase()] || "Payment";
+  const amt = "$" + ((Number(p.amount_cents) || 0) / 100).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  let dt = "";
+  try { dt = new Date(p.paid_at).toLocaleString("en-US", { year: "numeric", month: "long", day: "numeric", hour: "numeric", minute: "2-digit", timeZone: "America/Anchorage" }); } catch (e) {}
+  const card = p.card_brand ? (esc(String(p.card_brand).replace(/_/g, " ").replace(/\b\w/g, (c: string) => c.toUpperCase())) + (p.card_last4 ? " \u00b7\u00b7\u00b7\u00b7 " + esc(p.card_last4) : "")) : "Card";
+  const body = para("Thank you, " + esc(p.client_name || "there") + ". We\u2019ve received your payment. Your receipt is below, and a PDF copy is attached for your records.")
+    + detailRows([
+        ["Amount paid", amt],
+        ["For", esc(p.service || "Session") + " \u00b7 " + kindLabel],
+        ["Date", esc(dt)],
+        ["Payment method", card],
+      ]);
+  return shell(BRAND_MAIN, "Payment Receipt", "Payment received", body);
+}
+
+export async function sendEmail(opts: { to?: string; subject: string; html: string; replyTo?: string; attachments?: Array<{ filename: string; content: string }> }): Promise<void> {
   const key = process.env.RESEND_API_KEY;
   if (!key || !opts.to) return;
   const from = process.env.EMAIL_FROM || "Dot One Media <notifications@dot1.media>";
@@ -180,7 +210,7 @@ export async function sendEmail(opts: { to?: string; subject: string; html: stri
     await fetch("https://api.resend.com/emails", {
       method: "POST",
       headers: { Authorization: "Bearer " + key, "Content-Type": "application/json" },
-      body: JSON.stringify({ from, to: [opts.to], subject: opts.subject, html: opts.html, reply_to: opts.replyTo }),
+      body: JSON.stringify({ from, to: [opts.to], subject: opts.subject, html: opts.html, reply_to: opts.replyTo, ...(opts.attachments && opts.attachments.length ? { attachments: opts.attachments } : {}) }),
     });
   } catch (e) {
     /* fail-soft */

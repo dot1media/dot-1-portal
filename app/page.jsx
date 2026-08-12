@@ -8,7 +8,7 @@ import {
   Plus, Trash2, Pencil, Check, AlertTriangle, Tag, Link2, ListPlus,
   Star, CreditCard, Wallet, CalendarDays, ChevronLeft, ChevronRight,
   ArrowRight, ArrowLeft, CalendarClock, X, Copy, LogIn, Sparkles,
-  MessageCircle, Smartphone, Link as LinkIcon, Ban, EyeOff, XCircle, CalendarPlus, ChevronDown, Settings, Download, ListChecks, FileText, Palette,
+  MessageCircle, Smartphone, Link as LinkIcon, Ban, EyeOff, XCircle, CalendarPlus, ChevronDown, Settings, Download, ListChecks, FileText, Palette, Mail,
 } from "lucide-react";
 
 // Persist to the browser's localStorage (works in a real browser, unlike the
@@ -120,6 +120,10 @@ const money = (n) => "$" + (Number(n) || 0).toLocaleString();
 const compactMoney = (n) => { n = Number(n) || 0; if (n >= 10000) return "$" + Math.round(n / 1000) + "k"; if (n >= 1000) return "$" + (n / 1000).toFixed(1) + "k"; return "$" + Math.round(n); };
 const MONTH_ABBR = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 const monthShort = (k) => { const p = String(k).split("-"); return (MONTH_ABBR[parseInt(p[1], 10) - 1] || p[1] || "") + " " + (p[0] || "").slice(2); };
+const payKindLabel = (k) => ({ retainer: "Retainer", deposit: "Deposit", half: "Deposit", full: "Full payment", balance: "Balance", charge: "Add-on" }[String(k || "").toLowerCase()] || "Payment");
+const payCardLabel = (p) => (p && p.card_brand) ? (String(p.card_brand).replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()) + (p.card_last4 ? " \u00b7\u00b7\u00b7\u00b7 " + p.card_last4 : "")) : "Card";
+const payMoney = (cents) => "$" + ((Number(cents) || 0) / 100).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const payDateShort = (iso) => { try { return new Date(iso).toLocaleString("en-US", { month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit", timeZone: "America/Anchorage" }); } catch (e) { return ""; } };
 
 const DEFAULT_STATE = {
   sessions: [],
@@ -394,6 +398,7 @@ export default function App() {
   const resetThemeLocal = () => { applyTheme("default", ""); setThemeKey("default"); setCustomAccent(""); try { localStorage.removeItem("dot1_theme_key"); localStorage.removeItem("dot1_theme_accent"); } catch (e) {} };
   const requestReset = async (email) => { try { await fetch("/api/reset-request", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ email: (email || "").trim() }) }); } catch (e) {} };
   const requestSendBalance = async (session) => { try { const res = await fetch("/api/pay-balance", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ sessionId: session.id }) }); const data = await res.json().catch(() => ({})); if (res.ok) { showToast("Balance payment link emailed to " + session.clientEmail + "."); setState((s) => ({ ...s, sessions: s.sessions.map((x) => x.id === session.id ? { ...x, balanceStatus: "sent" } : x) })); } else { showToast(data.error || "Could not send the balance link."); } } catch (e) { showToast("Network error."); } };
+  const requestSendCharge = async (session, label, amountDollars) => { try { const res = await fetch("/api/charge", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ sessionId: session.id, label, amount: amountDollars }) }); const data = await res.json().catch(() => ({})); if (res.ok && data.charge) { showToast("Payment request sent to " + session.clientEmail + "."); setState((s) => ({ ...s, sessions: s.sessions.map((x) => x.id === session.id ? { ...x, charges: [...(x.charges || []), data.charge] } : x) })); return { ok: true }; } else { showToast(data.error || "Could not send the payment request."); return { ok: false }; } } catch (e) { showToast("Network error."); return { ok: false }; } };
 
   const resetDemo = () => setConfirm({ title: "Reset the demo?", message: "This clears all sessions, services, add-ons, and booking links back to the starting state.", confirmLabel: "Reset everything", danger: true, onYes: async () => { setState(DEFAULT_STATE); try { await storage.delete(STORAGE_KEY); } catch (e) {} showToast("Demo reset."); setConfirm(null); } });
   const requestCancelBooking = (session) => setConfirm({ title: "Cancel this booking?", message: "This marks " + session.clientName + "'s " + session.type + " as cancelled. The client will see it as cancelled in their portal.", confirmLabel: "Cancel booking", danger: true, onYes: () => { patchSession(session.id, { status: "cancelled" }); showToast("Booking cancelled."); setConfirm(null); } });
@@ -457,7 +462,7 @@ export default function App() {
               <SubTab active={adminTab === "services"} onClick={() => setAdminTab("services")} label="Services & Add-ons" />
               <SubTab active={adminTab === "business"} onClick={() => setAdminTab("business")} label="Business Settings" />
             </div>
-            {adminTab === "sessions" && <AdminSessions state={state} adminId={adminId} setAdminId={setAdminId} requestSetStage={requestSetStage} addComment={addComment} patchSession={patchSession} onReschedule={adminReschedule} slotTaken={slotTaken} markMessagesRead={markMessagesRead} onCancelBooking={requestCancelBooking} onCloseBooking={requestCloseBooking} onReopenBooking={requestReopenBooking} onSendBalance={requestSendBalance} onDeleteBooking={requestDeleteBooking} />}
+            {adminTab === "sessions" && <AdminSessions state={state} adminId={adminId} setAdminId={setAdminId} requestSetStage={requestSetStage} addComment={addComment} patchSession={patchSession} onReschedule={adminReschedule} slotTaken={slotTaken} markMessagesRead={markMessagesRead} onCancelBooking={requestCancelBooking} onCloseBooking={requestCloseBooking} onReopenBooking={requestReopenBooking} onSendBalance={requestSendBalance} onSendCharge={requestSendCharge} onDeleteBooking={requestDeleteBooking} />}
             {adminTab === "calendar" && <AdminCalendar state={state} onSelectSession={(id) => { setAdminId(id); setAdminTab("sessions"); }} />}
             {adminTab === "links" && <DirectLinks state={state} createDirectLink={createDirectLink} revokeDirectLink={revokeDirectLink} openDirectLink={openDirectLink} showToast={showToast} />}
             {adminTab === "availability" && <><CalendarSync showToast={showToast} /><AvailabilityManager availability={state.availability} addAvailability={addAvailability} removeAvailability={removeAvailability} showToast={showToast} /></>}
@@ -1454,6 +1459,30 @@ function ClientView({ session, sessions, clientId, setClientId, addComment, onRe
         </div>
       )}
 
+      {Array.isArray(session.charges) && session.charges.length > 0 && status === "active" && (
+        <div style={{ marginTop: 22, border: `1px solid ${session.charges.some((c) => c.status !== "paid") ? "rgba(226,59,46,0.28)" : LINE}`, borderRadius: 12, padding: "18px 20px", background: PAPER }}>
+          <div style={{ ...mono, fontSize: 10.5, letterSpacing: "0.16em", textTransform: "uppercase", color: session.charges.some((c) => c.status !== "paid") ? grp.color : STONE, marginBottom: 5, display: "flex", alignItems: "center", gap: 8 }}>{session.charges.some((c) => c.status !== "paid") && <span style={{ width: 6, height: 6, borderRadius: "50%", background: grp.color, display: "inline-block" }} />}Payment requests</div>
+          <div style={{ fontSize: 12.5, color: STONE, marginBottom: 4 }}>Extra items your studio has added to this project.</div>
+          {session.charges.map((c) => (
+            <div key={c.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, padding: "13px 0", borderTop: `1px solid ${LINE}`, flexWrap: "wrap" }}>
+              <div style={{ minWidth: 0, flex: "1 1 auto" }}>
+                <div style={{ fontSize: 14.5, color: c.status === "paid" ? STONE : INK, fontWeight: 600 }}>{c.label}</div>
+                <div style={{ ...mono, fontSize: 10, color: c.status === "paid" ? "#3f7a3f" : FAINT, marginTop: 3 }}>{c.status === "paid" ? ("Paid" + (c.cardLast4 ? " \u00b7 " + (c.cardBrand ? String(c.cardBrand).replace(/_/g, " ") : "Card") + " \u00b7\u00b7\u00b7\u00b7 " + c.cardLast4 : "")) : "Requested by Dot One Media"}</div>
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: 14, flexShrink: 0 }}>
+                <span style={{ fontSize: 17, color: c.status === "paid" ? STONE : INK, fontWeight: 600 }}>{money((Number(c.amountCents) || 0) / 100)}</span>
+                {c.status === "paid" ? (
+                  <span style={{ ...mono, fontSize: 10, letterSpacing: "0.05em", textTransform: "uppercase", color: "#3f7a3f", border: "1px solid rgba(63,122,63,0.3)", borderRadius: 20, padding: "5px 12px" }}>Paid</span>
+                ) : (
+                  <button onClick={() => { if (c.squareLink) window.location.href = c.squareLink; }} style={{ ...btnSolid, background: grp.color, padding: "9px 15px" }}>Pay now</button>
+                )}
+              </div>
+            </div>
+          ))}
+          <div style={{ ...mono, fontSize: 9, color: FAINT, marginTop: 11 }}>Payments are processed securely through Square.</div>
+        </div>
+      )}
+
       {status === "active" && (
         <div style={{ marginTop: 22 }}>
           <button onClick={() => setBriefOpen(!briefOpen)} style={{ width: "100%", display: "flex", alignItems: "center", gap: 12, background: PAPER, border: `1px solid ${LINE}`, borderRadius: briefOpen ? "12px 12px 0 0" : 12, padding: "15px 18px", cursor: "pointer", textAlign: "left" }}>
@@ -1613,7 +1642,10 @@ function ClientActionPanel({ session, grp, draft, setDraft, onSubmit }) {
 }
 
 /* ============================ ADMIN — SESSIONS ============================ */
-function AdminSessions({ state, adminId, setAdminId, requestSetStage, addComment, patchSession, onReschedule, slotTaken, markMessagesRead, onCancelBooking, onCloseBooking, onReopenBooking, onSendBalance, onDeleteBooking }) {
+function AdminSessions({ state, adminId, setAdminId, requestSetStage, addComment, patchSession, onReschedule, slotTaken, markMessagesRead, onCancelBooking, onCloseBooking, onReopenBooking, onSendBalance, onSendCharge, onDeleteBooking }) {
+  const [chgLabel, setChgLabel] = useState("");
+  const [chgAmt, setChgAmt] = useState("");
+  useEffect(() => { setChgLabel(""); setChgAmt(""); }, [adminId]);
   const isMobile = useIsMobile();
   const session = state.sessions.find((s) => s.id === adminId) || state.sessions[0] || null;
   const [msg, setMsg] = useState("");
@@ -1691,6 +1723,35 @@ function AdminSessions({ state, adminId, setAdminId, requestSetStage, addComment
             </div>
           );
         })()}
+
+        {(status === "active" || (Array.isArray(session.charges) && session.charges.length > 0)) && (
+          <div style={{ marginBottom: 22, border: `1px solid ${LINE}`, borderRadius: 10, padding: "15px 16px", background: "#faf8f3" }}>
+            <div style={{ ...mono, fontSize: 10, letterSpacing: "0.14em", textTransform: "uppercase", color: STONE, marginBottom: 12 }}>Payment requests</div>
+            {Array.isArray(session.charges) && session.charges.length > 0 && (
+              <div style={{ marginBottom: status === "active" ? 14 : 0 }}>
+                {session.charges.map((c) => (
+                  <div key={c.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, padding: "8px 0", borderTop: `1px solid ${LINE}` }}>
+                    <div style={{ minWidth: 0 }}>
+                      <div style={{ fontSize: 13, color: INK, fontWeight: 500 }}>{c.label}</div>
+                      <div style={{ ...mono, fontSize: 9.5, color: FAINT }}>{c.status === "paid" ? ("Paid" + (c.cardLast4 ? " \u00b7 " + (c.cardBrand ? String(c.cardBrand).replace(/_/g, " ") : "Card") + " \u00b7\u00b7\u00b7\u00b7 " + c.cardLast4 : "")) : "Awaiting payment"}</div>
+                    </div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 9, flexShrink: 0 }}>
+                      <span style={{ fontSize: 13, color: c.status === "paid" ? STONE : INK, fontWeight: 500 }}>{money((Number(c.amountCents) || 0) / 100)}</span>
+                      <span style={{ ...mono, fontSize: 9, letterSpacing: "0.06em", textTransform: "uppercase", color: c.status === "paid" ? "#3f7a3f" : "#a97a2e" }}>{c.status === "paid" ? "Paid" : "Pending"}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+            {status === "active" && (
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+                <input value={chgLabel} onChange={(e) => setChgLabel(e.target.value)} placeholder={"What's it for? (USB of files, overtime\u2026)"} style={{ flex: "1 1 200px", minWidth: 0, border: `1px solid ${LINE}`, borderRadius: 7, padding: "9px 11px", fontSize: 13, color: INK, background: PAPER, fontFamily: "inherit" }} />
+                <input value={chgAmt} onChange={(e) => setChgAmt(e.target.value.replace(/[^0-9.]/g, ""))} inputMode="decimal" placeholder="$0.00" style={{ width: 92, border: `1px solid ${LINE}`, borderRadius: 7, padding: "9px 11px", fontSize: 13, color: INK, background: PAPER, fontFamily: "inherit" }} />
+                <button onClick={async () => { const amt = parseFloat(chgAmt); if (!chgLabel.trim() || !(amt > 0)) { showToast("Add a description and an amount."); return; } await onSendCharge(session, chgLabel.trim(), amt); }} style={{ ...mono, fontSize: 10, letterSpacing: "0.06em", textTransform: "uppercase", color: "#fff", background: "#c0392b", border: "none", borderRadius: 7, padding: "9px 14px", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 6 }}><Wallet size={12} /> Send request</button>
+              </div>
+            )}
+          </div>
+        )}
 
         {status === "active" ? (
           <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
@@ -1788,9 +1849,9 @@ function AdminSessions({ state, adminId, setAdminId, requestSetStage, addComment
             </div>
           )}
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-            <input value={delivLabel} onChange={(e) => setDelivLabel(e.target.value)} placeholder="Label (e.g. Social Cut \u00b7 1080\u00d71920)" style={{ border: `1px solid ${LINE}`, borderRadius: 7, padding: "9px 11px", fontSize: 12.5, fontFamily: "inherit", background: PAPER, color: BODY, boxSizing: "border-box" }} />
+            <input value={delivLabel} onChange={(e) => setDelivLabel(e.target.value)} placeholder={"Label (e.g. Social Cut \u00b7 1080\u00d71920)"} style={{ border: `1px solid ${LINE}`, borderRadius: 7, padding: "9px 11px", fontSize: 12.5, fontFamily: "inherit", background: PAPER, color: BODY, boxSizing: "border-box" }} />
             <input value={delivUrl} onChange={(e) => setDelivUrl(e.target.value)} placeholder="Download URL" style={{ border: `1px solid ${LINE}`, borderRadius: 7, padding: "9px 11px", fontSize: 12.5, fontFamily: "inherit", background: PAPER, color: BODY, boxSizing: "border-box" }} />
-            <input value={delivNote} onChange={(e) => setDelivNote(e.target.value)} placeholder="Note (optional, e.g. ProRes 422 \u00b7 18.7 GB)" style={{ border: `1px solid ${LINE}`, borderRadius: 7, padding: "9px 11px", fontSize: 12.5, fontFamily: "inherit", background: PAPER, color: BODY, boxSizing: "border-box" }} />
+            <input value={delivNote} onChange={(e) => setDelivNote(e.target.value)} placeholder={"Note (optional, e.g. ProRes 422 \u00b7 18.7 GB)"} style={{ border: `1px solid ${LINE}`, borderRadius: 7, padding: "9px 11px", fontSize: 12.5, fontFamily: "inherit", background: PAPER, color: BODY, boxSizing: "border-box" }} />
             <button onClick={addDeliverable} disabled={!delivLabel.trim() || !delivUrl.trim()} style={{ ...mono, fontSize: 10, letterSpacing: "0.08em", textTransform: "uppercase", color: "#fff", background: (delivLabel.trim() && delivUrl.trim()) ? sg.color : FAINT, border: "none", borderRadius: 7, padding: "9px 13px", cursor: (delivLabel.trim() && delivUrl.trim()) ? "pointer" : "default", alignSelf: "flex-start", display: "flex", alignItems: "center", gap: 6 }}><Plus size={12} /> Add deliverable</button>
           </div>
         </div>
@@ -2212,6 +2273,11 @@ function BusinessSettings({ sessions, showToast }) {
   const [end, setEnd] = useState("");
   const [status, setStatus] = useState(null);
   useEffect(() => { fetch("/api/business-status").then((r) => r.json()).then((d) => setStatus(d || {})).catch(() => {}); }, []);
+  const [payments, setPayments] = useState([]);
+  const [payLoaded, setPayLoaded] = useState(false);
+  const [emailing, setEmailing] = useState("");
+  useEffect(() => { (async () => { try { const r = await fetch("/api/payments"); const d = await r.json().catch(() => ({})); if (d && Array.isArray(d.payments)) setPayments(d.payments); } catch (e) {} setPayLoaded(true); })(); }, []);
+  const emailReceipt = async (p) => { setEmailing(p.id); try { const r = await fetch("/api/payments", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ id: p.id }) }); const d = await r.json().catch(() => ({})); if (r.ok && d.ok) showToast("Receipt emailed to " + (p.client_email || "the client") + "."); else showToast(d.error || "Could not send the receipt."); } catch (e) { showToast("Network error."); } setEmailing(""); };
 
   const inRange = (s) => { if (!s.date) return false; if (start && s.date < start) return false; if (end && s.date > end) return false; return true; };
   const rows = (sessions || []).filter(inRange).sort((a, b) => (a.date + (a.time || "")).localeCompare(b.date + (b.time || "")));
@@ -2335,6 +2401,31 @@ function BusinessSettings({ sessions, showToast }) {
               <MiniColumns items={monthItems} />
             </div>
           )}
+        </div>
+      )}
+
+      <div style={{ ...mono, fontSize: 10.5, letterSpacing: "0.16em", textTransform: "uppercase", color: STONE, marginBottom: 12 }}>Receipts</div>
+      {!payLoaded ? (
+        <div style={{ marginBottom: 28 }}><EmptyHint text={"Loading receipts\u2026"} /></div>
+      ) : payments.length === 0 ? (
+        <div style={{ marginBottom: 28 }}><EmptyHint text="A receipt is saved here automatically each time a client pays by card, and emailed to the client with a PDF copy. Each one can be viewed, exported as a PDF, or re-sent from here." /></div>
+      ) : (
+        <div style={{ border: `1px solid ${LINE}`, borderRadius: 12, overflow: "hidden", marginBottom: 28 }}>
+          {payments.map((p, i) => (
+            <div key={p.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "13px 16px", borderTop: i === 0 ? "none" : `1px solid ${LINE}`, background: PAPER, flexWrap: "wrap" }}>
+              <div style={{ flex: 1, minWidth: 210 }}>
+                <div style={{ display: "flex", alignItems: "baseline", gap: 9, flexWrap: "wrap" }}>
+                  <span style={{ ...display, fontSize: 14, fontWeight: 600, color: INK }}>{p.client_name || "Client"}</span>
+                  <span style={{ ...mono, fontSize: 13, color: RED, fontWeight: 500 }}>{payMoney(p.amount_cents)}</span>
+                </div>
+                <div style={{ ...mono, fontSize: 10, color: STONE, marginTop: 3, letterSpacing: "0.02em" }}>{payDateShort(p.paid_at)}{" \u00b7 "}{p.service || "Session"}{" \u00b7 "}{payKindLabel(p.kind)}{" \u00b7 "}{payCardLabel(p)}</div>
+              </div>
+              <div style={{ display: "flex", gap: 7, flexShrink: 0 }}>
+                <a href={"/api/receipt?id=" + encodeURIComponent(p.id)} target="_blank" rel="noopener noreferrer" style={{ ...mono, fontSize: 10, letterSpacing: "0.04em", textTransform: "uppercase", color: INK, textDecoration: "none", border: `1px solid ${LINE}`, borderRadius: 7, padding: "7px 11px", display: "inline-flex", alignItems: "center", gap: 5 }}><FileText size={12} /> Receipt</a>
+                <button onClick={() => emailReceipt(p)} disabled={emailing === p.id} style={{ ...mono, fontSize: 10, letterSpacing: "0.04em", textTransform: "uppercase", color: emailing === p.id ? FAINT : "#fff", background: emailing === p.id ? LINE : "#3f7a3f", border: "none", borderRadius: 7, padding: "7px 11px", cursor: emailing === p.id ? "default" : "pointer", display: "inline-flex", alignItems: "center", gap: 5 }}><Mail size={12} /> {emailing === p.id ? "Sending\u2026" : "Email"}</button>
+              </div>
+            </div>
+          ))}
         </div>
       )}
 
