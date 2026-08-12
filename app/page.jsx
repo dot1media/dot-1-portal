@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useLayoutEffect, useRef } from "react";
 import {
   CalendarCheck, FileCheck, Camera, Upload, Scissors, Eye, PackageCheck,
   CheckCircle2, User, LayoutDashboard, Send, Play, Image as ImageIcon,
@@ -52,6 +52,7 @@ const display = { fontFamily: "'Bodoni Moda', Georgia, serif" };
 const mono = { fontFamily: "'IBM Plex Mono', ui-monospace, monospace" };
 const card = { background: PAPER, border: `1px solid ${LINE}`, borderRadius: 16, boxShadow: "0 1px 2px rgba(26,26,23,0.03), 0 12px 34px rgba(26,26,23,0.05)" };
 const cardDense = { background: PAPER, border: `1px solid ${LINE}`, borderRadius: 12, boxShadow: "0 1px 2px rgba(26,26,23,0.03), 0 6px 16px rgba(26,26,23,0.045)" };
+const useIsoEffect = typeof window !== "undefined" ? useLayoutEffect : useEffect;
 
 const GROUPS = {
   video: { label: "Video", color: "#e23b2e", soft: "#e23b2e", bg: "#fbeeed", border: "#f2cdc9", text: "#b5271b", Icon: Film },
@@ -479,6 +480,7 @@ export default function App() {
 
       {toast && <div style={{ position: "fixed", bottom: 44, left: "50%", transform: "translateX(-50%)", background: INK, color: "#fff", padding: "11px 18px", borderRadius: 8, boxShadow: "0 10px 30px rgba(0,0,0,0.25)", fontSize: 13.5, maxWidth: "92%", display: "flex", alignItems: "center", gap: 9, zIndex: 60 }}><CheckCircle2 size={16} color="#7ee0a0" /> {toast}</div>}
       {confirm && <ConfirmDialog {...confirm} onCancel={() => setConfirm(null)} />}
+      <RevealController dep={view + "|" + adminTab + "|" + clientId} />
     </div>
   );
 }
@@ -584,7 +586,7 @@ function useIsMobile() {
 function LandingPage({ onBook, onClientLogin, onStudioLogin }) {
   const isMobile = useIsMobile();
   return (
-    <div style={{ maxWidth: 760, margin: "10px auto 0" }}>
+    <div className="d1-stagger" style={{ maxWidth: 760, margin: "10px auto 0" }}>
       <div style={{ textAlign: "center", padding: "20px 0 4px" }}>
         <div style={{ marginBottom: 10 }}><img src={isMobile ? "/dot1-logo.png" : "/dot1-logo-anim.gif"} alt="Dot One Media" style={{ height: isMobile ? 84 : 186, width: "auto", margin: "0 auto", display: "block" }} /></div>
         <div style={{ ...mono, fontSize: 11, letterSpacing: "0.24em", textTransform: "uppercase", color: FAINT, marginBottom: 22 }}>Client Portal</div>
@@ -1205,8 +1207,8 @@ function DirectLinks({ state, createDirectLink, revokeDirectLink, openDirectLink
 /* ============================ CONFIRM DIALOG ============================ */
 function ConfirmDialog({ title, message, confirmLabel = "Confirm", danger, onYes, onCancel }) {
   return (
-    <div style={{ position: "fixed", inset: 0, background: "rgba(26,26,23,0.45)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 80, padding: 20 }} onClick={onCancel}>
-      <div onClick={(e) => e.stopPropagation()} style={{ background: PAPER, borderRadius: 12, padding: "24px 26px", maxWidth: 420, width: "100%", boxShadow: "0 20px 60px rgba(0,0,0,0.3)" }}>
+    <div className="d1-overlay" style={{ position: "fixed", inset: 0, background: "rgba(26,26,23,0.45)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 80, padding: 20 }} onClick={onCancel}>
+      <div onClick={(e) => e.stopPropagation()} className="d1-modal" style={{ background: PAPER, borderRadius: 12, padding: "24px 26px", maxWidth: 420, width: "100%", boxShadow: "0 20px 60px rgba(0,0,0,0.3)" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
           <div style={{ width: 34, height: 34, borderRadius: "50%", background: danger ? "#fbeeed" : "#fff4e8", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}><AlertTriangle size={18} color={danger ? RED : "#c47f1a"} /></div>
           <h3 style={{ ...display, fontWeight: 700, fontSize: 19, color: INK }}>{title}</h3>
@@ -1245,8 +1247,8 @@ function ProgressBar({ stages, current, accent }) {
 function ThemePicker({ themeKey, customAccent, onPick, onClose }) {
   const acc = customAccent || "";
   return (
-    <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(20,19,17,0.55)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20, zIndex: 250 }}>
-      <div onClick={(e) => e.stopPropagation()} style={{ background: CREAM, borderRadius: 16, maxWidth: 470, width: "100%", padding: "26px 26px 24px", border: `1px solid ${LINE}`, maxHeight: "88vh", overflowY: "auto" }}>
+    <div onClick={onClose} className="d1-overlay" style={{ position: "fixed", inset: 0, background: "rgba(20,19,17,0.55)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20, zIndex: 250 }}>
+      <div onClick={(e) => e.stopPropagation()} className="d1-modal" style={{ background: CREAM, borderRadius: 16, maxWidth: 470, width: "100%", padding: "26px 26px 24px", border: `1px solid ${LINE}`, maxHeight: "88vh", overflowY: "auto" }}>
         <div style={{ ...mono, fontSize: 10.5, letterSpacing: "0.2em", textTransform: "uppercase", color: RED, marginBottom: 6 }}>Appearance</div>
         <div style={{ ...display, fontWeight: 700, fontSize: 22, color: INK, marginBottom: 4 }}>Portal color theme</div>
         <div style={{ fontSize: 12.5, color: STONE, lineHeight: 1.5, marginBottom: 18 }}>Choose a palette for your portal. Your choice is saved on this device.</div>
@@ -1285,8 +1287,8 @@ function ClientGuide({ onClose }) {
     { Icon: Download, title: "Receive your work", body: "When your project is ready, your finished photos and films appear here to view and download." },
   ];
   return (
-    <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(20,19,17,0.55)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20, zIndex: 200 }}>
-      <div onClick={(e) => e.stopPropagation()} style={{ background: CREAM, borderRadius: 16, maxWidth: 440, width: "100%", padding: "28px 26px", border: `1px solid ${LINE}`, maxHeight: "88vh", overflowY: "auto" }}>
+    <div onClick={onClose} className="d1-overlay" style={{ position: "fixed", inset: 0, background: "rgba(20,19,17,0.55)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20, zIndex: 200 }}>
+      <div onClick={(e) => e.stopPropagation()} className="d1-modal" style={{ background: CREAM, borderRadius: 16, maxWidth: 440, width: "100%", padding: "28px 26px", border: `1px solid ${LINE}`, maxHeight: "88vh", overflowY: "auto" }}>
         <div style={{ ...mono, fontSize: 10.5, letterSpacing: "0.2em", textTransform: "uppercase", color: RED, marginBottom: 8 }}>Welcome</div>
         <div style={{ ...display, fontWeight: 700, fontSize: 24, color: INK, lineHeight: 1.15, marginBottom: 8 }}>Welcome to your Dot One portal</div>
         <div style={{ fontSize: 13.5, color: BODY, lineHeight: 1.55, marginBottom: 22 }}>This is your home for everything we create together. Here's what you can do:</div>
@@ -1366,7 +1368,7 @@ function ClientView({ session, sessions, clientId, setClientId, addComment, onRe
   };
 
   return (
-    <div>
+    <div className="d1-stagger">
       {session.serviceLine === "photo" && <div style={{ textAlign: "center", marginBottom: 22 }}><img src="/dot1-photo-logo.png" alt="Dot One Photography" style={{ height: 52, width: "auto", display: "block", margin: "2px auto 6px" }} /><div style={{ ...mono, fontSize: 9, letterSpacing: "0.28em", textTransform: "uppercase", color: "#2f74c0" }}>Timeless Portraits</div></div>}
       {sortedSessions.length > 1 && (
         <div style={{ marginBottom: 24 }}>
@@ -1685,7 +1687,7 @@ function StudioHome({ state, setAdminId, setAdminTab }) {
     </div>
   );
   return (
-    <div>
+    <div className="d1-stagger">
       <div style={{ ...card, padding: "26px 28px", marginBottom: 18, display: "flex", alignItems: "center", gap: 26, flexWrap: "wrap" }}>
         <img src="/dot1-logo.png" alt="Dot One Media" style={{ height: 46, width: "auto", display: "block" }} />
         <div style={{ flex: 1, minWidth: 220 }}>
@@ -1707,7 +1709,7 @@ function StudioHome({ state, setAdminId, setAdminTab }) {
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             {upcoming.slice(0, 5).map((s) => { const grp = GROUPS[s.serviceLine] || GROUPS.video; return (
-              <button key={s.id} onClick={() => goTo(s.id)} style={{ display: "flex", alignItems: "center", gap: 14, textAlign: "left", cursor: "pointer", background: CREAM, border: `1px solid ${LINE}`, borderRadius: 10, padding: "12px 14px", width: "100%" }}>
+              <button key={s.id} className="d1-lift" onClick={() => goTo(s.id)} style={{ display: "flex", alignItems: "center", gap: 14, textAlign: "left", cursor: "pointer", background: CREAM, border: `1px solid ${LINE}`, borderRadius: 10, padding: "12px 14px", width: "100%" }}>
                 <div style={{ width: 38, height: 38, borderRadius: 9, background: grp.bg, border: `1px solid ${grp.border}`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}><grp.Icon size={17} color={grp.color} /></div>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ ...display, fontWeight: 600, fontSize: 15.5, color: INK }}>{s.clientName}</div>
@@ -1755,7 +1757,7 @@ function AdminSessions({ state, adminId, setAdminId, requestSetStage, addComment
   const reschedClash = slotTaken(reschedDate, reschedTime, session.id);
 
   return (
-    <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "260px 1fr", gap: isMobile ? 20 : 26 }}>
+    <div className="d1-stagger" style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "260px 1fr", gap: isMobile ? 20 : 26 }}>
       <div>
         <div style={{ ...mono, fontSize: 10.5, letterSpacing: "0.2em", textTransform: "uppercase", color: RED, marginBottom: 14 }}>Sessions</div>
         {(() => {
@@ -1767,7 +1769,7 @@ function AdminSessions({ state, adminId, setAdminId, requestSetStage, addComment
           groups.upcoming.sort((a, b) => ((a.date || "") + (a.time || "")).localeCompare((b.date || "") + (b.time || "")));
           groups.completed.sort((a, b) => ((b.date || "") + (b.time || "")).localeCompare((a.date || "") + (a.time || "")));
           const renderBtn = (s) => { const selected = s.id === adminId; const grp = GROUPS[s.serviceLine] || GROUPS.video; const unread = s.comments.filter((c) => c.author === "client" && !c.read).length; return (
-            <button key={s.id} onClick={() => { setAdminId(s.id); markMessagesRead(s.id, "client"); }} style={{ width: "100%", textAlign: "left", marginBottom: 8, padding: "12px 14px", borderRadius: 9, cursor: "pointer", border: `1px solid ${selected ? INK : LINE}`, background: selected ? INK : PAPER, color: selected ? "#fff" : BODY }}>
+            <button key={s.id} className="d1-lift" onClick={() => { setAdminId(s.id); markMessagesRead(s.id, "client"); }} style={{ width: "100%", textAlign: "left", marginBottom: 8, padding: "12px 14px", borderRadius: 9, cursor: "pointer", border: `1px solid ${selected ? INK : LINE}`, background: selected ? INK : PAPER, color: selected ? "#fff" : BODY }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, marginBottom: 3 }}>
                 <span style={{ ...display, fontWeight: 600, fontSize: 15 }}>{s.clientName}</span>
                 {unread > 0 && <span style={{ ...mono, background: RED, color: "#fff", borderRadius: 20, fontSize: 9.5, minWidth: 16, height: 16, padding: "0 5px", display: "inline-flex", alignItems: "center", justifyContent: "center" }}>{unread}</span>}
@@ -2431,7 +2433,7 @@ function BusinessSettings({ sessions, showToast }) {
     </div>
   );
   return (
-    <div>
+    <div className="d1-stagger">
       <div style={{ ...mono, fontSize: 11, letterSpacing: "0.18em", textTransform: "uppercase", color: RED, marginBottom: 6, display: "flex", alignItems: "center", gap: 8 }}><Settings size={13} /> Business settings</div>
       <div style={{ fontSize: 13, color: BODY, lineHeight: 1.5, marginBottom: 24, maxWidth: 600 }}>See which service lines and session types drive your bookings and revenue, review any period, export your records, and confirm payments and email are live.</div>
 
@@ -2592,6 +2594,31 @@ const shareBtn = { display: "inline-flex", alignItems: "center", gap: 6, textDec
 const btnGhost = { fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, letterSpacing: "0.06em", textTransform: "uppercase", padding: "9px 14px", borderRadius: 8, border: `1px solid ${LINE}`, background: PAPER, color: STONE, cursor: "pointer", display: "flex", alignItems: "center", gap: 7 };
 const btnSolid = { fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, letterSpacing: "0.06em", textTransform: "uppercase", padding: "9px 14px", borderRadius: 8, border: "none", color: "#fff", cursor: "pointer", display: "flex", alignItems: "center", gap: 7 };
 
+function RevealController({ dep }) {
+  useIsoEffect(() => {
+    if (typeof window === "undefined" || typeof document === "undefined") return;
+    const targets = Array.from(document.querySelectorAll(".d1-stagger > *"));
+    if (!targets.length) return;
+    const reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (reduce || !("IntersectionObserver" in window)) { targets.forEach((t) => t.classList.add("d1-in")); return; }
+    targets.forEach((t) => { t.classList.add("d1-reveal"); t.classList.remove("d1-in"); t.style.transitionDelay = ""; });
+    let shown = 0;
+    const io = new IntersectionObserver((entries) => {
+      entries.forEach((e) => {
+        if (!e.isIntersecting) return;
+        const el = e.target;
+        el.style.transitionDelay = Math.min(shown, 6) * 55 + "ms";
+        el.classList.add("d1-in");
+        shown++;
+        io.unobserve(el);
+      });
+    }, { rootMargin: "0px 0px -6% 0px", threshold: 0.05 });
+    targets.forEach((t) => io.observe(t));
+    return () => io.disconnect();
+  }, [dep]);
+  return null;
+}
+
 function FontLoader() {
   useEffect(() => {
     const id = "dot1-fonts"; if (document.getElementById(id)) return;
@@ -2600,7 +2627,7 @@ function FontLoader() {
     document.head.appendChild(l);
     if (!document.getElementById("dot1-global")) {
       const s = document.createElement("style"); s.id = "dot1-global";
-      s.textContent = "::selection{background:color-mix(in srgb, var(--d1-accent,#e23b2e) 22%, transparent);}input::placeholder,textarea::placeholder{color:var(--d1-faint,#9a988f);opacity:1;}button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-visible,[role=switch]:focus-visible{outline:2px solid color-mix(in srgb, var(--d1-accent,#e23b2e) 55%, transparent);outline-offset:2px;}";
+      s.textContent = "@keyframes d1-pop{from{opacity:0;transform:scale(.96) translateY(6px)}to{opacity:1;transform:none}}@keyframes d1-fade{from{opacity:0}to{opacity:1}}::selection{background:color-mix(in srgb, var(--d1-accent,#e23b2e) 22%, transparent);}input::placeholder,textarea::placeholder{color:var(--d1-faint,#9a988f);opacity:1;}.d1-reveal{opacity:0;transform:translateY(14px);transition:opacity .55s cubic-bezier(.2,.7,.2,1),transform .55s cubic-bezier(.2,.7,.2,1);will-change:opacity,transform;}.d1-reveal.d1-in{opacity:1;transform:none;}.d1-modal{animation:d1-pop .3s cubic-bezier(.2,.85,.3,1) both;}.d1-overlay{animation:d1-fade .22s ease both;}.d1-lift{transition:transform .16s cubic-bezier(.2,.7,.2,1),box-shadow .18s ease,border-color .16s ease;}.d1-lift:hover{transform:translateY(-2px);box-shadow:0 3px 10px rgba(26,26,23,.05),0 16px 34px rgba(26,26,23,.09);}button{transition:background-color .16s ease,border-color .16s ease,color .16s ease,box-shadow .16s ease,transform .12s ease;}button:active{transform:translateY(1px);}button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-visible,[role=switch]:focus-visible{outline:2px solid color-mix(in srgb, var(--d1-accent,#e23b2e) 55%, transparent);outline-offset:2px;}@media (prefers-reduced-motion: reduce){.d1-reveal{opacity:1!important;transform:none!important;transition:none!important;}.d1-modal,.d1-overlay{animation:none!important;}.d1-lift{transition:none!important;}.d1-lift:hover{transform:none!important;}button{transition:none!important;}button:active{transform:none!important;}}";
       document.head.appendChild(s);
     }
   }, []);
