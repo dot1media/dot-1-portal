@@ -1,3 +1,5 @@
+import { sql } from "@/lib/db";
+
 // Transactional email via Resend. Fail-soft: if RESEND_API_KEY is unset, this does nothing.
 // Brand-aware: client-facing photography emails use the Dot One Photography logo + blue accent.
 
@@ -200,6 +202,38 @@ export function receiptEmail(p: any): string {
         ["Payment method", card],
       ]);
   return shell(BRAND_MAIN, "Payment Receipt", "Payment received", body);
+}
+
+export async function clientAllows(email: string | undefined | null, category: string): Promise<boolean> {
+  if (!email) return false;
+  try {
+    const rows = (await sql`SELECT prefs FROM email_prefs WHERE email = ${String(email).toLowerCase()} LIMIT 1`) as any[];
+    if (!rows.length) return true;
+    const prefs = (rows[0].prefs || {}) as any;
+    return prefs[category] !== false;
+  } catch (e) { return true; }
+}
+
+export async function sendToClient(email: string | undefined | null, category: string, opts: { subject: string; html: string; replyTo?: string; attachments?: Array<{ filename: string; content: string }> }): Promise<void> {
+  if (!email) return;
+  if (!(await clientAllows(email, category))) return;
+  await sendEmail({ to: String(email), ...opts });
+}
+
+export function paymentStudioEmail(s: any, info: { amountCents: number; kind: string; cardBrand?: string | null; cardLast4?: string | null }): string {
+  const brand = brandFor(s, true);
+  const amt = "$" + ((Number(info.amountCents) || 0) / 100).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const KL: Record<string, string> = { retainer: "Retainer", deposit: "Deposit", half: "Deposit", full: "Full payment", balance: "Balance payment", charge: "Add-on" };
+  const rows: Array<[string, string]> = [["Client", esc(s.clientName)], ["Service", esc(s.type)], ["Payment", KL[String(info.kind || "").toLowerCase()] || "Payment"], ["Amount", amt]];
+  if (info.cardLast4) rows.push(["Method", (info.cardBrand ? String(info.cardBrand).replace(/_/g, " ") : "Card") + " \u00b7\u00b7\u00b7\u00b7 " + info.cardLast4]);
+  const body = para(`<strong style="color:${INK};">${esc(s.clientName) || "A client"}</strong> just sent a payment.`) + detailRows(rows) + para("The receipt has been emailed to the client and saved in your Receipts.");
+  return shell(brand, "Payment Received", "You got paid", body);
+}
+
+export function cancelClientEmail(s: any): string {
+  const brand = brandFor(s);
+  const body = para(`Your <strong style="color:${INK};">${esc(s.type) || "session"}</strong>${s.date ? " on " + esc(s.date) : ""} has been cancelled.`) + para("If this wasn\u2019t expected, or you\u2019d like to find a new date, just reply to this email or reach us at contact@dot1.media and we\u2019ll take care of you.");
+  return shell(brand, "Booking Update", "Your booking was cancelled", body);
 }
 
 export async function sendEmail(opts: { to?: string; subject: string; html: string; replyTo?: string; attachments?: Array<{ filename: string; content: string }> }): Promise<void> {

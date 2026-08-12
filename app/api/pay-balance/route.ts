@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { sql } from "@/lib/db";
 import { verifyToken, ADMIN_COOKIE } from "@/lib/auth";
-import { sendEmail, balanceEmail } from "@/lib/email";
+import { sendEmail, sendToClient, balanceEmail } from "@/lib/email";
 import crypto from "crypto";
 
 export const runtime = "nodejs";
@@ -49,7 +49,7 @@ export async function POST(request: Request) {
   const link = sq.payment_link.url;
   const merged = { ...data, balanceOrderId: sq.payment_link.order_id || "", balanceStatus: "sent", balanceLink: link };
   await sql`UPDATE portal_sessions SET data = ${JSON.stringify(merged)}::jsonb, updated_at = now() WHERE id = ${sid}`;
-  await sendEmail({ to: data.clientEmail, subject: "Your balance for " + String(data.type || "your session") + " is ready to pay", html: balanceEmail(data, link, balanceCents / 100), replyTo: "contact@dot1.media" });
+  await sendToClient(data.clientEmail, "payments", { subject: "Your balance for " + String(data.type || "your session") + " is ready to pay", html: balanceEmail(data, link, balanceCents / 100), replyTo: "contact@dot1.media" });
   return NextResponse.json({ ok: true, link });
 }
 

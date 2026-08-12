@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { sql } from "@/lib/db";
 import { receiptPdf } from "@/lib/receipt";
-import { receiptEmail, sendEmail } from "@/lib/email";
+import { receiptEmail, sendEmail, sendToClient, paymentStudioEmail } from "@/lib/email";
 
 export const runtime = "nodejs";
 
@@ -67,11 +67,14 @@ export async function GET(request: Request) {
         INSERT INTO payments (id, session_id, client_email, client_name, service, kind, amount_cents, currency, card_brand, card_last4, square_order_id, square_payment_id, paid_at)
         VALUES (${rid}, ${sid}, ${data.clientEmail || null}, ${data.clientName || null}, ${rcptService || null}, ${rcptKind}, ${amountCents}, ${currency}, ${cd.card_brand || null}, ${cd.last_4 || null}, ${orderId}, ${tender.payment_id || null}, ${paidAt})
         ON CONFLICT (square_order_id) DO NOTHING RETURNING id`) as any[];
-      if (inserted.length > 0 && data.clientEmail) {
-        const rec: any = { id: rid, client_email: data.clientEmail, client_name: data.clientName, service: rcptService, kind: rcptKind, amount_cents: amountCents, card_brand: cd.card_brand, card_last4: cd.last_4, paid_at: paidAt };
-        let attachments: any = undefined;
-        try { attachments = [{ filename: "Dot-One-Media-Receipt.pdf", content: await receiptPdf(rec) }]; } catch (e2) {}
-        await sendEmail({ to: data.clientEmail, subject: "Your Dot One Media receipt", html: receiptEmail(rec), attachments });
+      if (inserted.length > 0) {
+        try { await sendEmail({ to: data.notifyEmail || "contact@dot1.media", subject: "Payment received \u00b7 $" + (amountCents / 100).toFixed(2) + " from " + (data.clientName || "a client"), html: paymentStudioEmail(data, { amountCents, kind: rcptKind, cardBrand: cd.card_brand, cardLast4: cd.last_4 }), replyTo: data.clientEmail }); } catch (e3) {}
+        if (data.clientEmail) {
+          const rec: any = { id: rid, client_email: data.clientEmail, client_name: data.clientName, service: rcptService, kind: rcptKind, amount_cents: amountCents, card_brand: cd.card_brand, card_last4: cd.last_4, paid_at: paidAt };
+          let attachments: any = undefined;
+          try { attachments = [{ filename: "Dot-One-Media-Receipt.pdf", content: await receiptPdf(rec) }]; } catch (e2) {}
+          await sendToClient(data.clientEmail, "payments", { subject: "Your Dot One Media receipt", html: receiptEmail(rec), attachments });
+        }
       }
     } catch (e) { /* never break payment verification */ }
   }

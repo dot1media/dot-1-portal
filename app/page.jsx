@@ -1308,12 +1308,15 @@ function ClientView({ session, sessions, clientId, setClientId, addComment, onRe
   const fileRef = useRef(null);
   useEffect(() => { if (!session) return; setReschedDate(session.date || ""); setReschedOpen(false); setMsg(""); setBrief(session.brief || {}); setBriefMsg(""); }, [clientId]);
   const [docs, setDocs] = useState([]);
+  const [emailPrefs, setEmailPrefs] = useState({ updates: true, messages: true, payments: true });
   const [payingBalance, setPayingBalance] = useState(false);
   const [payErr, setPayErr] = useState("");
   const [briefOpen, setBriefOpen] = useState(false);
   const [brief, setBrief] = useState({});
   const [briefMsg, setBriefMsg] = useState("");
   useEffect(() => { (async () => { try { const r = await fetch("/api/agreements"); const d = await r.json(); if (r.ok) setDocs(Array.isArray(d.agreements) ? d.agreements : []); } catch (e) {} })(); }, []);
+  useEffect(() => { (async () => { try { const r = await fetch("/api/email-prefs"); const d = await r.json(); if (r.ok && d.prefs) setEmailPrefs({ updates: d.prefs.updates !== false, messages: d.prefs.messages !== false, payments: d.prefs.payments !== false }); } catch (e) {} })(); }, [clientId]);
+  const toggleEmailPref = (cat) => { const next = { ...emailPrefs, [cat]: !emailPrefs[cat] }; setEmailPrefs(next); fetch("/api/email-prefs", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ prefs: next }) }).catch(() => {}); };
   if (!session) return <div style={{ ...mono, fontSize: 13, color: STONE, padding: "48px 4px", textAlign: "center" }}>No session to show yet. When you book, it will appear here.</div>;
   const stage = session.currentStage;
   const grp = GROUPS[session.serviceLine] || GROUPS.video;
@@ -1582,6 +1585,22 @@ function ClientView({ session, sessions, clientId, setClientId, addComment, onRe
           <div style={{ ...mono, fontSize: 9.5, color: FAINT, marginTop: 8, lineHeight: 1.5 }}>These are the agreements on file for your account. Keep this for your records.</div>
         </div>
       )}
+
+      <div style={{ ...card, marginTop: 18, padding: "22px 24px" }}>
+        <div style={{ ...mono, fontSize: 10.5, letterSpacing: "0.16em", textTransform: "uppercase", color: STONE, marginBottom: 5 }}>Email preferences</div>
+        <div style={{ fontSize: 12.5, color: STONE, marginBottom: 6 }}>Choose which emails you'd like from us. Everything still shows here in your portal either way.</div>
+        {[["updates", "Project updates", "Status changes and reschedules"], ["messages", "Messages", "Replies from the studio"], ["payments", "Payments & receipts", "Balance reminders, payment requests, and receipts"]].map(([key, label, sub]) => (
+          <div key={key} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 14, padding: "13px 0", borderTop: `1px solid ${LINE}` }}>
+            <div style={{ minWidth: 0 }}>
+              <div style={{ fontSize: 14, color: INK, fontWeight: 500 }}>{label}</div>
+              <div style={{ ...mono, fontSize: 10, color: FAINT, marginTop: 2 }}>{sub}</div>
+            </div>
+            <button onClick={() => toggleEmailPref(key)} role="switch" aria-checked={!!emailPrefs[key]} style={{ position: "relative", width: 44, height: 24, borderRadius: 20, border: "none", cursor: "pointer", flexShrink: 0, background: emailPrefs[key] ? grp.color : "#d8d4ca", transition: "background 0.15s", padding: 0 }}>
+              <span style={{ position: "absolute", top: 3, left: emailPrefs[key] ? 23 : 3, width: 18, height: 18, borderRadius: "50%", background: "#fff", transition: "left 0.15s", boxShadow: "0 1px 2px rgba(0,0,0,0.25)" }} />
+            </button>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

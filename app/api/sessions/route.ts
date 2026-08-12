@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { sql } from "@/lib/db";
 import { verifyToken, verifyClientToken, ADMIN_COOKIE, CLIENT_COOKIE } from "@/lib/auth";
-import { sendEmail, bookingStudioEmail, bookingClientEmail, stageClientEmail, messageEmail, stageLabelFor, briefStudioEmail } from "@/lib/email";
+import { sendEmail, sendToClient, bookingStudioEmail, bookingClientEmail, stageClientEmail, messageEmail, stageLabelFor, briefStudioEmail, cancelClientEmail } from "@/lib/email";
 
 export const runtime = "nodejs";
 
@@ -88,18 +88,22 @@ export async function PATCH(request: Request) {
 
   const old = (cur.data || {}) as any;
   if (me.role === "admin" && typeof allowed.currentStage === "number" && allowed.currentStage > (old.currentStage || 0)) {
-    await sendEmail({ to: merged.clientEmail, subject: "Your " + (merged.type || "session") + " status: " + stageLabelFor(merged, allowed.currentStage), html: stageClientEmail(merged, allowed.currentStage), replyTo: "contact@dot1.media" });
+    await sendToClient(merged.clientEmail, "updates", { subject: "Your " + (merged.type || "session") + " status: " + stageLabelFor(merged, allowed.currentStage), html: stageClientEmail(merged, allowed.currentStage), replyTo: "contact@dot1.media" });
   }
   if (Array.isArray(allowed.comments) && allowed.comments.length > (old.comments || []).length) {
     const last = allowed.comments[allowed.comments.length - 1];
     if (last && last.author === "client") {
       await sendEmail({ to: merged.notifyEmail || "contact@dot1.media", subject: "New message from " + (merged.clientName || "your client"), html: messageEmail(merged, true, last.body), replyTo: merged.clientEmail });
     } else if (last && last.author === "studio") {
-      await sendEmail({ to: merged.clientEmail, subject: "New reply from Dot One Media", html: messageEmail(merged, false, last.body), replyTo: "contact@dot1.media" });
+      await sendToClient(merged.clientEmail, "messages", { subject: "New reply from Dot One Media", html: messageEmail(merged, false, last.body), replyTo: "contact@dot1.media" });
     }
   }
   if (me.role === "client" && allowed.brief && allowed.brief.submitted && !(old.brief && old.brief.submitted)) {
     await sendEmail({ to: merged.notifyEmail || "contact@dot1.media", subject: (merged.clientName || "A client") + " submitted their production brief", html: briefStudioEmail(merged), replyTo: merged.clientEmail });
+  }
+
+  if (me.role === "admin" && merged.status === "cancelled" && (old.status || "active") !== "cancelled") {
+    await sendToClient(merged.clientEmail, "updates", { subject: "Your " + (merged.type || "booking") + " has been cancelled", html: cancelClientEmail(merged), replyTo: "contact@dot1.media" });
   }
 
   return NextResponse.json({ ok: true, session: merged });

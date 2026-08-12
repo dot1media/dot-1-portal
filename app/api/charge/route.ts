@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { sql } from "@/lib/db";
 import { verifyToken, ADMIN_COOKIE } from "@/lib/auth";
-import { chargeRequestEmail, sendEmail } from "@/lib/email";
+import { chargeRequestEmail, sendToClient } from "@/lib/email";
 import crypto from "crypto";
 
 export const runtime = "nodejs";
@@ -58,7 +58,7 @@ export async function POST(request: Request) {
   const merged = { ...data, charges: [...charges, charge] };
   await sql`UPDATE portal_sessions SET data = ${JSON.stringify(merged)}::jsonb, updated_at = now() WHERE id = ${sid}`;
 
-  try { if (data.clientEmail) await sendEmail({ to: data.clientEmail, subject: "A payment request from Dot One Media", html: chargeRequestEmail(data, charge, charge.squareLink) }); } catch (e) {}
+  try { await sendToClient(data.clientEmail, "payments", { subject: "A payment request from Dot One Media", html: chargeRequestEmail(data, charge, charge.squareLink) }); } catch (e) {}
 
   return NextResponse.json({ ok: true, charge });
 }
