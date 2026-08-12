@@ -633,7 +633,7 @@ function StudioLogin({ onLogin, onBack }) {
     <div style={{ maxWidth: 400, margin: "20px auto 0" }}>
       <div style={{ textAlign: "center", marginBottom: 24 }}>
         <div style={{ width: 46, height: 46, borderRadius: "50%", background: INK, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 12px" }}><LayoutDashboard size={22} color="#fff" /></div>
-        <div style={{ ...display, fontWeight: 700, fontSize: 26, color: INK, marginBottom: 6 }}>Studio sign in</div>
+        <div style={{ ...display, fontWeight: 700, fontSize: 26, color: INK, marginBottom: 6 }}>Studio Login</div>
         <div style={{ fontSize: 13.5, color: STONE, lineHeight: 1.5 }}>For Dot One Media staff only.</div>
       </div>
       <div style={{ background: PAPER, border: `1px solid ${LINE}`, borderRadius: 12, padding: "22px 24px" }}>
@@ -685,8 +685,8 @@ function LoginView({ onLogin, onBook, onStudio, onForgot }) {
   return (
     <div style={{ maxWidth: 400, margin: "20px auto 0" }}>
       <div style={{ textAlign: "center", marginBottom: 24 }}>
-        <div style={{ ...display, fontWeight: 700, fontSize: 28, color: INK, marginBottom: 6 }}>Welcome back</div>
-        <div style={{ fontSize: 13.5, color: STONE, lineHeight: 1.5 }}>Log in to check the status of your session.</div>
+        <div style={{ ...display, fontWeight: 700, fontSize: 28, color: INK, marginBottom: 6 }}>Client Login</div>
+        <div style={{ fontSize: 13.5, color: STONE, lineHeight: 1.5 }}>Sign in to check the status of your session.</div>
       </div>
       <div style={{ background: PAPER, border: `1px solid ${LINE}`, borderRadius: 12, padding: "22px 24px" }}>
         <FieldLabel>Email</FieldLabel>
