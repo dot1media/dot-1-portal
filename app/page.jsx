@@ -210,7 +210,7 @@ const USAGE_OPTIONS = [
 
 export default function App() {
   const [view, setView] = useState("landing");   // landing | client | admin | book | login | studiologin
-  const [adminTab, setAdminTab] = useState("sessions"); // sessions | calendar | services | links
+  const [adminTab, setAdminTab] = useState("home"); // home | sessions | calendar | services | links
   const [state, setState] = useState(DEFAULT_STATE);
   const stateRef = useRef(state);
   useEffect(() => { stateRef.current = state; }, [state]);
@@ -457,6 +457,7 @@ export default function App() {
         {view === "admin" && (
           <div>
             <div style={{ display: "flex", gap: 6, marginBottom: 24, borderBottom: `1px solid ${LINE}`, flexWrap: "wrap" }}>
+              <SubTab active={adminTab === "home"} onClick={() => setAdminTab("home")} label="Home" />
               <SubTab active={adminTab === "sessions"} onClick={() => setAdminTab("sessions")} label="Sessions" badge={unreadClientTotal} />
               <SubTab active={adminTab === "calendar"} onClick={() => setAdminTab("calendar")} label="Calendar" />
               <SubTab active={adminTab === "links"} onClick={() => setAdminTab("links")} label="Direct Booking Link" />
@@ -464,6 +465,7 @@ export default function App() {
               <SubTab active={adminTab === "services"} onClick={() => setAdminTab("services")} label="Services & Add-ons" />
               <SubTab active={adminTab === "business"} onClick={() => setAdminTab("business")} label="Business Settings" />
             </div>
+            {adminTab === "home" && <StudioHome state={state} setAdminId={setAdminId} setAdminTab={setAdminTab} />}
             {adminTab === "sessions" && <AdminSessions state={state} adminId={adminId} setAdminId={setAdminId} requestSetStage={requestSetStage} addComment={addComment} patchSession={patchSession} onReschedule={adminReschedule} slotTaken={slotTaken} markMessagesRead={markMessagesRead} onCancelBooking={requestCancelBooking} onCloseBooking={requestCloseBooking} onReopenBooking={requestReopenBooking} onSendBalance={requestSendBalance} onSendCharge={requestSendCharge} onDeleteBooking={requestDeleteBooking} />}
             {adminTab === "calendar" && <AdminCalendar state={state} onSelectSession={(id) => { setAdminId(id); setAdminTab("sessions"); }} />}
             {adminTab === "links" && <DirectLinks state={state} createDirectLink={createDirectLink} revokeDirectLink={revokeDirectLink} openDirectLink={openDirectLink} showToast={showToast} />}
@@ -1662,6 +1664,68 @@ function ClientActionPanel({ session, grp, draft, setDraft, onSubmit }) {
     );
   }
   return <div style={{ display: "flex", alignItems: "center", gap: 9, color: STONE, fontSize: 13, marginTop: 4, background: CREAM, border: `1px dashed ${LINE}`, borderRadius: 10, padding: "13px 16px" }}><Clock size={15} color="#9a988f" /> We'll email you the moment your next update is ready.</div>;
+}
+
+/* ============================ ADMIN — HOME ============================ */
+function StudioHome({ state, setAdminId, setAdminTab }) {
+  const sessions = state.sessions || [];
+  const now = new Date();
+  const todayStr = now.getFullYear() + "-" + String(now.getMonth() + 1).padStart(2, "0") + "-" + String(now.getDate()).padStart(2, "0");
+  const live = sessions.filter((s) => { const st = s.status || "active"; return st !== "cancelled" && st !== "closed"; });
+  const upcoming = live.filter((s) => s.date && s.date >= todayStr).sort((a, b) => ((a.date || "") + (a.time || "")).localeCompare((b.date || "") + (b.time || "")));
+  const collected = sessions.reduce((sum, s) => sum + (s.paymentStatus === "paid" ? (Number(s.payAmount) || 0) : 0), 0);
+  const outstanding = sessions.reduce((sum, s) => { if ((s.status || "active") === "cancelled") return sum; const paid = s.paymentStatus === "paid" ? (Number(s.payAmount) || 0) : 0; return sum + Math.max(0, (Number(s.total) || 0) - paid); }, 0);
+  const activeCount = sessions.filter((s) => (s.status || "active") !== "cancelled").length;
+  const next = upcoming[0];
+  const goTo = (id) => { setAdminId(id); setAdminTab("sessions"); };
+  const stat = (val, label, color) => (
+    <div style={{ ...cardDense, padding: "16px 18px" }}>
+      <div style={{ ...display, fontSize: 26, color: color || INK }}>{val}</div>
+      <div style={{ ...mono, fontSize: 9.5, letterSpacing: "0.1em", textTransform: "uppercase", color: STONE, marginTop: 3 }}>{label}</div>
+    </div>
+  );
+  return (
+    <div>
+      <div style={{ ...card, padding: "26px 28px", marginBottom: 18, display: "flex", alignItems: "center", gap: 26, flexWrap: "wrap" }}>
+        <img src="/dot1-logo.png" alt="Dot One Media" style={{ height: 46, width: "auto", display: "block" }} />
+        <div style={{ flex: 1, minWidth: 220 }}>
+          <div style={{ ...mono, fontSize: 10, letterSpacing: "0.18em", textTransform: "uppercase", color: RED, marginBottom: 6 }}>{timeGreeting()}</div>
+          <h2 style={{ ...display, fontWeight: 700, fontSize: 24, color: INK, letterSpacing: "-0.01em" }}>Studio Dashboard</h2>
+          <div style={{ fontSize: 13.5, color: STONE, marginTop: 6, lineHeight: 1.5 }}>{upcoming.length === 0 ? "No upcoming sessions on the calendar right now. A good time to line up your next shoot." : "You have " + upcoming.length + " upcoming " + (upcoming.length === 1 ? "session" : "sessions") + "." + (next ? " Next up: " + next.clientName + "'s " + next.type + " on " + fmtDate(next.date) + (next.time ? " at " + fmtTime(next.time) : "") + "." : "")}</div>
+        </div>
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(148px, 1fr))", gap: 12, marginBottom: 18 }}>
+        {stat(upcoming.length, "Upcoming")}
+        {stat(activeCount, "Active bookings")}
+        {stat(money(Math.round(collected)), "Collected", "#3f7a3f")}
+        {stat(money(Math.round(outstanding)), "Outstanding", outstanding > 0 ? "#a97a2e" : INK)}
+      </div>
+      <div style={{ ...cardDense, padding: "18px 20px", marginBottom: 18 }}>
+        <div style={{ ...mono, fontSize: 10.5, letterSpacing: "0.16em", textTransform: "uppercase", color: STONE, marginBottom: 14 }}>Upcoming sessions</div>
+        {upcoming.length === 0 ? (
+          <div style={{ fontSize: 13, color: FAINT, fontStyle: "italic" }}>Nothing scheduled yet. New bookings show up here automatically.</div>
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {upcoming.slice(0, 5).map((s) => { const grp = GROUPS[s.serviceLine] || GROUPS.video; return (
+              <button key={s.id} onClick={() => goTo(s.id)} style={{ display: "flex", alignItems: "center", gap: 14, textAlign: "left", cursor: "pointer", background: CREAM, border: `1px solid ${LINE}`, borderRadius: 10, padding: "12px 14px", width: "100%" }}>
+                <div style={{ width: 38, height: 38, borderRadius: 9, background: grp.bg, border: `1px solid ${grp.border}`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}><grp.Icon size={17} color={grp.color} /></div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ ...display, fontWeight: 600, fontSize: 15.5, color: INK }}>{s.clientName}</div>
+                  <div style={{ ...mono, fontSize: 10, color: STONE, marginTop: 2, letterSpacing: "0.04em" }}>{s.type} {"\u00b7"} {curStage(s).label}</div>
+                </div>
+                <div style={{ textAlign: "right", flexShrink: 0 }}>
+                  <div style={{ ...mono, fontSize: 11, color: INK, letterSpacing: "0.04em" }}>{fmtDate(s.date)}</div>
+                  {s.time && <div style={{ ...mono, fontSize: 10, color: FAINT, marginTop: 2 }}>{fmtTime(s.time)}</div>}
+                </div>
+                <ChevronRight size={16} color={FAINT} />
+              </button>
+            ); })}
+          </div>
+        )}
+      </div>
+      <AdminCalendar state={state} onSelectSession={(id) => { setAdminId(id); setAdminTab("sessions"); }} />
+    </div>
+  );
 }
 
 /* ============================ ADMIN — SESSIONS ============================ */
