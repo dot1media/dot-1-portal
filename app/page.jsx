@@ -219,6 +219,8 @@ export default function App() {
   const initedRef = useRef(false);
   const [loaded, setLoaded] = useState(false);
   const [authChecked, setAuthChecked] = useState(false);
+  const [installEvt, setInstallEvt] = useState(null);
+  const [installDismissed, setInstallDismissed] = useState(false);
   const [clientId, setClientId] = useState("");
   const [clientAuth, setClientAuth] = useState(null);
   const [resetToken, setResetToken] = useState("");
@@ -244,6 +246,14 @@ export default function App() {
   useEffect(() => { (async () => { try { const res = await fetch("/api/services"); const data = await res.json(); if (!res.ok) throw new Error(); setState((s) => ({ ...s, services: data.services || [], addons: data.addons || [] })); setCatalogError(false); } catch (e) { setCatalogError(true); } finally { setCatalogLoaded(true); } })(); }, []);
   useEffect(() => { (async () => { try { const a = await fetch("/api/auth/me").then((r) => r.json()).catch(() => null); if (a && a.admin) { setView("admin"); const sd = await fetch("/api/sessions").then((r) => r.json()).catch(() => ({})); if (sd && sd.sessions) setState((s) => ({ ...s, sessions: sd.sessions })); return; } const c = await fetch("/api/client-me").then((r) => r.json()).catch(() => null); if (c && c.client && c.email) { setClientAuth({ name: "", email: c.email }); const sd = await fetch("/api/sessions").then((r) => r.json()).catch(() => ({})); const sess = (sd && sd.sessions) || []; if (sess.length) { setClientAuth({ name: sess[0].clientName || "", email: c.email }); setState((s) => ({ ...s, sessions: sess })); setClientId(sess[0].id); setView("client"); } } } catch (e) {} finally { setAuthChecked(true); } })(); }, []);
   useEffect(() => { (async () => { try { const res = await fetch("/api/availability"); const data = await res.json(); if (res.ok) setState((s) => ({ ...s, availability: data.availability || [] })); } catch (e) {} })(); }, []);
+  useEffect(() => {
+    if (typeof navigator !== "undefined" && "serviceWorker" in navigator) { navigator.serviceWorker.register("/sw.js").catch(() => {}); }
+    if (typeof window === "undefined") return;
+    const handler = (e) => { e.preventDefault(); setInstallEvt(e); };
+    window.addEventListener("beforeinstallprompt", handler);
+    return () => window.removeEventListener("beforeinstallprompt", handler);
+  }, []);
+  const doInstall = async () => { if (!installEvt) return; try { installEvt.prompt(); await installEvt.userChoice; } catch (e) {} setInstallEvt(null); };
   useEffect(() => { (async () => { try { const res = await fetch("/api/sessions?slots=1"); const data = await res.json(); if (res.ok) setState((s) => ({ ...s, takenSlots: data.takenSlots || [] })); } catch (e) {} })(); }, []);
   const refreshSlots = async () => { try { const res = await fetch("/api/sessions?slots=1"); const data = await res.json(); if (res.ok) setState((s) => ({ ...s, takenSlots: data.takenSlots || [] })); } catch (e) {} };
   useEffect(() => {
@@ -484,6 +494,14 @@ export default function App() {
       {toast && <div style={{ position: "fixed", bottom: 44, left: "50%", transform: "translateX(-50%)", background: INK, color: "#fff", padding: "11px 18px", borderRadius: 8, boxShadow: "0 10px 30px rgba(0,0,0,0.25)", fontSize: 13.5, maxWidth: "92%", display: "flex", alignItems: "center", gap: 9, zIndex: 60 }}><CheckCircle2 size={16} color="#7ee0a0" /> {toast}</div>}
       {confirm && <ConfirmDialog {...confirm} onCancel={() => setConfirm(null)} />}
       <RevealController dep={view + "|" + adminTab + "|" + clientId} />
+      {installEvt && !installDismissed && (
+        <div className="d1-modal" style={{ position: "fixed", bottom: 18, right: 18, zIndex: 300, display: "flex", alignItems: "center", gap: 9, background: INK, color: "#fff", borderRadius: 13, padding: "10px 12px 10px 15px", boxShadow: "0 10px 34px rgba(0,0,0,0.24)", maxWidth: "calc(100vw - 36px)" }}>
+          <Download size={15} />
+          <span style={{ ...mono, fontSize: 11, letterSpacing: "0.03em" }}>Install the Dot One app</span>
+          <button onClick={doInstall} style={{ ...mono, fontSize: 10, letterSpacing: "0.06em", textTransform: "uppercase", background: "#fff", color: INK, border: "none", borderRadius: 8, padding: "6px 12px", cursor: "pointer", marginLeft: 3, fontWeight: 600 }}>Install</button>
+          <button onClick={() => setInstallDismissed(true)} aria-label="Dismiss" style={{ background: "transparent", border: "none", color: "rgba(255,255,255,0.55)", cursor: "pointer", padding: "2px 4px", fontSize: 17, lineHeight: 1 }}>×</button>
+        </div>
+      )}
     </div>
   );
 }

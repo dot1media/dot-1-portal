@@ -1,0 +1,30 @@
+const CACHE = "dot1-portal-v1";
+self.addEventListener("install", (e) => {
+  e.waitUntil(caches.open(CACHE).then((c) => c.add("/")).catch(() => {}));
+  self.skipWaiting();
+});
+self.addEventListener("activate", (e) => {
+  e.waitUntil(caches.keys().then((keys) => Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k)))).then(() => self.clients.claim()));
+});
+self.addEventListener("fetch", (e) => {
+  const req = e.request;
+  if (req.method !== "GET") return;
+  let url;
+  try { url = new URL(req.url); } catch (err) { return; }
+  if (url.origin !== self.location.origin) return;
+  if (url.pathname.startsWith("/api/")) return; // always fresh, never cache
+  if (req.mode === "navigate") {
+    e.respondWith(
+      fetch(req).then((res) => { const copy = res.clone(); caches.open(CACHE).then((c) => c.put("/", copy)).catch(() => {}); return res; })
+                .catch(() => caches.match("/").then((r) => r || Response.error()))
+    );
+    return;
+  }
+  e.respondWith(
+    caches.match(req).then((cached) => cached || fetch(req).then((res) => {
+      if (res && res.status === 200 && res.type === "basic") { const copy = res.clone(); caches.open(CACHE).then((c) => c.put(req, copy)).catch(() => {}); }
+      return res;
+    }).catch(() => cached))
+  );
+});
+
