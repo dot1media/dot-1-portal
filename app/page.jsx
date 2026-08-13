@@ -6,9 +6,9 @@ import {
   CheckCircle2, User, LayoutDashboard, Send, Play, Image as ImageIcon,
   RotateCcw, Clock, MessageSquare, Film, Music, Landmark, Package,
   Plus, Trash2, Pencil, Check, AlertTriangle, Tag, Link2, ListPlus,
-  Star, CreditCard, Wallet,
-  RefreshCw, CalendarDays, ChevronLeft, ChevronRight,
-  ArrowRight, ArrowLeft, CalendarClock, X, Copy, LogIn, Sparkles,
+  Star, CreditCard, Wallet, CalendarDays, ChevronLeft, ChevronRight,
+  ArrowRight, ArrowLeft,
+  Bell, RefreshCw, CalendarClock, X, Copy, LogIn, Sparkles,
   MessageCircle, Smartphone, Link as LinkIcon, Ban, EyeOff, XCircle, CalendarPlus, ChevronDown, Settings, Download, ListChecks, FileText, Palette, Mail, Search, LogOut,
 } from "lucide-react";
 
@@ -29,8 +29,11 @@ const FAINT = "var(--d1-faint, #9a988f)";
 const LINE = "var(--d1-line, #e2ded4)";
 const PAPER = "var(--d1-paper, #ffffff)";
 const CREAM = "var(--d1-cream, #f4f0e7)";
+const OK = "var(--d1-ok, #3f7a3f)";
+const WARN = "var(--d1-warn, #a97a2e)";
+const DANGER = "var(--d1-danger, #b5271b)";
 
-const THEME_VARS = ["--d1-accent", "--d1-cream", "--d1-paper", "--d1-line", "--d1-ink", "--d1-body", "--d1-stone", "--d1-faint"];
+const THEME_VARS = ["--d1-accent", "--d1-cream", "--d1-paper", "--d1-line", "--d1-ink", "--d1-body", "--d1-stone", "--d1-faint", "--d1-ok", "--d1-warn", "--d1-danger"];
 const THEMES = {
   default:  { name: "Warm Paper", swatch: "#e23b2e", bg: "#f4f0e7", vars: null },
   slate:    { name: "Cool Slate", swatch: "#4f5b93", bg: "#f3f4f7", vars: { "--d1-accent": "#4f5b93", "--d1-cream": "#f3f4f7", "--d1-paper": "#ffffff", "--d1-line": "#e0e2e9", "--d1-ink": "#1b1d26", "--d1-body": "#343642", "--d1-stone": "#666a78", "--d1-faint": "#9a9dab" } },
@@ -38,13 +41,14 @@ const THEMES = {
   forest:   { name: "Forest", swatch: "#3f7d4f", bg: "#f1f4ef", vars: { "--d1-accent": "#3f7d4f", "--d1-cream": "#f1f4ef", "--d1-paper": "#ffffff", "--d1-line": "#dde5da", "--d1-ink": "#18201a", "--d1-body": "#313a32", "--d1-stone": "#65705f", "--d1-faint": "#9aa593" } },
   graphite: { name: "Graphite", swatch: "#2f2f2f", bg: "#f5f5f4", vars: { "--d1-accent": "#2f2f2f", "--d1-cream": "#f5f5f4", "--d1-paper": "#ffffff", "--d1-line": "#e4e4e2", "--d1-ink": "#161616", "--d1-body": "#333333", "--d1-stone": "#6a6a68", "--d1-faint": "#9c9c99" } },
   plum:     { name: "Plum", swatch: "#7c4a94", bg: "#f5f2f6", vars: { "--d1-accent": "#7c4a94", "--d1-cream": "#f5f2f6", "--d1-paper": "#ffffff", "--d1-line": "#e7e0ea", "--d1-ink": "#1f1922", "--d1-body": "#39303e", "--d1-stone": "#6e6474", "--d1-faint": "#a29aa8" } },
+  midnight: { name: "Midnight", swatch: "#e2554a", bg: "#15151a", vars: { "--d1-accent": "#e2554a", "--d1-cream": "#15151a", "--d1-paper": "#20202a", "--d1-line": "#34343f", "--d1-ink": "#f3f1ec", "--d1-body": "#c8c5c0", "--d1-stone": "#918e88", "--d1-faint": "#67645f", "--d1-ok": "#63c079", "--d1-warn": "#d6a24e", "--d1-danger": "#f0776b" } },
 };
 const ACCENT_SWATCHES = ["#e23b2e", "#2f74c0", "#3f7d4f", "#7c4a94", "#c26b3e", "#2f2f2f", "#0d9488", "#d4348a"];
 function applyTheme(key, accent) {
   if (typeof document === "undefined") return;
   const root = document.documentElement;
   const t = THEMES[key] || THEMES.default;
-  if (t.vars) { for (const k of THEME_VARS) root.style.setProperty(k, t.vars[k]); }
+  if (t.vars) { for (const k of THEME_VARS) { if (t.vars[k]) root.style.setProperty(k, t.vars[k]); else root.style.removeProperty(k); } }
   else { for (const k of THEME_VARS) root.style.removeProperty(k); }
   if (accent) root.style.setProperty("--d1-accent", accent);
 }
@@ -56,10 +60,10 @@ const cardDense = { background: PAPER, border: `1px solid ${LINE}`, borderRadius
 const useIsoEffect = typeof window !== "undefined" ? useLayoutEffect : useEffect;
 
 const GROUPS = {
-  video: { label: "Video", color: "#e23b2e", soft: "#e23b2e", bg: "#fbeeed", border: "#f2cdc9", text: "#b5271b", Icon: Film },
-  photo: { label: "Photography", color: "#2f74c0", soft: "#5b9bd5", bg: "#eef5fb", border: "#cfe0f2", text: "#2f6aa0", Icon: ImageIcon },
-  music: { label: "Music", color: "#9163cc", soft: "#a586d6", bg: "#f4eefb", border: "#e2d3f2", text: "#6f4aa8", Icon: Music },
-  government: { label: "Government", color: "#586b2e", soft: "#6b7d40", bg: "#eef2e5", border: "#d7e0c2", text: "#47581f", Icon: Landmark },
+  video: { label: "Video", color: "#e23b2e", soft: "#e23b2e", bg: "color-mix(in srgb, #e23b2e 11%, var(--d1-paper,#fff))", border: "color-mix(in srgb, #e23b2e 30%, var(--d1-paper,#fff))", text: "color-mix(in srgb, #e23b2e 72%, var(--d1-ink,#1a1a17))", Icon: Film },
+  photo: { label: "Photography", color: "#2f74c0", soft: "#5b9bd5", bg: "color-mix(in srgb, #2f74c0 11%, var(--d1-paper,#fff))", border: "color-mix(in srgb, #2f74c0 30%, var(--d1-paper,#fff))", text: "color-mix(in srgb, #2f74c0 74%, var(--d1-ink,#1a1a17))", Icon: ImageIcon },
+  music: { label: "Music", color: "#9163cc", soft: "#a586d6", bg: "color-mix(in srgb, #9163cc 12%, var(--d1-paper,#fff))", border: "color-mix(in srgb, #9163cc 30%, var(--d1-paper,#fff))", text: "color-mix(in srgb, #9163cc 74%, var(--d1-ink,#1a1a17))", Icon: Music },
+  government: { label: "Government", color: "#586b2e", soft: "#6b7d40", bg: "color-mix(in srgb, #586b2e 13%, var(--d1-paper,#fff))", border: "color-mix(in srgb, #586b2e 32%, var(--d1-paper,#fff))", text: "color-mix(in srgb, #586b2e 76%, var(--d1-ink,#1a1a17))", Icon: Landmark },
 };
 const GROUP_KEYS = ["video", "photo", "music", "government"];
 
@@ -230,6 +234,7 @@ export default function App() {
   const [themeKey, setThemeKey] = useState("default");
   const [customAccent, setCustomAccent] = useState("");
   const [themeOpen, setThemeOpen] = useState(false);
+  const [legalReturn, setLegalReturn] = useState("landing");
   const [adminId, setAdminId] = useState("");
   const [directContext, setDirectContext] = useState(null);
   const [toast, setToast] = useState(null);
@@ -472,6 +477,7 @@ export default function App() {
             {(view === "admin" || view === "client" || view === "thankyou") && <button onClick={() => setThemeOpen(true)} title="Appearance" aria-label="Appearance" style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 34, height: 34, borderRadius: 7, cursor: "pointer", color: STONE, background: "transparent", border: `1px solid ${LINE}`, padding: 0 }}><Palette size={15} /></button>}
             {view === "admin" ? (
               <>
+                <NotificationBell mode="studio" sessions={state.sessions} onOpenSession={(id) => { setAdminTab("sessions"); setAdminId(id); }} />
                 <button onClick={() => setPaletteOpen(true)} title="Quick search (Cmd/Ctrl + K)" style={{ display: "flex", alignItems: "center", gap: 7, ...mono, fontSize: 10.5, letterSpacing: "0.04em", color: STONE, background: "transparent", border: `1px solid ${LINE}`, borderRadius: 6, padding: "7px 10px", cursor: "pointer" }}><Search size={13} /><span>Search</span><kbd style={{ fontSize: 8.5, border: `1px solid ${LINE}`, borderRadius: 4, padding: "1px 5px", color: FAINT }}>⌘K</kbd></button>
                 <span style={{ ...mono, fontSize: 10, letterSpacing: "0.16em", textTransform: "uppercase", color: STONE }}>Studio</span>
                 <button onClick={adminLogout} style={{ ...mono, fontSize: 10.5, letterSpacing: "0.08em", textTransform: "uppercase", color: STONE, background: "transparent", border: `1px solid ${LINE}`, borderRadius: 6, padding: "8px 12px", cursor: "pointer" }}>Sign out</button>
@@ -479,6 +485,7 @@ export default function App() {
             ) : (view === "client" || view === "thankyou") ? (
               <>
                 <span style={{ ...mono, fontSize: 10, letterSpacing: "0.08em", color: STONE }}>{(clientSession && clientSession.clientName) || "Signed in"}</span>
+                <NotificationBell mode="client" sessions={state.sessions} clientId={clientId} onMarkRead={() => markMessagesRead(clientId, "studio")} />
                 <button onClick={() => { setDirectContext(null); setView("book"); }} style={{ display: "flex", alignItems: "center", gap: 7, padding: "8px 14px", borderRadius: 7, cursor: "pointer", fontSize: 12.5, border: `1px solid ${RED}`, background: "#fff", color: RED, fontWeight: 500 }}><Plus size={14} /> Book Again</button>
                 <button onClick={clientLogout} style={{ ...mono, fontSize: 10.5, letterSpacing: "0.08em", textTransform: "uppercase", color: STONE, background: "transparent", border: `1px solid ${LINE}`, borderRadius: 6, padding: "8px 12px", cursor: "pointer" }}>Sign out</button>
               </>
@@ -499,6 +506,7 @@ export default function App() {
         {view === "book" && <BookingFlow state={state} direct={directContext} slotTaken={slotTaken} onCancel={() => { setDirectContext(null); setView("landing"); }} onComplete={createBooking} onLogin={() => setView("login")} catalogLoaded={catalogLoaded} catalogError={catalogError} availability={state.availability} authedClient={clientAuth} refreshSlots={refreshSlots} />}
         {view === "login" && <LoginView onLogin={loginAs} onBook={() => { setDirectContext(null); setView("book"); }} onStudio={() => setView("studiologin")} onForgot={requestReset} />}
         {view === "resetpw" && <ResetPassword token={resetToken} onDone={() => setView("login")} showToast={showToast} />}
+        {(view === "terms" || view === "privacy") && <LegalPage kind={view} onBack={() => setView(legalReturn)} />}
         {view === "client" && <ClientView session={clientSession} sessions={state.sessions} clientId={clientId} setClientId={setClientId} addComment={addComment} onRescheduleRequest={clientRescheduleRequest} markMessagesRead={markMessagesRead} patchSession={patchSession} resizeImage={resizeImage} showToast={showToast} />}
         {view === "thankyou" && <ThankYou session={clientSession} onPortal={() => setView("client")} />}
         {view === "client" && !guideSeen && clientSession && <ClientGuide onClose={() => { setGuideSeen(true); try { localStorage.setItem("dot1_guide_seen", "1"); } catch (e) {} }} />}
@@ -524,6 +532,7 @@ export default function App() {
           </div>
         )}
       </main>
+      {view !== "terms" && view !== "privacy" ? <Footer onLegal={(k) => { setLegalReturn(view); setView(k); }} /> : null}
       <PortalFooter />
 
       {toast && <div style={{ position: "fixed", bottom: 44, left: "50%", transform: "translateX(-50%)", background: INK, color: "#fff", padding: "11px 18px", borderRadius: 8, boxShadow: "0 10px 30px rgba(0,0,0,0.25)", fontSize: 13.5, maxWidth: "92%", display: "flex", alignItems: "center", gap: 9, zIndex: 60 }}><CheckCircle2 size={16} color="#7ee0a0" /> {toast}</div>}
@@ -560,7 +569,7 @@ function ThankYou({ session, onPortal }) {
           Your <strong style={{ color: INK }}>{session.type}</strong> is booked{session.date ? " for " + fmtDate(session.date) : ""}{session.time ? " at " + fmtTime(session.time) : ""}.
         </div>
       )}
-      {paid && <div style={{ ...mono, fontSize: 10.5, letterSpacing: "0.12em", textTransform: "uppercase", color: "#3f7a3f", marginBottom: 4 }}>Payment received</div>}
+      {paid && <div style={{ ...mono, fontSize: 10.5, letterSpacing: "0.12em", textTransform: "uppercase", color: OK, marginBottom: 4 }}>Payment received</div>}
       <p style={{ fontSize: 14, color: BODY, lineHeight: 1.65, maxWidth: 460, margin: "14px auto 28px" }}>
         We've emailed your confirmation, and your client portal is ready. Sign in anytime with your email and password to follow your project from booking through final delivery.
       </p>
@@ -700,7 +709,7 @@ function StudioLogin({ onLogin, onBack }) {
         <TextInput value={email} onChange={setEmail} placeholder="you@dot1.media" />
         <FieldLabel>Password</FieldLabel>
         <input type="password" value={pw} onChange={(e) => setPw(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") submit(); }} placeholder="Your password" style={{ width: "100%", border: `1px solid ${LINE}`, borderRadius: 8, padding: "10px 12px", fontSize: 14, fontFamily: "inherit", background: PAPER, color: BODY, boxSizing: "border-box" }} />
-        {err && <div style={{ marginTop: 10, fontSize: 12.5, color: "#b5271b", display: "flex", alignItems: "center", gap: 7 }}><AlertTriangle size={13} /> {err}</div>}
+        {err && <div style={{ marginTop: 10, fontSize: 12.5, color: DANGER, display: "flex", alignItems: "center", gap: 7 }}><AlertTriangle size={13} /> {err}</div>}
         <button onClick={submit} disabled={busy} style={{ ...btnSolid, background: busy ? FAINT : INK, width: "100%", justifyContent: "center", marginTop: 14, padding: "11px" }}><LogIn size={15} /> {busy ? "Signing in..." : "Sign in to studio"}</button>
       </div>
       <div style={{ textAlign: "center", marginTop: 16, fontSize: 13, color: STONE }}><span onClick={onBack} style={{ color: RED, cursor: "pointer" }}>← Back to portal home</span></div>
@@ -724,7 +733,7 @@ function LoginView({ onLogin, onBook, onStudio, onForgot }) {
         <div style={{ background: PAPER, border: `1px solid ${LINE}`, borderRadius: 12, padding: "22px 24px" }}>
           {sent ? (
             <div style={{ textAlign: "center", padding: "8px 0" }}>
-              <Check size={26} color="#3f7a3f" style={{ marginBottom: 10 }} />
+              <Check size={26} color={OK} style={{ marginBottom: 10 }} />
               <div style={{ fontSize: 13.5, color: BODY, lineHeight: 1.6 }}>If that email is registered, a reset link is on its way. Check your inbox (and spam) — the link works for one hour.</div>
             </div>
           ) : (
@@ -1060,7 +1069,7 @@ function BookingFlow({ state, direct, slotTaken, onCancel, onComplete, onLogin, 
             <span style={{ fontSize: 12.5, color: BODY, lineHeight: 1.5 }}>I have read and agree to {authedClient ? "" : "the Client Services Agreement and "}the {isMinor ? "Minor " : ""}Release and Liability Waiver above. This typed signature is legally binding.</span>
           </label>
 
-          {submitErr && <div style={{ marginTop: 12, fontSize: 12.5, color: "#b5271b", display: "flex", alignItems: "center", gap: 7 }}><AlertTriangle size={14} /> {submitErr}</div>}
+          {submitErr && <div style={{ marginTop: 12, fontSize: 12.5, color: DANGER, display: "flex", alignItems: "center", gap: 7 }}><AlertTriangle size={14} /> {submitErr}</div>}
 
           <div style={{ display: "flex", justifyContent: "space-between", marginTop: 18 }}>
             <button onClick={() => (direct ? onCancel() : setStep(1))} disabled={submitting} style={btnGhost}><ArrowLeft size={14} /> Back</button>
@@ -1112,7 +1121,7 @@ function BookingFlow({ state, direct, slotTaken, onCancel, onComplete, onLogin, 
               )}
             </div>
           )}
-          {taken && <div style={{ background: "#fbeeed", border: "1px solid #f2cdc9", borderRadius: 8, padding: "9px 13px", marginBottom: 14, fontSize: 12.5, color: "#b5271b", display: "flex", alignItems: "center", gap: 8 }}><AlertTriangle size={14} /> That date and time is already booked. Please pick another.</div>}
+          {taken && <div style={{ background: "#fbeeed", border: "1px solid #f2cdc9", borderRadius: 8, padding: "9px 13px", marginBottom: 14, fontSize: 12.5, color: DANGER, display: "flex", alignItems: "center", gap: 8 }}><AlertTriangle size={14} /> That date and time is already booked. Please pick another.</div>}
 
           <FieldLabel>Payment</FieldLabel>
           <div style={{ background: CREAM, border: `1px solid ${LINE}`, borderLeft: `3px solid ${GROUPS[group].color}`, borderRadius: 8, padding: "10px 14px", marginBottom: 12 }}><div style={{ fontSize: 12, color: STONE, lineHeight: 1.45 }}>{rules.note}</div></div>
@@ -1208,7 +1217,7 @@ function DirectLinks({ state, createDirectLink, revokeDirectLink, openDirectLink
             <div style={{ background: `color-mix(in srgb, ${RED} 7%, ${PAPER})`, border: `1px solid color-mix(in srgb, ${RED} 22%, ${LINE})`, borderRadius: 12, padding: "18px 20px", marginBottom: 18 }}>
               <div style={{ ...mono, fontSize: 10, letterSpacing: "0.14em", textTransform: "uppercase", color: RED, marginBottom: 10, display: "flex", alignItems: "center", gap: 7 }}><Check size={13} /> Link ready — slot reserved</div>
               <div style={{ fontSize: 13, color: BODY, marginBottom: 4 }}>{justMade.serviceName}</div>
-              <div style={{ ...mono, fontSize: 11, color: "#b5271b", marginBottom: 12 }}>{fmtDate(justMade.date)} at {fmtTime(justMade.time)}{justMade.recipient ? ` · for ${justMade.recipient}` : ""}</div>
+              <div style={{ ...mono, fontSize: 11, color: DANGER, marginBottom: 12 }}>{fmtDate(justMade.date)} at {fmtTime(justMade.time)}{justMade.recipient ? ` · for ${justMade.recipient}` : ""}</div>
               <div style={{ display: "flex", gap: 6, marginBottom: 12 }}>
                 <input readOnly value={linkUrl(justMade)} onClick={(e) => e.target.select()} style={{ ...inputStyle, marginBottom: 0, fontSize: 11, color: STONE }} />
                 <button onClick={() => copy(linkUrl(justMade))} style={{ ...btnSolid, background: INK, padding: "9px 12px" }}><Copy size={13} /></button>
@@ -1241,7 +1250,7 @@ function DirectLinks({ state, createDirectLink, revokeDirectLink, openDirectLink
                 <div style={{ ...display, fontWeight: 600, fontSize: 15, color: INK }}>{l.serviceName}</div>
                 <div style={{ ...mono, fontSize: 10.5, color: STONE, marginTop: 2 }}>{fmtDate(l.date)} at {fmtTime(l.time)}{l.recipient ? ` · ${l.recipient}` : ""}</div>
               </div>
-              <span style={{ ...mono, fontSize: 9.5, letterSpacing: "0.08em", textTransform: "uppercase", padding: "4px 10px", borderRadius: 20, background: used ? "#eaf7ef" : "#fff4e8", color: used ? "#2e7d4f" : "#c47f1a", border: `1px solid ${used ? "#bfe6cc" : "#f0dcc0"}` }}>{used ? "Booked" : "Active · held"}</span>
+              <span style={{ ...mono, fontSize: 9.5, letterSpacing: "0.08em", textTransform: "uppercase", padding: "4px 10px", borderRadius: 20, background: used ? "#eaf7ef" : "#fff4e8", color: used ? OK : WARN, border: `1px solid ${used ? "#bfe6cc" : "#f0dcc0"}` }}>{used ? "Booked" : "Active · held"}</span>
               <div style={{ display: "flex", gap: 6 }}>
                 <button onClick={() => copy(linkUrl(l))} title="Copy link" style={iconBtnStyle}><Copy size={13} /></button>
                 {!used && <button onClick={() => openDirectLink(l)} title="Preview as client" style={iconBtnStyle}><Eye size={13} /></button>}
@@ -1261,7 +1270,7 @@ function ConfirmDialog({ title, message, confirmLabel = "Confirm", danger, onYes
     <div className="d1-overlay" style={{ position: "fixed", inset: 0, background: "rgba(26,26,23,0.45)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 80, padding: 20 }} onClick={onCancel}>
       <div onClick={(e) => e.stopPropagation()} className="d1-modal" style={{ background: PAPER, borderRadius: 12, padding: "24px 26px", maxWidth: 420, width: "100%", boxShadow: "0 20px 60px rgba(0,0,0,0.3)" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
-          <div style={{ width: 34, height: 34, borderRadius: "50%", background: danger ? "#fbeeed" : "#fff4e8", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}><AlertTriangle size={18} color={danger ? RED : "#c47f1a"} /></div>
+          <div style={{ width: 34, height: 34, borderRadius: "50%", background: danger ? `color-mix(in srgb, ${DANGER} 15%, var(--d1-paper,#fff))` : `color-mix(in srgb, ${WARN} 16%, var(--d1-paper,#fff))`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}><AlertTriangle size={18} color={danger ? RED : WARN} /></div>
           <h3 style={{ ...display, fontWeight: 700, fontSize: 19, color: INK }}>{title}</h3>
         </div>
         <p style={{ fontSize: 14, lineHeight: 1.55, color: BODY, marginBottom: 20 }}>{message}</p>
@@ -1307,7 +1316,7 @@ function ThemePicker({ themeKey, customAccent, onPick, onClose }) {
           {Object.keys(THEMES).map((k) => { const t = THEMES[k]; const sel = themeKey === k; return (
             <button key={k} onClick={() => onPick(k, "")} style={{ display: "flex", alignItems: "center", gap: 11, textAlign: "left", cursor: "pointer", border: `1.5px solid ${sel ? t.swatch : LINE}`, borderRadius: 11, padding: "11px 13px", background: t.bg }}>
               <span style={{ width: 26, height: 26, borderRadius: "50%", background: t.swatch, flexShrink: 0, boxShadow: "inset 0 0 0 1px rgba(0,0,0,0.08)" }} />
-              <span style={{ ...display, fontWeight: 600, fontSize: 13.5, color: "#1a1a17" }}>{t.name}</span>
+              <span style={{ ...display, fontWeight: 600, fontSize: 13.5, color: t.vars ? t.vars["--d1-ink"] : "#1a1a17" }}>{t.name}</span>
               {sel && <Check size={15} color={t.swatch} style={{ marginLeft: "auto", flexShrink: 0 }} />}
             </button>
           ); })}
@@ -1442,12 +1451,12 @@ function ClientView({ session, sessions, clientId, setClientId, addComment, onRe
       )}
       {status === "cancelled" && (
         <div style={{ background: "#fbeeed", border: "1px solid #f2cdc9", borderRadius: 10, padding: "14px 18px", marginBottom: 18 }}>
-          <div style={{ ...display, fontSize: 16, color: "#b5271b", marginBottom: 3 }}>This booking was cancelled</div>
+          <div style={{ ...display, fontSize: 16, color: DANGER, marginBottom: 3 }}>This booking was cancelled</div>
           <div style={{ fontSize: 13, color: BODY, lineHeight: 1.5 }}>If this wasn't expected, please reach out to us at contact@dot1.media and we'll help.</div>
         </div>
       )}
       {status === "closed" && (
-        <div style={{ background: "#f3f1ec", border: `1px solid ${LINE}`, borderRadius: 10, padding: "14px 18px", marginBottom: 18 }}>
+        <div style={{ background: CREAM, border: `1px solid ${LINE}`, borderRadius: 10, padding: "14px 18px", marginBottom: 18 }}>
           <div style={{ ...display, fontSize: 16, color: INK, marginBottom: 3 }}>This booking is closed</div>
           <div style={{ fontSize: 13, color: BODY, lineHeight: 1.5 }}>Questions about your session? Reach out to us at contact@dot1.media.</div>
         </div>
@@ -1519,11 +1528,11 @@ function ClientView({ session, sessions, clientId, setClientId, addComment, onRe
           {payPaid > 0 && balanceDue > 0 && <Row k="Deposit paid" v={money(payPaid)} sub />}
           {balanceDue > 0 && <Row k="Balance due" v={money(balanceDue)} bold red />}
           {fullyPaid ? (
-            <div style={{ marginTop: 13, display: "flex", alignItems: "center", gap: 8 }}><CheckCircle2 size={15} color="#2e9e5b" /><span style={{ ...mono, fontSize: 11.5, letterSpacing: "0.05em", color: "#2e7d4f" }}>{"PAID IN FULL \u00b7 THANK YOU"}</span></div>
+            <div style={{ marginTop: 13, display: "flex", alignItems: "center", gap: 8 }}><CheckCircle2 size={15} color="#2e9e5b" /><span style={{ ...mono, fontSize: 11.5, letterSpacing: "0.05em", color: OK }}>{"PAID IN FULL \u00b7 THANK YOU"}</span></div>
           ) : balanceDue > 0 ? (
             <>
               <button onClick={payBalance} disabled={payingBalance} style={{ ...btnSolid, background: grp.color, marginTop: 15, width: "100%", justifyContent: "center", opacity: payingBalance ? 0.7 : 1, cursor: payingBalance ? "default" : "pointer" }}>{payingBalance ? "Starting secure checkout\u2026" : "Pay balance securely \u00b7 " + money(balanceDue)}</button>
-              {payErr && <div style={{ marginTop: 10, fontSize: 12.5, color: "#b5271b", display: "flex", alignItems: "center", gap: 7 }}><AlertTriangle size={14} /> {payErr}</div>}
+              {payErr && <div style={{ marginTop: 10, fontSize: 12.5, color: DANGER, display: "flex", alignItems: "center", gap: 7 }}><AlertTriangle size={14} /> {payErr}</div>}
             </>
           ) : paymentPending ? (
             <div style={{ marginTop: 12, ...mono, fontSize: 11.5, letterSpacing: "0.04em", color: STONE }}>{"We\u2019re confirming your payment. This will update automatically."}</div>
@@ -1540,12 +1549,12 @@ function ClientView({ session, sessions, clientId, setClientId, addComment, onRe
             <div key={c.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, padding: "13px 0", borderTop: `1px solid ${LINE}`, flexWrap: "wrap" }}>
               <div style={{ minWidth: 0, flex: "1 1 auto" }}>
                 <div style={{ fontSize: 14.5, color: c.status === "paid" ? STONE : INK, fontWeight: 600 }}>{c.label}</div>
-                <div style={{ ...mono, fontSize: 10, color: c.status === "paid" ? "#3f7a3f" : FAINT, marginTop: 3 }}>{c.status === "paid" ? ("Paid" + (c.cardLast4 ? " \u00b7 " + (c.cardBrand ? String(c.cardBrand).replace(/_/g, " ") : "Card") + " \u00b7\u00b7\u00b7\u00b7 " + c.cardLast4 : "")) : "Requested by Dot One Media"}</div>
+                <div style={{ ...mono, fontSize: 10, color: c.status === "paid" ? OK : FAINT, marginTop: 3 }}>{c.status === "paid" ? ("Paid" + (c.cardLast4 ? " \u00b7 " + (c.cardBrand ? String(c.cardBrand).replace(/_/g, " ") : "Card") + " \u00b7\u00b7\u00b7\u00b7 " + c.cardLast4 : "")) : "Requested by Dot One Media"}</div>
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: 14, flexShrink: 0 }}>
                 <span style={{ fontSize: 17, color: c.status === "paid" ? STONE : INK, fontWeight: 600 }}>{money((Number(c.amountCents) || 0) / 100)}</span>
                 {c.status === "paid" ? (
-                  <span style={{ ...mono, fontSize: 10, letterSpacing: "0.05em", textTransform: "uppercase", color: "#3f7a3f", border: "1px solid rgba(63,122,63,0.3)", borderRadius: 20, padding: "5px 12px" }}>Paid</span>
+                  <span style={{ ...mono, fontSize: 10, letterSpacing: "0.05em", textTransform: "uppercase", color: OK, border: "1px solid rgba(63,122,63,0.3)", borderRadius: 20, padding: "5px 12px" }}>Paid</span>
                 ) : (
                   <button onClick={() => { if (c.squareLink) window.location.href = c.squareLink; }} style={{ ...btnSolid, background: grp.color, padding: "9px 15px" }}>Pay now</button>
                 )}
@@ -1562,7 +1571,7 @@ function ClientView({ session, sessions, clientId, setClientId, addComment, onRe
             <FileText size={17} color={grp.color} style={{ flexShrink: 0 }} />
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ ...display, fontWeight: 600, fontSize: 15, color: INK }}>Production brief</div>
-              <div style={{ ...mono, fontSize: 10, color: briefSubmitted ? "#2e7d4f" : STONE, marginTop: 2 }}>{briefStatusText}</div>
+              <div style={{ ...mono, fontSize: 10, color: briefSubmitted ? OK : STONE, marginTop: 2 }}>{briefStatusText}</div>
             </div>
             <ChevronDown size={18} color="#6f6d65" style={{ flexShrink: 0, transform: briefOpen ? "rotate(180deg)" : "none", transition: "transform 200ms" }} />
           </button>
@@ -1580,7 +1589,7 @@ function ClientView({ session, sessions, clientId, setClientId, addComment, onRe
                 <button onClick={() => saveBrief(false)} style={{ ...mono, fontSize: 11, letterSpacing: "0.06em", textTransform: "uppercase", color: STONE, background: "transparent", border: `1px solid ${LINE}`, borderRadius: 8, padding: "11px 16px", cursor: "pointer" }}>Save draft</button>
                 <button onClick={() => saveBrief(true)} style={{ ...btnSolid, background: grp.color }}>{briefSubmitted ? "Save & update studio" : "Submit brief"}</button>
               </div>
-              {briefMsg && <div style={{ ...mono, fontSize: 11.5, color: "#2e7d4f", marginTop: 12, display: "flex", alignItems: "center", gap: 7 }}><CheckCircle2 size={14} /> {briefMsg}</div>}
+              {briefMsg && <div style={{ ...mono, fontSize: 11.5, color: OK, marginTop: 12, display: "flex", alignItems: "center", gap: 7 }}><CheckCircle2 size={14} /> {briefMsg}</div>}
             </div>
           )}
         </div>
@@ -1592,7 +1601,7 @@ function ClientView({ session, sessions, clientId, setClientId, addComment, onRe
         ) : (
           <div style={{ background: CREAM, border: `1px solid ${LINE}`, borderRadius: 9, padding: "14px 16px", maxWidth: 460 }}>
             <div style={{ ...mono, fontSize: 10, letterSpacing: "0.12em", textTransform: "uppercase", color: STONE, marginBottom: 8 }}>Request a new date</div>
-            <div style={{ fontSize: 12.5, color: fee > 0 ? "#b5271b" : "#2e7d4f", marginBottom: 10, lineHeight: 1.45 }}>{fee > 0 ? `A ${money(fee)} reschedule fee applies for video sessions.` : "Photography reschedules are free with reasonable notice."}</div>
+            <div style={{ fontSize: 12.5, color: fee > 0 ? DANGER : OK, marginBottom: 10, lineHeight: 1.45 }}>{fee > 0 ? `A ${money(fee)} reschedule fee applies for video sessions.` : "Photography reschedules are free with reasonable notice."}</div>
             <input type="date" value={reschedDate} onChange={(e) => setReschedDate(e.target.value)} style={{ ...inputStyle, marginBottom: 10 }} />
             <div style={{ display: "flex", gap: 8 }}>
               <button onClick={() => { if (!reschedDate) return; onRescheduleRequest(session, reschedDate); setReschedOpen(false); }} style={{ ...btnSolid, background: grp.color }}><Send size={13} /> Send request</button>
@@ -1644,7 +1653,7 @@ function ClientView({ session, sessions, clientId, setClientId, addComment, onRe
                     <div style={{ ...display, fontWeight: 600, fontSize: 14, color: INK }}>{meta.label}</div>
                     <div style={{ ...mono, fontSize: 9.5, color: STONE, marginTop: 2 }}>Signed{when ? " " + when : ""}{d.signed_name ? " by " + d.signed_name : ""}{usage ? " \u00b7 " + usage : ""}</div>
                   </div>
-                  <span style={{ ...mono, fontSize: 9, letterSpacing: "0.08em", textTransform: "uppercase", color: "#2e7d4f", background: "#eaf7ef", border: "1px solid #bfe6cc", borderRadius: 20, padding: "4px 9px", flexShrink: 0 }}>Signed</span>
+                  <span style={{ ...mono, fontSize: 9, letterSpacing: "0.08em", textTransform: "uppercase", color: OK, background: `color-mix(in srgb, ${OK} 15%, var(--d1-paper,#fff))`, border: "1px solid #bfe6cc", borderRadius: 20, padding: "4px 9px", flexShrink: 0 }}>Signed</span>
                   {d.id && <a href={"/api/signed-doc?id=" + encodeURIComponent(d.id)} target="_blank" rel="noopener noreferrer" style={{ ...mono, fontSize: 10.5, letterSpacing: "0.04em", color: grp.color, textDecoration: "none", flexShrink: 0 }}>View</a>}
                 </div>
               );
@@ -1763,8 +1772,8 @@ function StudioHome({ state, setAdminId, setAdminTab }) {
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(148px, 1fr))", gap: 12, marginBottom: 18 }}>
         {stat(upcoming.length, "Upcoming")}
         {stat(activeCount, "Active bookings")}
-        {stat(money(Math.round(collected)), "Collected", "#3f7a3f")}
-        {stat(money(Math.round(outstanding)), "Outstanding", outstanding > 0 ? "#a97a2e" : INK)}
+        {stat(money(Math.round(collected)), "Collected", OK)}
+        {stat(money(Math.round(outstanding)), "Outstanding", outstanding > 0 ? WARN : INK)}
       </div>
       <div style={{ ...cardDense, padding: "18px 20px", marginBottom: 18 }}>
         <div style={{ ...mono, fontSize: 10.5, letterSpacing: "0.16em", textTransform: "uppercase", color: STONE, marginBottom: 14 }}>Upcoming sessions</div>
@@ -1863,16 +1872,16 @@ function AdminSessions({ state, adminId, setAdminId, requestSetStage, addComment
         {session.notifyEmail && <div style={{ ...mono, fontSize: 10, color: FAINT, marginBottom: 18, letterSpacing: "0.04em", display: "flex", alignItems: "center", gap: 6 }}><Send size={11} /> New-booking alert routed to {session.notifyEmail}</div>}
         {(session.paymentStatus === "paid" || session.paymentStatus === "pending") && (
           <div style={{ display: "inline-flex", alignItems: "center", gap: 8, background: session.paymentStatus === "paid" ? "#eef6ee" : "#fbf4e9", border: `1px solid ${session.paymentStatus === "paid" ? "#cfe6cf" : "#f0e2c4"}`, borderRadius: 8, padding: "7px 12px", marginBottom: 16 }}>
-            <span style={{ ...mono, fontSize: 10.5, letterSpacing: "0.1em", textTransform: "uppercase", color: session.paymentStatus === "paid" ? "#3f7a3f" : "#a97a2e" }}>{session.paymentStatus === "paid" ? "Paid" : "Payment pending"}{session.payAmount ? " · " + money(session.payAmount) : ""}</span>
+            <span style={{ ...mono, fontSize: 10.5, letterSpacing: "0.1em", textTransform: "uppercase", color: session.paymentStatus === "paid" ? OK : WARN }}>{session.paymentStatus === "paid" ? "Paid" : "Payment pending"}{session.payAmount ? " · " + money(session.payAmount) : ""}</span>
           </div>
         )}
         {(() => {
           const balanceDue = (Number(session.total) || 0) - (Number(session.payAmount) || 0);
           if (session.paymentStatus !== "paid" || balanceDue <= 0) return null;
-          if (session.balanceStatus === "paid") return <div style={{ ...mono, fontSize: 10.5, letterSpacing: "0.1em", textTransform: "uppercase", color: "#3f7a3f", marginBottom: 16 }}>Paid in full</div>;
+          if (session.balanceStatus === "paid") return <div style={{ ...mono, fontSize: 10.5, letterSpacing: "0.1em", textTransform: "uppercase", color: OK, marginBottom: 16 }}>Paid in full</div>;
           return (
             <div style={{ marginBottom: 16 }}>
-              <button onClick={() => onSendBalance(session)} style={{ ...mono, fontSize: 10.5, letterSpacing: "0.06em", color: "#a97a2e", background: "transparent", border: "1px solid #f0e2c4", borderRadius: 7, padding: "8px 12px", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 7 }}><Wallet size={13} /> {session.balanceStatus === "sent" ? "Resend balance link" : "Email balance link"} · {money(balanceDue)}</button>
+              <button onClick={() => onSendBalance(session)} style={{ ...mono, fontSize: 10.5, letterSpacing: "0.06em", color: WARN, background: "transparent", border: "1px solid #f0e2c4", borderRadius: 7, padding: "8px 12px", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 7 }}><Wallet size={13} /> {session.balanceStatus === "sent" ? "Resend balance link" : "Email balance link"} · {money(balanceDue)}</button>
             </div>
           );
         })()}
@@ -1890,7 +1899,7 @@ function AdminSessions({ state, adminId, setAdminId, requestSetStage, addComment
                     </div>
                     <div style={{ display: "flex", alignItems: "center", gap: 9, flexShrink: 0 }}>
                       <span style={{ fontSize: 13, color: c.status === "paid" ? STONE : INK, fontWeight: 500 }}>{money((Number(c.amountCents) || 0) / 100)}</span>
-                      <span style={{ ...mono, fontSize: 9, letterSpacing: "0.06em", textTransform: "uppercase", color: c.status === "paid" ? "#3f7a3f" : "#a97a2e" }}>{c.status === "paid" ? "Paid" : "Pending"}</span>
+                      <span style={{ ...mono, fontSize: 9, letterSpacing: "0.06em", textTransform: "uppercase", color: c.status === "paid" ? OK : WARN }}>{c.status === "paid" ? "Paid" : "Pending"}</span>
                       {c.status !== "paid" && c.squareOrderId ? <button onClick={() => onCheckPayment && onCheckPayment(session, c)} title="Check Square and mark this paid if the client has already paid" style={{ ...mono, fontSize: 8.5, letterSpacing: "0.05em", textTransform: "uppercase", color: STONE, background: "transparent", border: `1px solid ${LINE}`, borderRadius: 6, padding: "5px 8px", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 5 }}><RefreshCw size={10} /> Check</button> : null}
                     </div>
                   </div>
@@ -1909,14 +1918,14 @@ function AdminSessions({ state, adminId, setAdminId, requestSetStage, addComment
 
         {status === "active" ? (
           <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
-            <button onClick={() => onCancelBooking(session)} style={{ ...mono, fontSize: 10.5, letterSpacing: "0.06em", color: "#b5271b", background: "transparent", border: "1px solid #f2cdc9", borderRadius: 7, padding: "8px 12px", cursor: "pointer", display: "flex", alignItems: "center", gap: 7 }}><XCircle size={13} /> Cancel booking</button>
+            <button onClick={() => onCancelBooking(session)} style={{ ...mono, fontSize: 10.5, letterSpacing: "0.06em", color: DANGER, background: "transparent", border: "1px solid #f2cdc9", borderRadius: 7, padding: "8px 12px", cursor: "pointer", display: "flex", alignItems: "center", gap: 7 }}><XCircle size={13} /> Cancel booking</button>
             <button onClick={() => onCloseBooking(session)} style={{ ...mono, fontSize: 10.5, letterSpacing: "0.06em", color: STONE, background: "transparent", border: `1px solid ${LINE}`, borderRadius: 7, padding: "8px 12px", cursor: "pointer", display: "flex", alignItems: "center", gap: 7 }}><Ban size={13} /> Close (no-show / unpaid)</button>
           </div>
         ) : (
           <div style={{ display: "inline-flex", alignItems: "center", gap: 10, background: status === "cancelled" ? "#fbeeed" : "#f3f1ec", border: `1px solid ${status === "cancelled" ? "#f2cdc9" : LINE}`, borderRadius: 8, padding: "8px 13px", marginBottom: 16 }}>
-            <span style={{ ...mono, fontSize: 10.5, letterSpacing: "0.1em", textTransform: "uppercase", color: status === "cancelled" ? "#b5271b" : STONE }}>{status === "cancelled" ? "Booking cancelled" : "Booking closed"}</span>
+            <span style={{ ...mono, fontSize: 10.5, letterSpacing: "0.1em", textTransform: "uppercase", color: status === "cancelled" ? DANGER : STONE }}>{status === "cancelled" ? "Booking cancelled" : "Booking closed"}</span>
             <button onClick={() => onReopenBooking(session)} style={{ ...mono, fontSize: 10, letterSpacing: "0.06em", color: STONE, background: "transparent", border: `1px solid ${LINE}`, borderRadius: 6, padding: "4px 10px", cursor: "pointer" }}>Reopen</button>
-            <button onClick={() => onDeleteBooking(session)} style={{ ...mono, fontSize: 10, letterSpacing: "0.06em", color: "#b5271b", background: "transparent", border: "1px solid #f2cdc9", borderRadius: 6, padding: "4px 10px", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 5 }}><Trash2 size={11} /> Delete</button>
+            <button onClick={() => onDeleteBooking(session)} style={{ ...mono, fontSize: 10, letterSpacing: "0.06em", color: DANGER, background: "transparent", border: "1px solid #f2cdc9", borderRadius: 6, padding: "4px 10px", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 5 }}><Trash2 size={11} /> Delete</button>
           </div>
         )}
 
@@ -1930,7 +1939,7 @@ function AdminSessions({ state, adminId, setAdminId, requestSetStage, addComment
                 <input type="date" value={reschedDate} onChange={(e) => setReschedDate(e.target.value)} style={{ ...inputStyle, marginBottom: 10 }} />
                 <input type="time" value={reschedTime} onChange={(e) => setReschedTime(e.target.value)} style={{ ...inputStyle, marginBottom: 10 }} />
               </div>
-              {reschedClash && <div style={{ fontSize: 11.5, color: "#b5271b", marginBottom: 8, display: "flex", alignItems: "center", gap: 6 }}><AlertTriangle size={12} /> That slot conflicts with another booking.</div>}
+              {reschedClash && <div style={{ fontSize: 11.5, color: DANGER, marginBottom: 8, display: "flex", alignItems: "center", gap: 6 }}><AlertTriangle size={12} /> That slot conflicts with another booking.</div>}
               <div style={{ fontSize: 11.5, color: STONE, marginBottom: 10 }}>A reschedule confirmation email will be sent to the client.</div>
               <div style={{ display: "flex", gap: 8 }}>
                 <button onClick={() => { if (!reschedDate || reschedClash) return; onReschedule(session, reschedDate, reschedTime); setReschedOpen(false); }} style={{ ...btnSolid, background: reschedClash ? FAINT : sg.color }}><Check size={13} /> Confirm & email</button>
@@ -1954,7 +1963,7 @@ function AdminSessions({ state, adminId, setAdminId, requestSetStage, addComment
         <div style={{ ...mono, fontSize: 9.5, color: FAINT, marginBottom: 26, letterSpacing: "0.04em" }}>You'll be asked to confirm — advancing sends the client a status email.</div>
 
         <div style={{ ...cardDense, padding: "16px 18px", marginBottom: 22 }}>
-          <div style={{ ...mono, fontSize: 10, letterSpacing: "0.16em", textTransform: "uppercase", color: STONE, marginBottom: 12, display: "flex", alignItems: "center", gap: 7 }}><FileText size={13} /> Production brief{session.brief && session.brief.submitted && <span style={{ ...mono, fontSize: 8.5, letterSpacing: "0.08em", color: "#2e7d4f", background: "#eaf7ef", border: "1px solid #bfe6cc", borderRadius: 20, padding: "3px 8px" }}>SUBMITTED</span>}</div>
+          <div style={{ ...mono, fontSize: 10, letterSpacing: "0.16em", textTransform: "uppercase", color: STONE, marginBottom: 12, display: "flex", alignItems: "center", gap: 7 }}><FileText size={13} /> Production brief{session.brief && session.brief.submitted && <span style={{ ...mono, fontSize: 8.5, letterSpacing: "0.08em", color: OK, background: `color-mix(in srgb, ${OK} 15%, var(--d1-paper,#fff))`, border: "1px solid #bfe6cc", borderRadius: 20, padding: "3px 8px" }}>SUBMITTED</span>}</div>
           {session.brief && BRIEF_FIELDS.some((f) => (session.brief[f.key] || "").trim()) ? (
             BRIEF_FIELDS.filter((f) => (session.brief[f.key] || "").trim()).map((f) => (
               <div key={f.key} style={{ marginBottom: 13 }}>
@@ -1997,7 +2006,7 @@ function AdminSessions({ state, adminId, setAdminId, requestSetStage, addComment
                     <div style={{ fontSize: 13, fontWeight: 600, color: INK }}>{d.label}</div>
                     <div style={{ ...mono, fontSize: 9.5, color: STONE, marginTop: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{d.note ? d.note + " \u00b7 " : ""}{d.url}</div>
                   </div>
-                  <button onClick={() => patchSession(session.id, { deliverables: (session.deliverables || []).filter((_, j) => j !== i) })} style={{ ...mono, fontSize: 9.5, letterSpacing: "0.06em", textTransform: "uppercase", color: "#b5271b", background: "transparent", border: `1px solid ${LINE}`, borderRadius: 6, padding: "5px 9px", cursor: "pointer", flexShrink: 0 }}>Remove</button>
+                  <button onClick={() => patchSession(session.id, { deliverables: (session.deliverables || []).filter((_, j) => j !== i) })} style={{ ...mono, fontSize: 9.5, letterSpacing: "0.06em", textTransform: "uppercase", color: DANGER, background: "transparent", border: `1px solid ${LINE}`, borderRadius: 6, padding: "5px 9px", cursor: "pointer", flexShrink: 0 }}>Remove</button>
                 </div>
               ))}
             </div>
@@ -2349,7 +2358,7 @@ function StatusBadge({ stage, group, consult }) {
   const stArr = consult ? CONSULT_STAGES : STAGES;
   const st = stArr[Math.min(stage, stArr.length - 1)] || stArr[0], St = st.Icon, delivered = stage >= stArr.length - 1;
   const g = GROUPS[group] || GROUPS.video;
-  const bg = delivered ? "#eaf7ef" : g.bg, bd = delivered ? "#bfe6cc" : g.border, tx = delivered ? "#2e7d4f" : g.text, ic = delivered ? "#2e9e5b" : g.color;
+  const bg = delivered ? "#eaf7ef" : g.bg, bd = delivered ? "#bfe6cc" : g.border, tx = delivered ? OK : g.text, ic = delivered ? "#2e9e5b" : g.color;
   return <div style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "8px 14px", borderRadius: 24, background: bg, border: `1px solid ${bd}` }}><St size={14} color={ic} /><span style={{ ...mono, fontSize: 11, letterSpacing: "0.06em", color: tx }}>{st.label}</span></div>;
 }
 
@@ -2494,7 +2503,7 @@ function BusinessSettings({ sessions, showToast }) {
   const modeBadge = (label, value, ok) => (
     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "11px 14px", border: `1px solid ${LINE}`, borderRadius: 9, background: PAPER }}>
       <span style={{ ...mono, fontSize: 10.5, letterSpacing: "0.12em", textTransform: "uppercase", color: STONE }}>{label}</span>
-      <span style={{ ...mono, fontSize: 10.5, letterSpacing: "0.08em", textTransform: "uppercase", color: ok ? "#3f7a3f" : "#a97a2e", fontWeight: 600 }}>{value}</span>
+      <span style={{ ...mono, fontSize: 10.5, letterSpacing: "0.08em", textTransform: "uppercase", color: ok ? OK : WARN, fontWeight: 600 }}>{value}</span>
     </div>
   );
   return (
@@ -2518,8 +2527,8 @@ function BusinessSettings({ sessions, showToast }) {
         {statCard(activeCount, "Bookings")}
         {statCard(money(bookedRevenue), "Booked revenue")}
         {statCard(money(Math.round(avgValue)), "Avg value")}
-        {statCard(money(collected), "Collected", "#3f7a3f")}
-        {statCard(money(outstanding), "Outstanding", "#a97a2e")}
+        {statCard(money(collected), "Collected", OK)}
+        {statCard(money(outstanding), "Outstanding", WARN)}
       </div>
 
       <div style={{ ...mono, fontSize: 10.5, letterSpacing: "0.16em", textTransform: "uppercase", color: STONE, marginBottom: 12 }}>Insights</div>
@@ -2576,7 +2585,7 @@ function BusinessSettings({ sessions, showToast }) {
               </div>
               <div style={{ display: "flex", gap: 7, flexShrink: 0 }}>
                 <a href={"/api/receipt?id=" + encodeURIComponent(p.id)} target="_blank" rel="noopener noreferrer" style={{ ...mono, fontSize: 10, letterSpacing: "0.04em", textTransform: "uppercase", color: INK, textDecoration: "none", border: `1px solid ${LINE}`, borderRadius: 7, padding: "7px 11px", display: "inline-flex", alignItems: "center", gap: 5 }}><FileText size={12} /> Receipt</a>
-                <button onClick={() => emailReceipt(p)} disabled={emailing === p.id} style={{ ...mono, fontSize: 10, letterSpacing: "0.04em", textTransform: "uppercase", color: emailing === p.id ? FAINT : "#fff", background: emailing === p.id ? LINE : "#3f7a3f", border: "none", borderRadius: 7, padding: "7px 11px", cursor: emailing === p.id ? "default" : "pointer", display: "inline-flex", alignItems: "center", gap: 5 }}><Mail size={12} /> {emailing === p.id ? "Sending\u2026" : "Email"}</button>
+                <button onClick={() => emailReceipt(p)} disabled={emailing === p.id} style={{ ...mono, fontSize: 10, letterSpacing: "0.04em", textTransform: "uppercase", color: emailing === p.id ? FAINT : "#fff", background: emailing === p.id ? LINE : OK, border: "none", borderRadius: 7, padding: "7px 11px", cursor: emailing === p.id ? "default" : "pointer", display: "inline-flex", alignItems: "center", gap: 5 }}><Mail size={12} /> {emailing === p.id ? "Sending\u2026" : "Email"}</button>
               </div>
             </div>
           ))}
@@ -2766,6 +2775,135 @@ function PortalSplash() {
       <div style={{ width: 132, height: 3, borderRadius: 3, background: LINE, overflow: "hidden" }}>
         <div className="d1-loadbar" style={{ height: "100%", width: "40%", borderRadius: 3, background: RED }} />
       </div>
+    </div>
+  );
+}
+
+function LegalPage({ kind, onBack }) {
+  const today = "August 13, 2026";
+  const terms = [
+    ["Agreement to these terms", "By booking a session, using this portal, or engaging Dot One Media (\u201cwe,\u201d \u201cus,\u201d or \u201cDot One\u201d) for services, you agree to these Terms. If you do not agree, please do not use the portal or book a session. Specific projects may also be governed by a separate written agreement, which controls if it conflicts with these Terms."],
+    ["Our services", "Dot One Media is a veteran-owned media and production studio based in Wasilla, Alaska, offering photography, videography, music, and related creative and production services. The specific deliverables, timeline, and price for your project are described at booking and in any project agreement."],
+    ["Booking, deposits, and payment", "Some sessions require a deposit or payment to reserve your date; your booking is confirmed once that payment is received. Any remaining balance is due as stated for your project, typically before or at delivery. Payments are processed securely through Square; we do not store your full card details. Deposits reserve time we cannot offer to other clients and are non-refundable unless stated otherwise in writing."],
+    ["Rescheduling and cancellation", "We understand plans change. You may request to reschedule through this portal; depending on the service and how much notice you give, a reschedule fee may apply, as shown when you request the change. Cancellations may forfeit deposits. We reserve the right to reschedule in cases of illness, emergency, or unsafe conditions, and will work with you to find a new date."],
+    ["Deliverables and usage rights", "You receive the finished deliverables agreed for your project. Unless your written agreement says otherwise, Dot One retains copyright in the work and grants you a license to use the delivered images and films for your personal or agreed-upon use. We may feature work we create in our portfolio, website, and social media unless you ask us in writing not to."],
+    ["Your responsibilities", "You agree to provide accurate booking information, communicate in a timely way, secure any locations or permissions needed for your session, and make payments when due. Please keep your portal sign-in details private."],
+    ["Limitation of liability", "We take great care in our work, but our services and this portal are provided \u201cas is.\u201d To the fullest extent permitted by law, Dot One\u2019s total liability for any claim relating to a project is limited to the amount you paid for that project. We are not liable for indirect or consequential losses."],
+    ["Changes to these terms", "We may update these Terms from time to time. The \u201clast updated\u201d date below reflects the current version, and continued use of the portal after changes means you accept them."],
+  ];
+  const privacy = [
+    ["Overview", "This Privacy Policy explains what information Dot One Media collects through this portal and our services, how we use it, and the choices you have. We collect only what we need to serve you well."],
+    ["Information we collect", "We collect the details you provide when you book or use the portal: your name, email, phone, session and project details, and any messages or brief responses you send us. When you pay, Square processes the transaction and we receive confirmation and limited details (such as the card brand and last four digits); we do not store your full card number. We also collect the photos and files we create for you, and basic technical information needed to run the portal."],
+    ["How we use your information", "We use your information to provide and deliver your services, confirm bookings, communicate with you, process payments, share your finished work, and improve our services. We send booking confirmations and, based on your preferences, project updates, replies, and payment notices."],
+    ["How we share your information", "We do not sell your personal information. We share it only with the service providers that help us operate, such as Square (payments), our email provider, and our hosting and database providers, and only as needed to run the portal and deliver your project. We may disclose information if required by law."],
+    ["Data retention", "We keep your information for as long as needed to provide your services and meet legal, tax, and business requirements. You may ask us to delete information we are not required to keep."],
+    ["Your choices", "You can ask us to access, correct, or delete your personal information, and you can manage which emails you receive from the preferences in your portal (your project details still appear in the portal either way). To make a request, contact us using the details below."],
+    ["Cookies and local storage", "The portal uses your browser\u2019s local storage to keep you signed in and remember preferences like your chosen theme. It does not use advertising trackers."],
+    ["Security", "We use reasonable measures to protect your information, and payments are handled by Square using bank-level security. No system is perfectly secure, but we take safeguarding your data seriously."],
+    ["Children\u2019s privacy", "The portal is intended for adults booking our services and is not directed to children under 13. We do not knowingly collect personal information from children."],
+    ["Changes to this policy", "We may update this policy from time to time. The \u201clast updated\u201d date below reflects the current version."],
+  ];
+  const isTerms = kind === "terms";
+  const sections = isTerms ? terms : privacy;
+  return (
+    <div style={{ maxWidth: 760, margin: "6px auto 0" }}>
+      <button onClick={onBack} style={{ display: "inline-flex", alignItems: "center", gap: 6, ...mono, fontSize: 10.5, letterSpacing: "0.06em", textTransform: "uppercase", color: STONE, background: "transparent", border: `1px solid ${LINE}`, borderRadius: 7, padding: "8px 12px", cursor: "pointer", marginBottom: 22 }}><ArrowLeft size={13} /> Back</button>
+      <div style={{ ...mono, fontSize: 10.5, letterSpacing: "0.2em", textTransform: "uppercase", color: RED, marginBottom: 8 }}>Dot One Media</div>
+      <h1 style={{ ...display, fontWeight: 700, fontSize: 32, color: INK, letterSpacing: "-0.015em", marginBottom: 6 }}>{isTerms ? "Terms of Service" : "Privacy Policy"}</h1>
+      <div style={{ ...mono, fontSize: 10.5, color: FAINT, marginBottom: 26 }}>Last updated {today}</div>
+      <div style={{ ...card, padding: "8px 30px 30px" }}>
+        {sections.map((s, i) => (
+          <div key={i} style={{ marginTop: 24 }}>
+            <h2 style={{ ...display, fontWeight: 600, fontSize: 18, color: INK, marginBottom: 8 }}>{s[0]}</h2>
+            <p style={{ fontSize: 14, lineHeight: 1.62, color: BODY }}>{s[1]}</p>
+          </div>
+        ))}
+        <div style={{ marginTop: 28, paddingTop: 20, borderTop: `1px solid ${LINE}` }}>
+          <p style={{ fontSize: 13.5, lineHeight: 1.6, color: STONE }}>Questions about {isTerms ? "these terms" : "this policy"}? Contact us at <a href="mailto:contact@dot1.media" style={{ color: RED, textDecoration: "none" }}>contact@dot1.media</a>.</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Footer({ onLegal }) {
+  const year = new Date().getFullYear();
+  const link = { ...mono, fontSize: 10, letterSpacing: "0.08em", textTransform: "uppercase", color: STONE, background: "transparent", border: "none", cursor: "pointer", padding: 0, textDecoration: "none" };
+  return (
+    <footer style={{ borderTop: `1px solid ${LINE}`, background: PAPER }}>
+      <div style={{ maxWidth: 1120, margin: "0 auto", padding: "22px 22px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 14, flexWrap: "wrap" }}>
+        <div style={{ ...mono, fontSize: 10, letterSpacing: "0.04em", color: FAINT }}>{"\u00a9 " + year + " Dot One Media \u00b7 Wasilla, Alaska"}</div>
+        <div style={{ display: "flex", alignItems: "center", gap: 20 }}>
+          <button onClick={() => onLegal("terms")} style={link}>Terms</button>
+          <button onClick={() => onLegal("privacy")} style={link}>Privacy</button>
+          <a href="mailto:contact@dot1.media" style={link}>Contact</a>
+        </div>
+      </div>
+    </footer>
+  );
+}
+
+function NotificationBell({ mode, sessions, clientId, onOpenSession, onMarkRead, onOpenTab }) {
+  const [open, setOpen] = useState(false);
+  const items = [];
+  if (mode === "studio") {
+    (sessions || []).forEach((s) => {
+      (s.comments || []).forEach((c, idx) => {
+        if (c && c.author === "client" && !c.read) {
+          const resched = /reschedul/i.test(c.text || "");
+          items.push({ key: s.id + ":" + idx, Icon: resched ? CalendarClock : MessageSquare, title: (resched ? "Reschedule request" : "New message") + " \u00b7 " + (s.clientName || "Client"), sub: (c.text || "").slice(0, 70), run: () => onOpenSession && onOpenSession(s.id) });
+        }
+      });
+    });
+  } else {
+    const s = (sessions || []).find((x) => x.id === clientId);
+    if (s) {
+      (s.comments || []).forEach((c, idx) => {
+        if (c && c.author === "studio" && !c.read) items.push({ key: "m" + idx, Icon: MessageSquare, title: "New reply from the studio", sub: (c.text || "").slice(0, 70), run: () => onMarkRead && onMarkRead() });
+      });
+      if (s.deliveryPhoto) items.push({ key: "gal", Icon: ImageIcon, title: "Your gallery is ready", sub: "View and download your photos", run: () => onOpenTab && onOpenTab() });
+      (Array.isArray(s.charges) ? s.charges : []).forEach((c, idx) => { if (c && c.status !== "paid") items.push({ key: "c" + idx, Icon: Wallet, title: "Payment request", sub: (c.label || "Charge") + " \u00b7 " + money((c.amountCents || 0) / 100) }); });
+      const bal = (Number(s.total) || 0) - ((s.paymentStatus === "paid") ? (Number(s.payAmount) || 0) : 0);
+      if (s.paymentStatus === "paid" && s.balanceStatus !== "paid" && bal > 0) items.push({ key: "bal", Icon: Wallet, title: "Balance due", sub: money(bal) + " remaining" });
+    }
+  }
+  const count = items.length;
+  return (
+    <div style={{ position: "relative" }}>
+      <button onClick={() => setOpen((o) => !o)} title="Notifications" aria-label="Notifications" style={{ position: "relative", display: "flex", alignItems: "center", justifyContent: "center", width: 34, height: 34, borderRadius: 7, cursor: "pointer", color: STONE, background: "transparent", border: `1px solid ${LINE}`, padding: 0 }}>
+        <Bell size={15} />
+        {count > 0 && <span style={{ position: "absolute", top: -5, right: -5, minWidth: 16, height: 16, padding: "0 4px", borderRadius: 8, background: RED, color: "#fff", fontSize: 9.5, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", boxSizing: "border-box", ...mono }}>{count}</span>}
+      </button>
+      {open && (
+        <>
+          <div onClick={() => setOpen(false)} style={{ position: "fixed", inset: 0, zIndex: 40 }} />
+          <div className="d1-modal" style={{ position: "absolute", right: 0, top: 42, width: 322, maxWidth: "86vw", background: PAPER, border: `1px solid ${LINE}`, borderRadius: 12, boxShadow: "0 12px 40px rgba(26,26,23,0.18)", zIndex: 41, overflow: "hidden" }}>
+            <div style={{ padding: "13px 16px", borderBottom: `1px solid ${LINE}`, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <span style={{ ...mono, fontSize: 10.5, letterSpacing: "0.14em", textTransform: "uppercase", color: STONE }}>Notifications</span>
+              {count > 0 && <span style={{ ...mono, fontSize: 10, color: FAINT }}>{count} new</span>}
+            </div>
+            <div style={{ maxHeight: 358, overflowY: "auto" }}>
+              {count === 0 ? (
+                <div style={{ padding: "34px 20px", textAlign: "center" }}>
+                  <Bell size={20} color={FAINT} />
+                  <div style={{ fontSize: 13, color: STONE, marginTop: 9 }}>You\u2019re all caught up.</div>
+                </div>
+              ) : items.map((it) => {
+                const Ico = it.Icon;
+                return (
+                  <button key={it.key} onClick={() => { if (it.run) it.run(); setOpen(false); }} style={{ width: "100%", textAlign: "left", display: "flex", gap: 11, alignItems: "flex-start", padding: "12px 16px", background: "transparent", border: "none", borderBottom: `1px solid ${LINE}`, cursor: it.run ? "pointer" : "default" }}>
+                    <span style={{ width: 30, height: 30, borderRadius: 8, background: CREAM, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, color: RED }}><Ico size={14} /></span>
+                    <span style={{ minWidth: 0, flex: 1 }}>
+                      <span style={{ display: "block", fontSize: 13, fontWeight: 600, color: INK }}>{it.title}</span>
+                      {it.sub ? <span style={{ display: "block", fontSize: 12, color: STONE, marginTop: 1, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{it.sub}</span> : null}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }
