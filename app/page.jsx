@@ -8,7 +8,7 @@ import {
   Plus, Trash2, Pencil, Check, AlertTriangle, Tag, Link2, ListPlus,
   Star, CreditCard, Wallet, CalendarDays, ChevronLeft, ChevronRight,
   ArrowRight, ArrowLeft, CalendarClock, X, Copy, LogIn, Sparkles,
-  MessageCircle, Smartphone, Link as LinkIcon, Ban, EyeOff, XCircle, CalendarPlus, ChevronDown, Settings, Download, ListChecks, FileText, Palette, Mail,
+  MessageCircle, Smartphone, Link as LinkIcon, Ban, EyeOff, XCircle, CalendarPlus, ChevronDown, Settings, Download, ListChecks, FileText, Palette, Mail, Search, LogOut,
 } from "lucide-react";
 
 // Persist to the browser's localStorage (works in a real browser, unlike the
@@ -221,6 +221,7 @@ export default function App() {
   const [authChecked, setAuthChecked] = useState(false);
   const [installEvt, setInstallEvt] = useState(null);
   const [installDismissed, setInstallDismissed] = useState(false);
+  const [paletteOpen, setPaletteOpen] = useState(false);
   const [clientId, setClientId] = useState("");
   const [clientAuth, setClientAuth] = useState(null);
   const [resetToken, setResetToken] = useState("");
@@ -254,6 +255,11 @@ export default function App() {
     return () => window.removeEventListener("beforeinstallprompt", handler);
   }, []);
   const doInstall = async () => { if (!installEvt) return; try { installEvt.prompt(); await installEvt.userChoice; } catch (e) {} setInstallEvt(null); };
+  useEffect(() => {
+    const onKey = (e) => { if ((e.metaKey || e.ctrlKey) && (e.key === "k" || e.key === "K")) { if (view === "admin") { e.preventDefault(); setPaletteOpen((o) => !o); } } };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [view]);
   useEffect(() => { (async () => { try { const res = await fetch("/api/sessions?slots=1"); const data = await res.json(); if (res.ok) setState((s) => ({ ...s, takenSlots: data.takenSlots || [] })); } catch (e) {} })(); }, []);
   const refreshSlots = async () => { try { const res = await fetch("/api/sessions?slots=1"); const data = await res.json(); if (res.ok) setState((s) => ({ ...s, takenSlots: data.takenSlots || [] })); } catch (e) {} };
   useEffect(() => {
@@ -438,6 +444,7 @@ export default function App() {
             {(view === "admin" || view === "client" || view === "thankyou") && <button onClick={() => setThemeOpen(true)} title="Appearance" aria-label="Appearance" style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 34, height: 34, borderRadius: 7, cursor: "pointer", color: STONE, background: "transparent", border: `1px solid ${LINE}`, padding: 0 }}><Palette size={15} /></button>}
             {view === "admin" ? (
               <>
+                <button onClick={() => setPaletteOpen(true)} title="Quick search (Cmd/Ctrl + K)" style={{ display: "flex", alignItems: "center", gap: 7, ...mono, fontSize: 10.5, letterSpacing: "0.04em", color: STONE, background: "transparent", border: `1px solid ${LINE}`, borderRadius: 6, padding: "7px 10px", cursor: "pointer" }}><Search size={13} /><span>Search</span><kbd style={{ fontSize: 8.5, border: `1px solid ${LINE}`, borderRadius: 4, padding: "1px 5px", color: FAINT }}>⌘K</kbd></button>
                 <span style={{ ...mono, fontSize: 10, letterSpacing: "0.16em", textTransform: "uppercase", color: STONE }}>Studio</span>
                 <button onClick={adminLogout} style={{ ...mono, fontSize: 10.5, letterSpacing: "0.08em", textTransform: "uppercase", color: STONE, background: "transparent", border: `1px solid ${LINE}`, borderRadius: 6, padding: "8px 12px", cursor: "pointer" }}>Sign out</button>
               </>
@@ -493,6 +500,7 @@ export default function App() {
 
       {toast && <div style={{ position: "fixed", bottom: 44, left: "50%", transform: "translateX(-50%)", background: INK, color: "#fff", padding: "11px 18px", borderRadius: 8, boxShadow: "0 10px 30px rgba(0,0,0,0.25)", fontSize: 13.5, maxWidth: "92%", display: "flex", alignItems: "center", gap: 9, zIndex: 60 }}><CheckCircle2 size={16} color="#7ee0a0" /> {toast}</div>}
       {confirm && <ConfirmDialog {...confirm} onCancel={() => setConfirm(null)} />}
+      {view === "admin" && paletteOpen && <CommandPalette state={state} setAdminTab={setAdminTab} setAdminId={setAdminId} onClose={() => setPaletteOpen(false)} onSignOut={adminLogout} onTheme={() => setThemeOpen(true)} />}
       <RevealController dep={view + "|" + adminTab + "|" + clientId} />
       {installEvt && !installDismissed && (
         <div className="d1-modal" style={{ position: "fixed", bottom: 18, right: 18, zIndex: 300, display: "flex", alignItems: "center", gap: 9, background: INK, color: "#fff", borderRadius: 13, padding: "10px 12px 10px 15px", boxShadow: "0 10px 34px rgba(0,0,0,0.24)", maxWidth: "calc(100vw - 36px)" }}>
@@ -2608,6 +2616,65 @@ const navBtn = { width: 30, height: 30, borderRadius: 7, border: `1px solid ${LI
 const shareBtn = { display: "inline-flex", alignItems: "center", gap: 6, textDecoration: "none", background: PAPER, border: `1px solid ${LINE}`, borderRadius: 7, padding: "8px 12px", fontSize: 11.5, color: INK, fontFamily: "'IBM Plex Mono', monospace" };
 const btnGhost = { fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, letterSpacing: "0.06em", textTransform: "uppercase", padding: "9px 14px", borderRadius: 8, border: `1px solid ${LINE}`, background: PAPER, color: STONE, cursor: "pointer", display: "flex", alignItems: "center", gap: 7 };
 const btnSolid = { fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, letterSpacing: "0.06em", textTransform: "uppercase", padding: "9px 14px", borderRadius: 8, border: "none", color: "#fff", cursor: "pointer", display: "flex", alignItems: "center", gap: 7 };
+
+function CommandPalette({ state, setAdminTab, setAdminId, onClose, onSignOut, onTheme }) {
+  const [q, setQ] = useState("");
+  const [sel, setSel] = useState(0);
+  const inputRef = useRef(null);
+  useEffect(() => { const t = setTimeout(() => { if (inputRef.current) inputRef.current.focus(); }, 30); return () => clearTimeout(t); }, []);
+  const go = (tab) => { setAdminTab(tab); onClose(); };
+  const openSession = (id) => { setAdminId(id); setAdminTab("sessions"); onClose(); };
+  const commands = [
+    { icon: LayoutDashboard, label: "Home", sub: "Dashboard and overview", kws: "home dashboard overview metrics", run: () => go("home") },
+    { icon: CalendarDays, label: "Sessions", sub: "Manage every booking", kws: "sessions bookings clients projects", run: () => go("sessions") },
+    { icon: CalendarClock, label: "Calendar", sub: "Month view by service line", kws: "calendar schedule month", run: () => go("calendar") },
+    { icon: Link2, label: "Direct Booking Link", sub: "Reserve a slot for a client", kws: "direct booking link reserve hold", run: () => go("links") },
+    { icon: Clock, label: "Availability", sub: "Open days and hours", kws: "availability hours open days bookable", run: () => go("availability") },
+    { icon: Package, label: "Services and Add-ons", sub: "Your catalog", kws: "services addons catalog pricing appointment types", run: () => go("services") },
+    { icon: Settings, label: "Business Settings", sub: "Revenue, receipts, exports", kws: "business settings revenue receipts export payments", run: () => go("business") },
+    { icon: Palette, label: "Appearance", sub: "Change the portal theme", kws: "theme appearance colour color palette", run: () => { onClose(); onTheme(); } },
+    { icon: LogOut, label: "Sign out", sub: "Leave the studio dashboard", kws: "sign out log out logout leave", run: () => { onClose(); onSignOut(); } },
+  ];
+  const ql = q.trim().toLowerCase();
+  const cmds = ql ? commands.filter((c) => (c.label + " " + c.kws).toLowerCase().includes(ql)) : commands;
+  const sess = ql ? (state.sessions || []).filter((s) => ((s.clientName || "") + " " + (s.type || "")).toLowerCase().includes(ql)).slice(0, 6) : [];
+  const items = [
+    ...cmds.map((c) => ({ icon: c.icon, iconColor: null, label: c.label, sub: c.sub, tag: null, run: c.run })),
+    ...sess.map((s) => { const g = GROUPS[s.serviceLine] || GROUPS.video; return { icon: g.Icon, iconColor: g.color, label: s.clientName, sub: s.type + (s.date ? " \u00b7 " + fmtDate(s.date) : ""), tag: "Session", run: () => openSession(s.id) }; }),
+  ];
+  const cur = Math.min(sel, Math.max(0, items.length - 1));
+  const onKey = (e) => {
+    if (e.key === "ArrowDown") { e.preventDefault(); setSel((i) => Math.min(i + 1, items.length - 1)); }
+    else if (e.key === "ArrowUp") { e.preventDefault(); setSel((i) => Math.max(i - 1, 0)); }
+    else if (e.key === "Enter") { e.preventDefault(); const it = items[cur]; if (it) it.run(); }
+    else if (e.key === "Escape") { e.preventDefault(); onClose(); }
+  };
+  return (
+    <div className="d1-overlay" onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(20,19,17,0.5)", display: "flex", alignItems: "flex-start", justifyContent: "center", padding: "76px 20px 20px", zIndex: 400 }}>
+      <div className="d1-modal" onClick={(e) => e.stopPropagation()} style={{ background: PAPER, borderRadius: 14, maxWidth: 560, width: "100%", border: `1px solid ${LINE}`, boxShadow: "0 24px 70px rgba(20,19,17,0.28)", overflow: "hidden", maxHeight: "72vh", display: "flex", flexDirection: "column" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 11, padding: "15px 17px", borderBottom: `1px solid ${LINE}` }}>
+          <Search size={17} color={FAINT} />
+          <input ref={inputRef} value={q} onChange={(e) => { setQ(e.target.value); setSel(0); }} onKeyDown={onKey} placeholder="Search sessions, tabs, and actions" style={{ flex: 1, border: "none", outline: "none", background: "transparent", fontSize: 15, color: INK, fontFamily: "inherit" }} />
+          <kbd style={{ ...mono, fontSize: 9, color: FAINT, border: `1px solid ${LINE}`, borderRadius: 5, padding: "3px 6px" }}>ESC</kbd>
+        </div>
+        <div style={{ overflowY: "auto", padding: 7 }}>
+          {items.length === 0 ? (
+            <div style={{ padding: "28px 16px", textAlign: "center", color: FAINT, fontSize: 13 }}>No matches. Try a client name or a tab.</div>
+          ) : items.map((it, i) => { const It = it.icon; const on = i === cur; return (
+            <button key={i} onClick={() => it.run()} onMouseEnter={() => setSel(i)} style={{ display: "flex", alignItems: "center", gap: 12, width: "100%", textAlign: "left", padding: "10px 12px", borderRadius: 9, border: "none", background: on ? CREAM : "transparent", cursor: "pointer" }}>
+              <div style={{ width: 30, height: 30, borderRadius: 8, background: on ? PAPER : CREAM, border: `1px solid ${LINE}`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}><It size={15} color={it.iconColor || STONE} /></div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 13.5, fontWeight: 600, color: INK, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{it.label}</div>
+                {it.sub && <div style={{ ...mono, fontSize: 10, color: STONE, marginTop: 1, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{it.sub}</div>}
+              </div>
+              {it.tag && <span style={{ ...mono, fontSize: 8.5, letterSpacing: "0.1em", textTransform: "uppercase", color: FAINT, border: `1px solid ${LINE}`, borderRadius: 5, padding: "2px 6px", flexShrink: 0 }}>{it.tag}</span>}
+            </button>
+          ); })}
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function RevealController({ dep }) {
   useIsoEffect(() => {
