@@ -58,6 +58,9 @@ export async function GET(request: Request) {
 
     // Record a receipt + email it to the client. Fully isolated: this can never break payment verification.
     try {
+      // Ensure the receipts ledger exists even if the SQL migration was never applied.
+      await sql`CREATE TABLE IF NOT EXISTS payments (id text PRIMARY KEY, session_id text NOT NULL, client_email text, client_name text, service text, kind text, amount_cents integer NOT NULL DEFAULT 0, currency text NOT NULL DEFAULT 'USD', card_brand text, card_last4 text, square_order_id text, square_payment_id text, paid_at timestamptz NOT NULL DEFAULT now(), created_at timestamptz NOT NULL DEFAULT now())`;
+      await sql`CREATE UNIQUE INDEX IF NOT EXISTS payments_order_uidx ON payments(square_order_id)`;
       const amountCents = (order.total_money && Number(order.total_money.amount)) || 0;
       const rcptKind = isCharge ? "charge" : isBalance ? "balance" : String(data.payChoice || "deposit");
       const rcptService = isCharge ? chargeObj.label || data.type : data.type;
@@ -76,7 +79,7 @@ export async function GET(request: Request) {
           await sendToClient(data.clientEmail, "payments", { subject: "Your Dot One Media receipt", html: receiptEmail(rec), attachments });
         }
       }
-    } catch (e) { /* never break payment verification */ }
+    } catch (e) { try { console.error("[pay/verify] receipt/email failed:", (e && (e as any).message) || e); } catch (e5) {} }
   }
   return NextResponse.json({ paid });
 }
