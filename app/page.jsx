@@ -6,7 +6,8 @@ import {
   CheckCircle2, User, LayoutDashboard, Send, Play, Image as ImageIcon,
   RotateCcw, Clock, MessageSquare, Film, Music, Landmark, Package,
   Plus, Trash2, Pencil, Check, AlertTriangle, Tag, Link2, ListPlus,
-  Star, CreditCard, Wallet, CalendarDays, ChevronLeft, ChevronRight,
+  Star, CreditCard, Wallet,
+  RefreshCw, CalendarDays, ChevronLeft, ChevronRight,
   ArrowRight, ArrowLeft, CalendarClock, X, Copy, LogIn, Sparkles,
   MessageCircle, Smartphone, Link as LinkIcon, Ban, EyeOff, XCircle, CalendarPlus, ChevronDown, Settings, Download, ListChecks, FileText, Palette, Mail, Search, LogOut,
 } from "lucide-react";
@@ -262,17 +263,36 @@ export default function App() {
   }, [view]);
   useEffect(() => { (async () => { try { const res = await fetch("/api/sessions?slots=1"); const data = await res.json(); if (res.ok) setState((s) => ({ ...s, takenSlots: data.takenSlots || [] })); } catch (e) {} })(); }, []);
   const refreshSlots = async () => { try { const res = await fetch("/api/sessions?slots=1"); const data = await res.json(); if (res.ok) setState((s) => ({ ...s, takenSlots: data.takenSlots || [] })); } catch (e) {} };
+  const reconciledRef = useRef({});
   useEffect(() => {
     const paidSid = new URLSearchParams(window.location.search).get("paid");
     if (!paidSid) return;
     (async () => {
       let res = {};
       const payKind = new URLSearchParams(window.location.search).get("kind") || "";
-      try { res = await fetch("/api/pay/verify?sid=" + encodeURIComponent(paidSid) + (payKind ? "&kind=" + encodeURIComponent(payKind) : "")).then((r) => r.json()).catch(() => ({})); } catch (e) {}
+      const payCharge = new URLSearchParams(window.location.search).get("charge") || "";
+      try { res = await fetch("/api/pay/verify?sid=" + encodeURIComponent(paidSid) + (payKind ? "&kind=" + encodeURIComponent(payKind) : "") + (payCharge ? "&charge=" + encodeURIComponent(payCharge) : "")).then((r) => r.json()).catch(() => ({})); } catch (e) {}
       try { const sd = await fetch("/api/sessions").then((r) => r.json()).catch(() => ({})); const sess = (sd && sd.sessions) || []; if (sess.length) { setState((s) => ({ ...s, sessions: sess })); const mine = sess.find((x) => x.id === paidSid) || sess[0]; setClientId(mine.id); setClientAuth({ name: mine.clientName || "", email: mine.clientEmail || "" }); setView("thankyou"); } } catch (e) {}
       showToast(res && res.paid ? "Payment received. Thank you!" : "Thanks! If your payment is still processing, your status will update shortly.");
     })();
   }, []);
+  useEffect(() => {
+    if (view !== "client" || !clientId) return;
+    const s = (state.sessions || []).find((x) => x.id === clientId);
+    if (!s || !Array.isArray(s.charges)) return;
+    const pend = s.charges.filter((c) => c && c.status !== "paid" && c.squareOrderId);
+    if (pend.length === 0) return;
+    (async () => {
+      let healed = false;
+      for (const c of pend) {
+        const key = clientId + ":" + c.id;
+        if (reconciledRef.current[key]) continue;
+        reconciledRef.current[key] = true;
+        try { const r = await fetch("/api/pay/verify?sid=" + encodeURIComponent(clientId) + "&kind=charge&charge=" + encodeURIComponent(c.id)).then((x) => x.json()).catch(() => ({})); if (r && r.paid) healed = true; } catch (e) {}
+      }
+      if (healed) { try { const sd = await fetch("/api/sessions").then((x) => x.json()).catch(() => ({})); if (sd && sd.sessions) setState((st) => ({ ...st, sessions: sd.sessions })); } catch (e) {} }
+    })();
+  }, [clientId, view]);
   useEffect(() => {
     const rt = new URLSearchParams(window.location.search).get("reset");
     if (rt) { setResetToken(rt); setView("resetpw"); }
@@ -418,6 +438,14 @@ export default function App() {
   const resetThemeLocal = () => { applyTheme("default", ""); setThemeKey("default"); setCustomAccent(""); try { localStorage.removeItem("dot1_theme_key"); localStorage.removeItem("dot1_theme_accent"); } catch (e) {} };
   const requestReset = async (email) => { try { await fetch("/api/reset-request", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ email: (email || "").trim() }) }); } catch (e) {} };
   const requestSendBalance = async (session) => { try { const res = await fetch("/api/pay-balance", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ sessionId: session.id }) }); const data = await res.json().catch(() => ({})); if (res.ok) { showToast("Balance payment link emailed to " + session.clientEmail + "."); setState((s) => ({ ...s, sessions: s.sessions.map((x) => x.id === session.id ? { ...x, balanceStatus: "sent" } : x) })); } else { showToast(data.error || "Could not send the balance link."); } } catch (e) { showToast("Network error."); } };
+  const checkChargePayment = async (session, charge) => {
+    showToast("Checking Square for this payment\u2026");
+    try {
+      const r = await fetch("/api/pay/verify?sid=" + encodeURIComponent(session.id) + "&kind=charge&charge=" + encodeURIComponent(charge.id)).then((x) => x.json()).catch(() => ({}));
+      try { const sd = await fetch("/api/sessions").then((x) => x.json()).catch(() => ({})); if (sd && sd.sessions) setState((s) => ({ ...s, sessions: sd.sessions })); } catch (e) {}
+      showToast(r && r.paid ? "Confirmed with Square \u2014 marked as paid." : "Square shows no completed payment for this charge yet.");
+    } catch (e) { showToast("Could not reach Square. Please try again."); }
+  };
   const requestSendCharge = async (session, label, amountDollars) => { try { const res = await fetch("/api/charge", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ sessionId: session.id, label, amount: amountDollars }) }); const data = await res.json().catch(() => ({})); if (res.ok && data.charge) { showToast("Payment request sent to " + session.clientEmail + "."); setState((s) => ({ ...s, sessions: s.sessions.map((x) => x.id === session.id ? { ...x, charges: [...(x.charges || []), data.charge] } : x) })); return { ok: true }; } else { showToast(data.error || "Could not send the payment request."); return { ok: false }; } } catch (e) { showToast("Network error."); return { ok: false }; } };
 
   const resetDemo = () => setConfirm({ title: "Reset the demo?", message: "This clears all sessions, services, add-ons, and booking links back to the starting state.", confirmLabel: "Reset everything", danger: true, onYes: async () => { setState(DEFAULT_STATE); try { await storage.delete(STORAGE_KEY); } catch (e) {} showToast("Demo reset."); setConfirm(null); } });
@@ -487,7 +515,7 @@ export default function App() {
               <SubTab active={adminTab === "business"} onClick={() => setAdminTab("business")} label="Business Settings" />
             </div>
             {adminTab === "home" && <StudioHome state={state} setAdminId={setAdminId} setAdminTab={setAdminTab} />}
-            {adminTab === "sessions" && <AdminSessions state={state} adminId={adminId} setAdminId={setAdminId} requestSetStage={requestSetStage} addComment={addComment} patchSession={patchSession} onReschedule={adminReschedule} slotTaken={slotTaken} markMessagesRead={markMessagesRead} onCancelBooking={requestCancelBooking} onCloseBooking={requestCloseBooking} onReopenBooking={requestReopenBooking} onSendBalance={requestSendBalance} onSendCharge={requestSendCharge} onDeleteBooking={requestDeleteBooking} />}
+            {adminTab === "sessions" && <AdminSessions state={state} adminId={adminId} setAdminId={setAdminId} requestSetStage={requestSetStage} addComment={addComment} patchSession={patchSession} onReschedule={adminReschedule} slotTaken={slotTaken} markMessagesRead={markMessagesRead} onCancelBooking={requestCancelBooking} onCloseBooking={requestCloseBooking} onReopenBooking={requestReopenBooking} onSendBalance={requestSendBalance} onSendCharge={requestSendCharge} onCheckPayment={checkChargePayment} onDeleteBooking={requestDeleteBooking} />}
             {adminTab === "calendar" && <AdminCalendar state={state} onSelectSession={(id) => { setAdminId(id); setAdminTab("sessions"); }} />}
             {adminTab === "links" && <DirectLinks state={state} createDirectLink={createDirectLink} revokeDirectLink={revokeDirectLink} openDirectLink={openDirectLink} showToast={showToast} />}
             {adminTab === "availability" && <><CalendarSync showToast={showToast} /><AvailabilityManager availability={state.availability} addAvailability={addAvailability} removeAvailability={removeAvailability} showToast={showToast} /></>}
@@ -1767,7 +1795,7 @@ function StudioHome({ state, setAdminId, setAdminTab }) {
 }
 
 /* ============================ ADMIN — SESSIONS ============================ */
-function AdminSessions({ state, adminId, setAdminId, requestSetStage, addComment, patchSession, onReschedule, slotTaken, markMessagesRead, onCancelBooking, onCloseBooking, onReopenBooking, onSendBalance, onSendCharge, onDeleteBooking }) {
+function AdminSessions({ state, adminId, setAdminId, requestSetStage, addComment, patchSession, onReschedule, slotTaken, markMessagesRead, onCancelBooking, onCloseBooking, onReopenBooking, onSendBalance, onSendCharge, onCheckPayment, onDeleteBooking }) {
   const [chgLabel, setChgLabel] = useState("");
   const [chgAmt, setChgAmt] = useState("");
   useEffect(() => { setChgLabel(""); setChgAmt(""); }, [adminId]);
@@ -1863,6 +1891,7 @@ function AdminSessions({ state, adminId, setAdminId, requestSetStage, addComment
                     <div style={{ display: "flex", alignItems: "center", gap: 9, flexShrink: 0 }}>
                       <span style={{ fontSize: 13, color: c.status === "paid" ? STONE : INK, fontWeight: 500 }}>{money((Number(c.amountCents) || 0) / 100)}</span>
                       <span style={{ ...mono, fontSize: 9, letterSpacing: "0.06em", textTransform: "uppercase", color: c.status === "paid" ? "#3f7a3f" : "#a97a2e" }}>{c.status === "paid" ? "Paid" : "Pending"}</span>
+                      {c.status !== "paid" && c.squareOrderId ? <button onClick={() => onCheckPayment && onCheckPayment(session, c)} title="Check Square and mark this paid if the client has already paid" style={{ ...mono, fontSize: 8.5, letterSpacing: "0.05em", textTransform: "uppercase", color: STONE, background: "transparent", border: `1px solid ${LINE}`, borderRadius: 6, padding: "5px 8px", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 5 }}><RefreshCw size={10} /> Check</button> : null}
                     </div>
                   </div>
                 ))}
