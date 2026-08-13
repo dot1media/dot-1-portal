@@ -1328,6 +1328,7 @@ function ClientGuide({ onClose }) {
 }
 
 function ClientView({ session, sessions, clientId, setClientId, addComment, onRescheduleRequest, markMessagesRead, patchSession, resizeImage, showToast }) {
+  const isMobile = useIsMobile();
   const [draft, setDraft] = useState("");
   const [msg, setMsg] = useState("");
   const [reschedOpen, setReschedOpen] = useState(false);
@@ -1456,13 +1457,25 @@ function ClientView({ session, sessions, clientId, setClientId, addComment, onRe
         </div>
       )}
 
-      <div style={{ ...card, padding: "20px 24px", marginBottom: 16, display: "flex", gap: 26, flexWrap: "wrap", alignItems: "center" }}>
-        <SummaryCell label="Project" value={session.type} icon={<grp.Icon size={13} color={grp.color} />} />
-        <SummaryCell label="Service" value={grp.label} />
-        <SummaryCell label="Date" value={session.date ? fmtDate(session.date) + (session.time ? " · " + fmtTime(session.time) : "") : "TBD"} />
-        <SummaryCell label="Your creator" value={session.photographer} />
-        <div style={{ marginLeft: "auto" }}><StatusBadge stage={stage} group={session.serviceLine} consult={isConsult(session)} /></div>
-      </div>
+      {isMobile ? (
+        <div style={{ ...card, padding: "18px 20px", marginBottom: 16 }}>
+          <div style={{ marginBottom: 16 }}><StatusBadge stage={stage} group={session.serviceLine} consult={isConsult(session)} /></div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, rowGap: 16 }}>
+            <SummaryCell label="Project" value={session.type} icon={<grp.Icon size={13} color={grp.color} />} />
+            <SummaryCell label="Service" value={grp.label} />
+            <SummaryCell label="Date" value={session.date ? fmtDate(session.date) + (session.time ? " · " + fmtTime(session.time) : "") : "TBD"} />
+            <SummaryCell label="Your creator" value={session.photographer} />
+          </div>
+        </div>
+      ) : (
+        <div style={{ ...card, padding: "20px 24px", marginBottom: 16, display: "flex", gap: 26, flexWrap: "wrap", alignItems: "center" }}>
+          <SummaryCell label="Project" value={session.type} icon={<grp.Icon size={13} color={grp.color} />} />
+          <SummaryCell label="Service" value={grp.label} />
+          <SummaryCell label="Date" value={session.date ? fmtDate(session.date) + (session.time ? " · " + fmtTime(session.time) : "") : "TBD"} />
+          <SummaryCell label="Your creator" value={session.photographer} />
+          <div style={{ marginLeft: "auto" }}><StatusBadge stage={stage} group={session.serviceLine} consult={isConsult(session)} /></div>
+        </div>
+      )}
 
       {status === "active" && (
         <div style={{ background: grp.bg, border: `1px solid ${grp.border}`, borderRadius: 16, padding: "20px 22px", marginBottom: 18, boxShadow: "0 1px 2px rgba(26,26,23,0.03), 0 12px 34px rgba(26,26,23,0.05)" }}>
