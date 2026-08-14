@@ -3,6 +3,7 @@ import { sql } from "@/lib/db";
 import { ensureLedger } from "@/lib/ledger";
 import { receiptPdf } from "@/lib/receipt";
 import { receiptEmail, sendEmail, sendToClient, paymentStudioEmail } from "@/lib/email";
+import { randomUUID } from "crypto";
 
 export const runtime = "nodejs";
 
@@ -85,7 +86,7 @@ export async function GET(request: Request) {
           await ensureLedger();
           const rcptKind = isCharge ? "charge" : isBalance ? "balance" : String(data.payChoice || "deposit");
           const rcptService = isCharge ? chargeObj.label || data.type : data.type;
-          const rid = "rcpt_" + Math.random().toString(36).slice(2, 12);
+          const rid = randomUUID(); // must be a valid UUID: the live payments.id column is uuid-typed
           const currency = (order.total_money && order.total_money.currency) || "USD";
           const inserted = (await sql`
             INSERT INTO payments (id, session_id, client_email, client_name, service, kind, amount_cents, currency, card_brand, card_last4, square_order_id, square_payment_id, paid_at)

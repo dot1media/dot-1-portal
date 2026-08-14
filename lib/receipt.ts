@@ -14,7 +14,7 @@ export function receiptDate(iso: any): string {
   try { return new Date(iso).toLocaleString("en-US", { year: "numeric", month: "long", day: "numeric", hour: "numeric", minute: "2-digit", timeZone: "America/Anchorage" }); } catch (e) { return ""; }
 }
 export function receiptNo(p: any): string {
-  return "No. " + String((p && p.id) || "").replace(/^rcpt_/, "").slice(0, 10).toUpperCase();
+  return "No. " + String((p && p.id) || "").replace(/^rcpt_/, "").replace(/-/g, "").slice(0, 10).toUpperCase();
 }
 
 export async function receiptPdf(p: any): Promise<string> {
