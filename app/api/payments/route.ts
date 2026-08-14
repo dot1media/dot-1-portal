@@ -4,6 +4,7 @@ import { sql } from "@/lib/db";
 import { verifyToken, ADMIN_COOKIE } from "@/lib/auth";
 import { receiptPdf } from "@/lib/receipt";
 import { receiptEmail, sendEmail } from "@/lib/email";
+import { ensureLedger } from "@/lib/ledger";
 
 export const runtime = "nodejs";
 
@@ -15,8 +16,7 @@ async function isAdmin(): Promise<boolean> {
 export async function GET() {
   if (!(await isAdmin())) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   try {
-    await sql`CREATE TABLE IF NOT EXISTS payments (id text PRIMARY KEY, session_id text NOT NULL, client_email text, client_name text, service text, kind text, amount_cents integer NOT NULL DEFAULT 0, currency text NOT NULL DEFAULT 'USD', card_brand text, card_last4 text, square_order_id text, square_payment_id text, paid_at timestamptz NOT NULL DEFAULT now(), created_at timestamptz NOT NULL DEFAULT now())`;
-    await sql`CREATE UNIQUE INDEX IF NOT EXISTS payments_order_uidx ON payments(square_order_id)`;
+    await ensureLedger();
     const rows = (await sql`SELECT id, session_id, client_email, client_name, service, kind, amount_cents, currency, card_brand, card_last4, paid_at FROM payments ORDER BY paid_at DESC LIMIT 500`) as any[];
     return NextResponse.json({ payments: rows });
   } catch (e) {

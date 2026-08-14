@@ -2439,8 +2439,30 @@ function BusinessSettings({ sessions, showToast }) {
   const [payments, setPayments] = useState([]);
   const [payLoaded, setPayLoaded] = useState(false);
   const [emailing, setEmailing] = useState("");
+  const [syncing, setSyncing] = useState(false);
   useEffect(() => { (async () => { try { const r = await fetch("/api/payments"); const d = await r.json().catch(() => ({})); if (d && Array.isArray(d.payments)) setPayments(d.payments); } catch (e) {} setPayLoaded(true); })(); }, []);
   const emailReceipt = async (p) => { setEmailing(p.id); try { const r = await fetch("/api/payments", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ id: p.id }) }); const d = await r.json().catch(() => ({})); if (r.ok && d.ok) showToast("Receipt emailed to " + (p.client_email || "the client") + "."); else showToast(d.error || "Could not send the receipt."); } catch (e) { showToast("Network error."); } setEmailing(""); };
+  const syncReceipts = async () => {
+    setSyncing(true);
+    const list = [];
+    (sessions || []).forEach((s) => {
+      if (s.paymentStatus === "paid" && s.squareOrderId) list.push(["deposit", s.id, ""]);
+      if (s.balanceStatus === "paid" && s.balanceOrderId) list.push(["balance", s.id, ""]);
+      (Array.isArray(s.charges) ? s.charges : []).forEach((c) => { if (c && c.status === "paid" && c.squareOrderId) list.push(["charge", s.id, c.id]); });
+    });
+    let recorded = 0; let lastErr = "";
+    for (const item of list) {
+      try {
+        const r = await fetch("/api/pay/verify?sid=" + encodeURIComponent(item[1]) + "&kind=" + item[0] + (item[2] ? "&charge=" + encodeURIComponent(item[2]) : "")).then((x) => x.json()).catch(() => ({}));
+        if (r && typeof r.receipt === "string") { if (r.receipt.indexOf("recorded") === 0) recorded++; else if (r.receipt.indexOf("error") === 0) lastErr = r.receipt; }
+      } catch (e) {}
+    }
+    try { const r = await fetch("/api/payments"); const d = await r.json().catch(() => ({})); if (d && Array.isArray(d.payments)) setPayments(d.payments); } catch (e) {}
+    setSyncing(false);
+    if (lastErr) showToast(lastErr);
+    else if (recorded > 0) showToast("Recorded " + recorded + " receipt" + (recorded === 1 ? "" : "s") + " from Square.");
+    else showToast("Receipts are already up to date.");
+  };
 
   const inRange = (s) => { if (!s.date) return false; if (start && s.date < start) return false; if (end && s.date > end) return false; return true; };
   const rows = (sessions || []).filter(inRange).sort((a, b) => (a.date + (a.time || "")).localeCompare(b.date + (b.time || "")));
@@ -2567,7 +2589,10 @@ function BusinessSettings({ sessions, showToast }) {
         </div>
       )}
 
-      <div style={{ ...mono, fontSize: 10.5, letterSpacing: "0.16em", textTransform: "uppercase", color: STONE, marginBottom: 12 }}>Receipts</div>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginBottom: 12 }}>
+        <div style={{ ...mono, fontSize: 10.5, letterSpacing: "0.16em", textTransform: "uppercase", color: STONE }}>Receipts</div>
+        <button onClick={syncReceipts} disabled={syncing} title="Re-check Square for every paid session and record any missing receipts" style={{ ...mono, fontSize: 9, letterSpacing: "0.05em", textTransform: "uppercase", color: STONE, background: "transparent", border: `1px solid ${LINE}`, borderRadius: 7, padding: "7px 11px", cursor: syncing ? "default" : "pointer", opacity: syncing ? 0.6 : 1, display: "inline-flex", alignItems: "center", gap: 6 }}><RefreshCw size={11} /> {syncing ? "Syncing\u2026" : "Sync from Square"}</button>
+      </div>
       {!payLoaded ? (
         <div style={{ ...cardDense, overflow: "hidden", marginBottom: 28 }}>{[0, 1, 2].map((i) => (<div key={i} style={{ padding: "14px 16px", borderTop: i === 0 ? "none" : `1px solid ${LINE}`, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}><div style={{ flex: 1 }}><Skeleton w="38%" h={13} style={{ marginBottom: 7 }} /><Skeleton w="62%" h={10} /></div><Skeleton w={64} h={26} r={7} /></div>))}</div>
       ) : payments.length === 0 ? (
