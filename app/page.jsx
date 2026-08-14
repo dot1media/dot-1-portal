@@ -470,7 +470,7 @@ export default function App() {
       <header style={{ borderBottom: `1px solid ${LINE}`, background: PAPER, position: "sticky", top: 0, zIndex: 50 }}>
         <div style={{ maxWidth: 1120, margin: "0 auto", padding: "16px 22px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 11 }}>
-            <img src="/dot1-logo-gray.png" alt="Dot One Media" style={{ height: 32, width: "auto", display: "block" }} />
+            <img src="/dot1-logo-gray.png" alt="Dot One Media" style={{ height: 32, width: "auto", display: "block", filter: themeKey === "midnight" ? "brightness(0) invert(1)" : "none" }} />
             <span style={{ ...mono, fontSize: 10, letterSpacing: "0.22em", textTransform: "uppercase", color: FAINT }}>Client Portal</span>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
@@ -1687,7 +1687,7 @@ function ClientActionPanel({ session, grp, draft, setDraft, onSubmit }) {
   const stage = session.currentStage;
   const isVideo = session.serviceLine === "video";
   if (stage === 5) {
-    const reviewLabel = isVideo ? "Review your cut on Frame.io" : "Preview your gallery";
+    const reviewLabel = isVideo ? "Review your cut" : "Preview your gallery";
     return (
       <div style={{ background: CREAM, border: `1px solid ${LINE}`, borderRadius: 10, padding: "16px 18px", marginTop: 4 }}>
         <div style={{ ...mono, fontSize: 10, letterSpacing: "0.16em", textTransform: "uppercase", color: g.color, marginBottom: 10 }}>Your preview is ready</div>
@@ -1700,7 +1700,7 @@ function ClientActionPanel({ session, grp, draft, setDraft, onSubmit }) {
   }
   if (stage === 6) {
     const vault = [
-      ...(session.deliveryVideo ? [{ label: "Final Film", url: session.deliveryVideo, note: isVideo ? "Watch & download on Frame.io" : "Video file", kind: "film" }] : []),
+      ...(session.deliveryVideo ? [{ label: "Final Film", url: session.deliveryVideo, note: isVideo ? "Watch & download your film" : "Video file", kind: "film" }] : []),
       ...(session.deliveryPhoto ? [{ label: "Full Gallery", url: session.deliveryPhoto, note: "View & download your photos", kind: "image" }] : []),
       ...((Array.isArray(session.deliverables) ? session.deliverables : []).filter((d) => d && d.url).map((d) => ({ label: d.label || "Deliverable", url: d.url, note: d.note || "", kind: "file" }))),
     ];
@@ -1987,11 +1987,11 @@ function AdminSessions({ state, adminId, setAdminId, requestSetStage, addComment
           {editLinks ? (
             <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
               <LinkField label="Preview / review link" value={reviewLink} onChange={setReviewLink} placeholder="https://f.io/… or https://gallery…" />
-              <LinkField label="Final video delivery (Frame.io)" value={videoLink} onChange={setVideoLink} placeholder="https://f.io/…" />
+              <LinkField label="Final video delivery" value={videoLink} onChange={setVideoLink} placeholder="https://…" />
               <LinkField label="Final photo delivery (gallery)" value={photoLink} onChange={setPhotoLink} placeholder="https://gallery.dot1.media/…" />
             </div>
           ) : (
-            <div><LinkRow label="Preview / review" url={session.reviewLink} /><LinkRow label="Final video (Frame.io)" url={session.deliveryVideo} /><LinkRow label="Final photos (gallery)" url={session.deliveryPhoto} /></div>
+            <div><LinkRow label="Preview / review" url={session.reviewLink} /><LinkRow label="Final video" url={session.deliveryVideo} /><LinkRow label="Final photos (gallery)" url={session.deliveryPhoto} /></div>
           )}
         </div>
 
@@ -2136,27 +2136,71 @@ function CalendarSync({ showToast }) {
 }
 
 function AvailabilityManager({ availability, addAvailability, removeAvailability, showToast }) {
+  const [mode, setMode] = useState("single");
   const [date, setDate] = useState("");
+  const [endDate, setEndDate] = useState("");
   const [start, setStart] = useState("09:00");
   const [end, setEnd] = useState("15:00");
+  const [weekdaysOnly, setWeekdaysOnly] = useState(false);
   const [busy, setBusy] = useState(false);
   const submit = async () => {
-    if (!date || !start || !end) { showToast("Pick a day and open/close times."); return; }
     if (end <= start) { showToast("Close time must be after open time."); return; }
+    if (mode === "single") {
+      if (!date) { showToast("Pick a day."); return; }
+      setBusy(true);
+      const r = await addAvailability({ date, start, end });
+      setBusy(false);
+      if (r && r.ok) { showToast("Day opened for booking."); setDate(""); } else { showToast((r && r.error) || "Could not open that day."); }
+      return;
+    }
+    if (!date || !endDate) { showToast("Pick a start and end date."); return; }
+    if (endDate < date) { showToast("End date must be on or after the start date."); return; }
+    const days = [];
+    let d = new Date(date + "T00:00:00");
+    const last = new Date(endDate + "T00:00:00");
+    let guard = 0;
+    while (d <= last && guard < 400) {
+      const dow = d.getDay();
+      if (!weekdaysOnly || (dow !== 0 && dow !== 6)) days.push(d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0"));
+      d.setDate(d.getDate() + 1); guard++;
+    }
+    if (days.length === 0) { showToast("No days in that range."); return; }
+    if (days.length > 92) { showToast("Keep the range to about three months at a time."); return; }
     setBusy(true);
-    const r = await addAvailability({ date, start, end });
+    let opened = 0; let skipped = 0;
+    for (const dd of days) { const r = await addAvailability({ date: dd, start, end }); if (r && r.ok) opened++; else skipped++; }
     setBusy(false);
-    if (r && r.ok) { showToast("Day opened for booking."); setDate(""); } else { showToast((r && r.error) || "Could not open that day."); }
+    showToast("Opened " + opened + " day" + (opened === 1 ? "" : "s") + (skipped ? " (" + skipped + " already open or unavailable)" : "") + ".");
+    if (opened > 0) { setDate(""); setEndDate(""); }
   };
   return (
     <div>
       <div style={{ ...mono, fontSize: 11, letterSpacing: "0.18em", textTransform: "uppercase", color: RED, marginBottom: 6, display: "flex", alignItems: "center", gap: 8 }}><CalendarCheck size={13} /> Open availability</div>
       <div style={{ fontSize: 13, color: BODY, lineHeight: 1.5, marginBottom: 16, maxWidth: 560 }}>Open specific days with the hours you're available. Clients can only book a day and time you have opened here.</div>
-      <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "flex-end", ...cardDense, padding: "16px", marginBottom: 24 }}>
-        <div><FieldLabel>Day</FieldLabel><input type="date" value={date} onChange={(e) => setDate(e.target.value)} style={{ ...inputStyle, width: "auto" }} /></div>
-        <div><FieldLabel>Open from</FieldLabel><input type="time" value={start} onChange={(e) => setStart(e.target.value)} style={{ ...inputStyle, width: "auto" }} /></div>
-        <div><FieldLabel>Until</FieldLabel><input type="time" value={end} onChange={(e) => setEnd(e.target.value)} style={{ ...inputStyle, width: "auto" }} /></div>
-        <button onClick={submit} disabled={busy} style={{ ...btnSolid, background: busy ? FAINT : RED }}><Plus size={14} /> {busy ? "Opening..." : "Open this day"}</button>
+      <div style={{ ...cardDense, padding: "16px", marginBottom: 24 }}>
+        <div style={{ display: "inline-flex", gap: 4, padding: 3, borderRadius: 8, background: CREAM, border: `1px solid ${LINE}`, marginBottom: 14 }}>
+          {[["single", "Single day"], ["range", "Date range"]].map(([m, lbl]) => (
+            <button key={m} onClick={() => setMode(m)} style={{ ...mono, fontSize: 10, letterSpacing: "0.04em", textTransform: "uppercase", border: "none", borderRadius: 6, padding: "7px 12px", cursor: "pointer", background: mode === m ? PAPER : "transparent", color: mode === m ? INK : STONE, boxShadow: mode === m ? "0 1px 2px rgba(26,26,23,0.08)" : "none" }}>{lbl}</button>
+          ))}
+        </div>
+        <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "flex-end" }}>
+          {mode === "single" ? (
+            <div><FieldLabel>Day</FieldLabel><input type="date" value={date} onChange={(e) => setDate(e.target.value)} style={{ ...inputStyle, width: "auto" }} /></div>
+          ) : (
+            <>
+              <div><FieldLabel>From</FieldLabel><input type="date" value={date} onChange={(e) => setDate(e.target.value)} style={{ ...inputStyle, width: "auto" }} /></div>
+              <div><FieldLabel>To</FieldLabel><input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} style={{ ...inputStyle, width: "auto" }} /></div>
+            </>
+          )}
+          <div><FieldLabel>Open from</FieldLabel><input type="time" value={start} onChange={(e) => setStart(e.target.value)} style={{ ...inputStyle, width: "auto" }} /></div>
+          <div><FieldLabel>Until</FieldLabel><input type="time" value={end} onChange={(e) => setEnd(e.target.value)} style={{ ...inputStyle, width: "auto" }} /></div>
+          <button onClick={submit} disabled={busy} style={{ ...btnSolid, background: busy ? FAINT : RED }}><Plus size={14} /> {busy ? "Opening…" : (mode === "single" ? "Open this day" : "Open these days")}</button>
+        </div>
+        {mode === "range" && (
+          <label style={{ display: "inline-flex", alignItems: "center", gap: 8, marginTop: 14, cursor: "pointer", fontSize: 12.5, color: BODY }}>
+            <input type="checkbox" checked={weekdaysOnly} onChange={(e) => setWeekdaysOnly(e.target.checked)} style={{ width: 15, height: 15, accentColor: "var(--d1-accent, #e23b2e)", cursor: "pointer" }} /> Weekdays only (skip weekends)
+          </label>
+        )}
       </div>
       <div style={{ ...mono, fontSize: 10.5, letterSpacing: "0.16em", textTransform: "uppercase", color: STONE, marginBottom: 10 }}>Upcoming open days</div>
       {(!availability || availability.length === 0) ? (
