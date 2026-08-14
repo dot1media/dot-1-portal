@@ -236,6 +236,37 @@ export function cancelClientEmail(s: any): string {
   return shell(brand, "Booking Update", "Your booking was cancelled", body);
 }
 
+export function internalBookingEmail(s: any): string {
+  const brand = brandFor(s);
+  const first = s && s.clientName ? esc(String(s.clientName).split(" ")[0]) : "";
+  const rows: Array<[string, string]> = [["Service", esc(s.type)], ["Date", esc(s.date) || "To be confirmed"]];
+  if (s && s.time) rows.push(["Time", esc(s.time)]);
+  if (s && s.photographer) rows.push(["Your creator", esc(s.photographer)]);
+  if (s && Number(s.total) > 0) rows.push(["Total", dollars(s.total)]);
+  const agree = `<div style="margin:2px 0 20px;">
+    <div style="font-family:${SANS};font-size:10.5px;letter-spacing:0.16em;text-transform:uppercase;color:${STONE};margin-bottom:11px;">Please review before your session</div>
+    <div style="margin-bottom:7px;"><a href="https://www.dot1.media/Dot-One-Media-Client-Services-Agreement.pdf" style="font-family:${SANS};font-size:13.5px;color:${brand.accent};text-decoration:none;">Client Services Agreement (PDF)</a></div>
+    <div><a href="https://www.dot1.media/Dot-One-Media-Release-and-Waiver.pdf" style="font-family:${SANS};font-size:13.5px;color:${brand.accent};text-decoration:none;">Release &amp; Liability Waiver (PDF)</a></div>
+  </div>`;
+  const body =
+    para(`Hi${first ? " " + first : ""}, your ${esc(s.type) || "session"} with Dot One Media is reserved. Here are your details.`) +
+    detailRows(rows) +
+    agree +
+    para("Please review the agreement and release above. If a payment is due, you'll receive a separate secure payment request. Completing that payment confirms your booking and your acceptance of these terms.") +
+    para("Just reply to this email with any questions. We can't wait to create with you.");
+  return shell(brand, "Your Booking", "Your session is reserved", body);
+}
+
+export function galleryEmail(s: any, url: string): string {
+  const brand = brandFor(s);
+  const first = s && s.clientName ? esc(String(s.clientName).split(" ")[0]) : "";
+  const body =
+    para(`Hi${first ? " " + first : ""}, your gallery from your ${esc(s.type) || "session"} with Dot One Media is ready to view and download.`) +
+    button(brand, url, "View & download your gallery") +
+    para("Open the gallery to view, favorite, and download your photos. The link is yours to keep and share with family.");
+  return shell(brand, "Your Gallery", "Your photos are ready", body);
+}
+
 export async function sendEmail(opts: { to?: string; subject: string; html: string; replyTo?: string; attachments?: Array<{ filename: string; content: string }> }): Promise<void> {
   const key = process.env.RESEND_API_KEY;
   if (!key || !opts.to) return;

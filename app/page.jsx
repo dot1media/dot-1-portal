@@ -236,6 +236,7 @@ export default function App() {
   const [themeOpen, setThemeOpen] = useState(false);
   const [legalReturn, setLegalReturn] = useState("landing");
   const [adminId, setAdminId] = useState("");
+  const [internalOpen, setInternalOpen] = useState(false);
   const [directContext, setDirectContext] = useState(null);
   const [toast, setToast] = useState(null);
   const [confirm, setConfirm] = useState(null);
@@ -451,6 +452,20 @@ export default function App() {
       showToast(r && r.paid ? "Confirmed with Square \u2014 marked as paid." : "Square shows no completed payment for this charge yet.");
     } catch (e) { showToast("Could not reach Square. Please try again."); }
   };
+  const createInternalBooking = async (b) => {
+    const id = uid("ses"); const grp = b.group;
+    const notifyEmail = NOTIFY_EMAILS[grp] || "contact@dot1.media";
+    const newSession = { id, clientName: b.name, clientEmail: (b.email || "").toLowerCase(), clientImage: "", notifyEmail, type: b.serviceName, serviceLine: grp, photographer: grp === "photo" ? "Brittany Matthews" : "Dennis Matthews", date: b.date, time: b.time, location: "", status: "active", durationMin: Number(b.duration) || 60, apptMin: Number(b.duration) || 60, padBefore: 0, padAfter: 0, currentStage: 0, stageTimes: { 0: "just now" }, comments: [], selectedAddons: [], total: Number(b.total) || 0, payChoice: "deposit", paymentStatus: "none", payAmount: 0, reviewLink: "", deliveryVideo: "", deliveryPhoto: "", internal: true };
+    setState((s) => ({ ...s, sessions: [...s.sessions, newSession] }));
+    await fetch("/api/sessions", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ session: newSession }) }).catch(() => {});
+    if ((Number(b.deposit) || 0) > 0) { await requestSendCharge(newSession, b.serviceName + " payment", Number(b.deposit)); }
+    setAdminId(id);
+    showToast((Number(b.deposit) || 0) > 0 ? "Internal booking created and a payment request was sent." : "Internal booking created. The client was emailed the details.");
+  };
+  const emailGalleryToClient = async (session) => {
+    if (!session.deliveryPhoto) { showToast("Add a gallery link first, then email it."); return; }
+    try { const r = await fetch("/api/sessions", { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ id: session.id, patch: {}, emailGallery: true }) }); if (r.ok) showToast("Gallery emailed to " + (session.clientName || "the client") + "."); else showToast("Could not email the gallery."); } catch (e) { showToast("Network error."); }
+  };
   const requestSendCharge = async (session, label, amountDollars) => { try { const res = await fetch("/api/charge", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ sessionId: session.id, label, amount: amountDollars }) }); const data = await res.json().catch(() => ({})); if (res.ok && data.charge) { showToast("Payment request sent to " + session.clientEmail + "."); setState((s) => ({ ...s, sessions: s.sessions.map((x) => x.id === session.id ? { ...x, charges: [...(x.charges || []), data.charge] } : x) })); return { ok: true }; } else { showToast(data.error || "Could not send the payment request."); return { ok: false }; } } catch (e) { showToast("Network error."); return { ok: false }; } };
 
   const resetDemo = () => setConfirm({ title: "Reset the demo?", message: "This clears all sessions, services, add-ons, and booking links back to the starting state.", confirmLabel: "Reset everything", danger: true, onYes: async () => { setState(DEFAULT_STATE); try { await storage.delete(STORAGE_KEY); } catch (e) {} showToast("Demo reset."); setConfirm(null); } });
@@ -511,6 +526,7 @@ export default function App() {
         {view === "thankyou" && <ThankYou session={clientSession} onPortal={() => setView("client")} />}
         {view === "client" && !guideSeen && clientSession && <ClientGuide onClose={() => { setGuideSeen(true); try { localStorage.setItem("dot1_guide_seen", "1"); } catch (e) {} }} />}
         {themeOpen && <ThemePicker themeKey={themeKey} customAccent={customAccent} onPick={(k, a) => setTheme(k, a)} onClose={() => setThemeOpen(false)} />}
+        {internalOpen && <InternalBookingModal state={state} showToast={showToast} onClose={() => setInternalOpen(false)} onCreate={createInternalBooking} />}
         {view === "admin" && (
           <div>
             <div style={{ display: "flex", gap: 6, marginBottom: 24, borderBottom: `1px solid ${LINE}`, flexWrap: "wrap" }}>
@@ -523,7 +539,7 @@ export default function App() {
               <SubTab active={adminTab === "business"} onClick={() => setAdminTab("business")} label="Business Settings" />
             </div>
             {adminTab === "home" && <StudioHome state={state} setAdminId={setAdminId} setAdminTab={setAdminTab} dark={themeKey === "midnight"} />}
-            {adminTab === "sessions" && <AdminSessions state={state} adminId={adminId} setAdminId={setAdminId} requestSetStage={requestSetStage} addComment={addComment} patchSession={patchSession} onReschedule={adminReschedule} slotTaken={slotTaken} markMessagesRead={markMessagesRead} onCancelBooking={requestCancelBooking} onCloseBooking={requestCloseBooking} onReopenBooking={requestReopenBooking} onSendBalance={requestSendBalance} onSendCharge={requestSendCharge} onCheckPayment={checkChargePayment} onDeleteBooking={requestDeleteBooking} />}
+            {adminTab === "sessions" && <AdminSessions state={state} adminId={adminId} setAdminId={setAdminId} requestSetStage={requestSetStage} addComment={addComment} patchSession={patchSession} onReschedule={adminReschedule} slotTaken={slotTaken} markMessagesRead={markMessagesRead} onCancelBooking={requestCancelBooking} onCloseBooking={requestCloseBooking} onReopenBooking={requestReopenBooking} onSendBalance={requestSendBalance} onSendCharge={requestSendCharge} onCheckPayment={checkChargePayment} onNewInternal={() => setInternalOpen(true)} onEmailGallery={emailGalleryToClient} onDeleteBooking={requestDeleteBooking} />}
             {adminTab === "calendar" && <AdminCalendar state={state} onSelectSession={(id) => { setAdminId(id); setAdminTab("sessions"); }} />}
             {adminTab === "links" && <DirectLinks state={state} createDirectLink={createDirectLink} revokeDirectLink={revokeDirectLink} openDirectLink={openDirectLink} showToast={showToast} />}
             {adminTab === "availability" && <><CalendarSync showToast={showToast} /><AvailabilityManager availability={state.availability} addAvailability={addAvailability} removeAvailability={removeAvailability} showToast={showToast} /></>}
@@ -1804,7 +1820,7 @@ function StudioHome({ state, setAdminId, setAdminTab, dark }) {
 }
 
 /* ============================ ADMIN — SESSIONS ============================ */
-function AdminSessions({ state, adminId, setAdminId, requestSetStage, addComment, patchSession, onReschedule, slotTaken, markMessagesRead, onCancelBooking, onCloseBooking, onReopenBooking, onSendBalance, onSendCharge, onCheckPayment, onDeleteBooking }) {
+function AdminSessions({ state, adminId, setAdminId, requestSetStage, addComment, patchSession, onReschedule, slotTaken, markMessagesRead, onCancelBooking, onCloseBooking, onReopenBooking, onSendBalance, onSendCharge, onCheckPayment, onNewInternal, onEmailGallery, onDeleteBooking }) {
   const [chgLabel, setChgLabel] = useState("");
   const [chgAmt, setChgAmt] = useState("");
   useEffect(() => { setChgLabel(""); setChgAmt(""); }, [adminId]);
@@ -1833,6 +1849,7 @@ function AdminSessions({ state, adminId, setAdminId, requestSetStage, addComment
     <div className="d1-stagger" style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "260px 1fr", gap: isMobile ? 20 : 26 }}>
       <div>
         <div style={{ ...mono, fontSize: 10.5, letterSpacing: "0.2em", textTransform: "uppercase", color: RED, marginBottom: 14 }}>Sessions</div>
+        <button onClick={onNewInternal} style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 7, marginBottom: 16, padding: "10px", borderRadius: 9, cursor: "pointer", border: `1px dashed ${LINE}`, background: CREAM, color: STONE, ...mono, fontSize: 10.5, letterSpacing: "0.06em", textTransform: "uppercase" }}><Plus size={13} /> New internal booking</button>
         {(() => {
           const now = new Date();
           const todayStr = now.getFullYear() + "-" + String(now.getMonth() + 1).padStart(2, "0") + "-" + String(now.getDate()).padStart(2, "0");
@@ -1847,7 +1864,7 @@ function AdminSessions({ state, adminId, setAdminId, requestSetStage, addComment
                 <span style={{ ...display, fontWeight: 600, fontSize: 15 }}>{s.clientName}</span>
                 {unread > 0 && <span style={{ ...mono, background: RED, color: "#fff", borderRadius: 20, fontSize: 9.5, minWidth: 16, height: 16, padding: "0 5px", display: "inline-flex", alignItems: "center", justifyContent: "center" }}>{unread}</span>}
               </div>
-              <div style={{ ...mono, fontSize: 10, letterSpacing: "0.06em", color: selected ? "#c9c6bd" : STONE, display: "flex", alignItems: "center", gap: 6 }}><grp.Icon size={11} /> {s.type} · {(s.status && s.status !== "active") ? (s.status === "cancelled" ? "Cancelled" : "Closed") : curStage(s).label}</div>
+              <div style={{ ...mono, fontSize: 10, letterSpacing: "0.06em", color: selected ? "#c9c6bd" : STONE, display: "flex", alignItems: "center", gap: 6 }}><grp.Icon size={11} /> {s.internal ? "Internal · " : ""}{s.type} · {(s.status && s.status !== "active") ? (s.status === "cancelled" ? "Cancelled" : "Closed") : curStage(s).label}</div>
               {s.date && <div style={{ ...mono, fontSize: 9.5, letterSpacing: "0.04em", color: selected ? "#b3b0a7" : FAINT, marginTop: 3 }}>{fmtDate(s.date)}{s.time ? " \u00b7 " + fmtTime(s.time) : ""}</div>}
             </button>
           ); };
@@ -1991,7 +2008,10 @@ function AdminSessions({ state, adminId, setAdminId, requestSetStage, addComment
               <LinkField label="Final photo delivery (gallery)" value={photoLink} onChange={setPhotoLink} placeholder="https://gallery.dot1.media/…" />
             </div>
           ) : (
-            <div><LinkRow label="Preview / review" url={session.reviewLink} /><LinkRow label="Final video" url={session.deliveryVideo} /><LinkRow label="Final photos (gallery)" url={session.deliveryPhoto} /></div>
+            <>
+              <div><LinkRow label="Preview / review" url={session.reviewLink} /><LinkRow label="Final video" url={session.deliveryVideo} /><LinkRow label="Final photos (gallery)" url={session.deliveryPhoto} /></div>
+              {session.deliveryPhoto ? <button onClick={() => onEmailGallery(session)} style={{ ...mono, fontSize: 10, letterSpacing: "0.06em", textTransform: "uppercase", color: "#fff", background: sg.color, border: "none", borderRadius: 7, padding: "9px 13px", cursor: "pointer", marginTop: 12, display: "inline-flex", alignItems: "center", gap: 6 }}><ImageIcon size={13} /> Email gallery to client</button> : null}
+            </>
           )}
         </div>
 
@@ -2973,6 +2993,67 @@ function NotificationBell({ mode, sessions, clientId, onOpenSession, onMarkRead,
           </div>
         </>
       )}
+    </div>
+  );
+}
+
+function InternalBookingModal({ state, showToast, onClose, onCreate }) {
+  const [group, setGroup] = useState("photo");
+  const [serviceId, setServiceId] = useState("");
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [date, setDate] = useState("");
+  const [time, setTime] = useState("");
+  const [total, setTotal] = useState("");
+  const [deposit, setDeposit] = useState("");
+  const [busy, setBusy] = useState(false);
+  const groupServices = state.services.filter((s) => s.group === group);
+  const svc = state.services.find((s) => s.id === serviceId);
+  useEffect(() => { if (svc) setTotal(String(svc.price || "")); }, [serviceId]);
+  const submit = async () => {
+    if (!name.trim()) { showToast("Enter the client's name."); return; }
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email.trim())) { showToast("Enter a valid client email."); return; }
+    if (!svc) { showToast("Choose a service."); return; }
+    if (!date || !time) { showToast("Pick a date and time."); return; }
+    setBusy(true);
+    await onCreate({ group, serviceName: svc.name, serviceId: svc.id, duration: svc.duration, name: name.trim(), email: email.trim(), date, time, total, deposit });
+    setBusy(false); onClose();
+  };
+  return (
+    <div className="d1-overlay" style={{ position: "fixed", inset: 0, background: "rgba(20,20,26,0.55)", zIndex: 60, display: "flex", alignItems: "flex-start", justifyContent: "center", padding: "38px 16px", overflowY: "auto" }} onClick={onClose}>
+      <div className="d1-modal" style={{ ...card, width: 480, maxWidth: "100%", padding: "24px 26px" }} onClick={(e) => e.stopPropagation()}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
+          <span style={{ ...mono, fontSize: 10.5, letterSpacing: "0.2em", textTransform: "uppercase", color: RED }}>Internal booking</span>
+          <button onClick={onClose} style={iconBtnStyle}><X size={15} /></button>
+        </div>
+        <h2 style={{ ...display, fontWeight: 700, fontSize: 21, color: INK, marginBottom: 6 }}>Book a session for a client</h2>
+        <p style={{ fontSize: 12.5, color: STONE, lineHeight: 1.5, marginBottom: 18 }}>You track this one yourself. The client gets the agreement and any payment request by email, and their gallery when you're done. No portal account is created for them.</p>
+        <FieldLabel>Client name</FieldLabel><TextInput value={name} onChange={setName} placeholder="Sarah Miller" />
+        <div style={{ height: 10 }} />
+        <FieldLabel>Client email</FieldLabel><input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="sarah@example.com" style={inputStyle} />
+        <div style={{ height: 10 }} />
+        <FieldLabel>Service group</FieldLabel>
+        <div style={{ display: "flex", gap: 6, marginBottom: 10, flexWrap: "wrap" }}>
+          {GROUP_KEYS.map((k) => { const gg = GROUPS[k]; const active = group === k; return (
+            <button key={k} onClick={() => { setGroup(k); setServiceId(""); }} style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 11px", borderRadius: 7, cursor: "pointer", fontSize: 12, border: `1px solid ${active ? gg.color : LINE}`, background: active ? gg.color : PAPER, color: active ? "#fff" : STONE }}><gg.Icon size={12} /> {gg.label}</button>
+          ); })}
+        </div>
+        <FieldLabel>Service</FieldLabel>
+        <select value={serviceId} onChange={(e) => setServiceId(e.target.value)} style={{ ...inputStyle, cursor: "pointer" }}>
+          <option value="">Choose a service…</option>
+          {groupServices.map((s) => <option key={s.id} value={s.id}>{s.name}{s.price ? " — " + money(s.price) : ""}</option>)}
+        </select>
+        <div style={{ display: "flex", gap: 10, marginTop: 10 }}>
+          <div style={{ flex: 1 }}><FieldLabel>Date</FieldLabel><input type="date" value={date} onChange={(e) => setDate(e.target.value)} style={inputStyle} /></div>
+          <div style={{ flex: 1 }}><FieldLabel>Time</FieldLabel><input type="time" value={time} onChange={(e) => setTime(e.target.value)} style={inputStyle} /></div>
+        </div>
+        <div style={{ display: "flex", gap: 10, marginTop: 10 }}>
+          <div style={{ flex: 1 }}><FieldLabel>Total price</FieldLabel><input type="number" value={total} onChange={(e) => setTotal(e.target.value)} placeholder="0" style={inputStyle} /></div>
+          <div style={{ flex: 1 }}><FieldLabel>Collect now (optional)</FieldLabel><input type="number" value={deposit} onChange={(e) => setDeposit(e.target.value)} placeholder="0" style={inputStyle} /></div>
+        </div>
+        <div style={{ ...mono, fontSize: 9.5, color: FAINT, marginTop: 8, lineHeight: 1.5 }}>Enter an amount to collect now and the client is emailed a secure Square payment request.</div>
+        <button onClick={submit} disabled={busy} style={{ ...btnSolid, background: busy ? FAINT : RED, width: "100%", justifyContent: "center", marginTop: 16, padding: "11px" }}>{busy ? "Creating\u2026" : "Create booking & notify client"}</button>
+      </div>
     </div>
   );
 }
