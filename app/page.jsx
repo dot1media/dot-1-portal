@@ -65,7 +65,25 @@ const GROUPS = {
   music: { label: "Music", color: "#9163cc", soft: "#a586d6", bg: "color-mix(in srgb, #9163cc 12%, var(--d1-paper,#fff))", border: "color-mix(in srgb, #9163cc 30%, var(--d1-paper,#fff))", text: "color-mix(in srgb, #9163cc 74%, var(--d1-ink,#1a1a17))", Icon: Music },
   government: { label: "Government", color: "#586b2e", soft: "#6b7d40", bg: "color-mix(in srgb, #586b2e 13%, var(--d1-paper,#fff))", border: "color-mix(in srgb, #586b2e 32%, var(--d1-paper,#fff))", text: "color-mix(in srgb, #586b2e 76%, var(--d1-ink,#1a1a17))", Icon: Landmark },
 };
-const GROUP_KEYS = ["video", "photo", "music", "government"];
+const GROUP_KEYS = ["photo", "video", "music", "government"];
+function resizeImageTo(file, max) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const img = new Image();
+      img.onload = () => {
+        let w = img.width, h = img.height;
+        if (w > h && w > max) { h = Math.round(h * max / w); w = max; }
+        else if (h > max) { w = Math.round(w * max / h); h = max; }
+        const canvas = document.createElement("canvas"); canvas.width = w; canvas.height = h;
+        canvas.getContext("2d").drawImage(img, 0, 0, w, h);
+        resolve(canvas.toDataURL("image/jpeg", 0.82));
+      };
+      img.onerror = reject; img.src = reader.result;
+    };
+    reader.onerror = reject; reader.readAsDataURL(file);
+  });
+}
 
 /* where a new-booking notification email is routed, per group */
 const NOTIFY_EMAILS = {
@@ -888,6 +906,7 @@ function BookingFlow({ state, direct, slotTaken, onCancel, onComplete, onLogin, 
   /* STEP 0 — WELCOME */
   const renderServiceBtn = (s) => { const sel = serviceId === s.id; const dOpen = !!openDesc[s.id]; return (
     <div key={s.id} role="button" tabIndex={0} onClick={() => { setServiceId(s.id); setAddonIds([]); }} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setServiceId(s.id); setAddonIds([]); } }} style={{ width: "100%", textAlign: "left", marginBottom: 10, padding: "15px 17px", borderRadius: 10, cursor: "pointer", border: `1.5px solid ${sel ? GROUPS[group].color : LINE}`, background: sel ? AB : PAPER }}>
+      {s.image && <img src={s.image} alt="" style={{ width: "100%", height: 150, objectFit: "cover", borderRadius: 8, marginBottom: 12, display: "block" }} />}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10 }}>
         <span style={{ ...display, fontWeight: 600, fontSize: 17, color: INK }}>{s.name}</span>
         <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
@@ -1167,7 +1186,7 @@ function BookingFlow({ state, direct, slotTaken, onCancel, onComplete, onLogin, 
 /* ============================ DIRECT BOOKING LINKS ============================ */
 function DirectLinks({ state, createDirectLink, revokeDirectLink, openDirectLink, showToast }) {
   const isMobile = useIsMobile();
-  const [group, setGroup] = useState("video");
+  const [group, setGroup] = useState("photo");
   const [serviceId, setServiceId] = useState("");
   const [date, setDate] = useState("");
   const [time, setTime] = useState("");
@@ -2066,7 +2085,7 @@ function AdminSessions({ state, adminId, setAdminId, requestSetStage, addComment
 
 /* ============================ ADMIN — CALENDAR ============================ */
 function AdminCalendar({ state, onSelectSession }) {
-  const [group, setGroup] = useState("video");
+  const [group, setGroup] = useState("photo");
   const today = new Date();
   const [ym, setYm] = useState({ y: today.getFullYear(), m: today.getMonth() });
   const g = GROUPS[group];
@@ -2251,13 +2270,13 @@ function AvailabilityManager({ availability, addAvailability, removeAvailability
 
 function ServiceCatalog({ state, addService, updateService, deleteService, addAddon, updateAddon, deleteAddon, showToast, setConfirm }) {
   const isMobile = useIsMobile();
-  const [group, setGroup] = useState("video");
+  const [group, setGroup] = useState("photo");
   const [svcForm, setSvcForm] = useState(null);
   const [addonForm, setAddonForm] = useState(null);
   const groupServices = state.services.filter((s) => s.group === group);
   const groupAddons = state.addons.filter((a) => a.group === group);
   const g = GROUPS[group];
-  const startNewService = () => setSvcForm({ name: "", description: "", price: "", category: "", duration: "", padBefore: "", padAfter: "", addonMode: "group", addonIds: [], visible: true });
+  const startNewService = () => setSvcForm({ name: "", description: "", price: "", category: "", duration: "", padBefore: "", padAfter: "", addonMode: "group", addonIds: [], visible: true, image: "" });
   const saveService = async () => { if (!svcForm.name.trim()) { showToast("Give the service a name first."); return; } const r = svcForm.id ? await updateService(svcForm.id, svcForm) : await addService({ ...svcForm, group }); if (r && r.ok) { showToast(svcForm.id ? "Service updated." : "Service created."); setSvcForm(null); } else { showToast((r && r.error) || "Could not save the service."); } };
   const startNewAddon = () => setAddonForm({ name: "", price: "", addTime: "", visible: true });
   const saveAddon = async () => { if (!addonForm.name.trim()) { showToast("Give the add-on a name first."); return; } const r = addonForm.id ? await updateAddon(addonForm.id, addonForm) : await addAddon({ ...addonForm, group }); if (r && r.ok) { showToast(addonForm.id ? "Add-on updated." : "Add-on created."); setAddonForm(null); } else { showToast((r && r.error) || "Could not save the add-on."); } };
@@ -2302,6 +2321,18 @@ function ServiceForm({ form, setForm, onSave, onCancel, group, groupAddons }) {
       <TextInput value={form.name} onChange={(v) => setForm({ ...form, name: v })} placeholder="e.g. Legacy Story Video" />
       <FieldLabel>Description</FieldLabel>
       <textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} rows={3} placeholder="What this service includes…" style={{ width: "100%", border: `1px solid ${LINE}`, borderRadius: 8, padding: "9px 11px", fontSize: 13, fontFamily: "inherit", resize: "vertical", background: PAPER, color: BODY, boxSizing: "border-box", marginBottom: 12 }} />
+      <FieldLabel>Example image (optional, shown to clients when they choose this service)</FieldLabel>
+      {form.image ? (
+        <div style={{ position: "relative", marginBottom: 12, borderRadius: 9, overflow: "hidden", border: `1px solid ${LINE}` }}>
+          <img src={form.image} alt="" style={{ width: "100%", maxHeight: 190, objectFit: "cover", display: "block" }} />
+          <button onClick={() => setForm({ ...form, image: "" })} style={{ position: "absolute", top: 8, right: 8, background: "rgba(26,26,23,0.72)", color: "#fff", border: "none", borderRadius: 6, padding: "5px 9px", cursor: "pointer", ...mono, fontSize: 9, letterSpacing: "0.06em", textTransform: "uppercase", display: "inline-flex", alignItems: "center", gap: 5 }}><Trash2 size={11} /> Remove</button>
+        </div>
+      ) : (
+        <label style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, marginBottom: 12, padding: "16px", borderRadius: 9, border: `1.5px dashed ${LINE}`, background: CREAM, cursor: "pointer", color: STONE, fontSize: 12.5 }}>
+          <ImageIcon size={15} /> Upload an example image
+          <input type="file" accept="image/*" style={{ display: "none" }} onChange={async (e) => { const f = e.target.files && e.target.files[0]; if (!f) return; try { const url = await resizeImageTo(f, 640); setForm((prev) => ({ ...prev, image: url })); } catch (err) {} if (e.target) e.target.value = ""; }} />
+        </label>
+      )}
       <FieldLabel>Sub-category (optional, groups this under a client-facing heading)</FieldLabel>
       <TextInput value={form.category || ""} onChange={(v) => setForm({ ...form, category: v })} placeholder="e.g. Destination Photography" />
       <FieldLabel>Price (USD)</FieldLabel>
