@@ -1,9 +1,7 @@
 import { sql } from "@/lib/db";
 
 // Ensures the payments / receipts ledger exists with the full expected schema, regardless of
-// whether (or which older version of) the SQL migration was ever applied on this database.
-// Idempotent and safe to call often. ADD COLUMN IF NOT EXISTS repairs a table created by an
-// earlier schema that is missing newer columns (which would otherwise make INSERT throw).
+// whether (or which older version of) the migration was applied. Idempotent + safe to call often.
 export async function ensureLedger() {
   await sql`CREATE TABLE IF NOT EXISTS payments (id text PRIMARY KEY)`;
   await sql`ALTER TABLE payments
@@ -20,6 +18,16 @@ export async function ensureLedger() {
     ADD COLUMN IF NOT EXISTS square_payment_id text,
     ADD COLUMN IF NOT EXISTS paid_at timestamptz,
     ADD COLUMN IF NOT EXISTS created_at timestamptz DEFAULT now()`;
+  // Repair a legacy table whose id-holding columns are uuid-typed. The app uses TEXT ids
+  // throughout (session ids like "ses_...", Square order/payment ids, and the receipt id),
+  // so these columns must be text or every INSERT is rejected. Only alters columns that are
+  // still uuid, so it's a no-op once repaired.
+  const cols = (await sql`SELECT column_name, data_type FROM information_schema.columns WHERE table_name = 'payments' AND column_name IN ('id','session_id','square_order_id','square_payment_id')`) as any[];
+  const isUuid = (n: string) => cols.some((c: any) => c && c.column_name === n && c.data_type === "uuid");
+  if (isUuid("id")) await sql`ALTER TABLE payments ALTER COLUMN id TYPE text USING id::text`;
+  if (isUuid("session_id")) await sql`ALTER TABLE payments ALTER COLUMN session_id TYPE text USING session_id::text`;
+  if (isUuid("square_order_id")) await sql`ALTER TABLE payments ALTER COLUMN square_order_id TYPE text USING square_order_id::text`;
+  if (isUuid("square_payment_id")) await sql`ALTER TABLE payments ALTER COLUMN square_payment_id TYPE text USING square_payment_id::text`;
   await sql`CREATE UNIQUE INDEX IF NOT EXISTS payments_order_uidx ON payments(square_order_id)`;
 }
 
