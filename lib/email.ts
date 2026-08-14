@@ -257,6 +257,16 @@ export function internalBookingEmail(s: any): string {
   return shell(brand, "Your Booking", "Your session is reserved", body);
 }
 
+export function videoEmail(s: any, url: string): string {
+  const brand = brandFor(s);
+  const first = s && s.clientName ? esc(String(s.clientName).split(" ")[0]) : "";
+  const body =
+    para(`Hi${first ? " " + first : ""}, your video from your ${esc(s.type) || "session"} with Dot One Media is ready to view.`) +
+    button(brand, url, "Watch your video") +
+    para("Open the link to watch, review, and download your video. It's yours to keep and share.");
+  return shell(brand, "Your Video", "Your video is ready", body);
+}
+
 export function galleryEmail(s: any, url: string): string {
   const brand = brandFor(s);
   const first = s && s.clientName ? esc(String(s.clientName).split(" ")[0]) : "";

@@ -466,6 +466,10 @@ export default function App() {
     if (!session.deliveryPhoto) { showToast("Add a gallery link first, then email it."); return; }
     try { const r = await fetch("/api/sessions", { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ id: session.id, patch: {}, emailGallery: true }) }); if (r.ok) showToast("Gallery emailed to " + (session.clientName || "the client") + "."); else showToast("Could not email the gallery."); } catch (e) { showToast("Network error."); }
   };
+  const emailVideoToClient = async (session) => {
+    if (!session.deliveryVideo) { showToast("Add a video link first, then email it."); return; }
+    try { const r = await fetch("/api/sessions", { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ id: session.id, patch: {}, emailVideo: true }) }); if (r.ok) showToast("Video link emailed to " + (session.clientName || "the client") + "."); else showToast("Could not email the video link."); } catch (e) { showToast("Network error."); }
+  };
   const requestSendCharge = async (session, label, amountDollars) => { try { const res = await fetch("/api/charge", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ sessionId: session.id, label, amount: amountDollars }) }); const data = await res.json().catch(() => ({})); if (res.ok && data.charge) { showToast("Payment request sent to " + session.clientEmail + "."); setState((s) => ({ ...s, sessions: s.sessions.map((x) => x.id === session.id ? { ...x, charges: [...(x.charges || []), data.charge] } : x) })); return { ok: true }; } else { showToast(data.error || "Could not send the payment request."); return { ok: false }; } } catch (e) { showToast("Network error."); return { ok: false }; } };
 
   const resetDemo = () => setConfirm({ title: "Reset the demo?", message: "This clears all sessions, services, add-ons, and booking links back to the starting state.", confirmLabel: "Reset everything", danger: true, onYes: async () => { setState(DEFAULT_STATE); try { await storage.delete(STORAGE_KEY); } catch (e) {} showToast("Demo reset."); setConfirm(null); } });
@@ -539,7 +543,7 @@ export default function App() {
               <SubTab active={adminTab === "business"} onClick={() => setAdminTab("business")} label="Business Settings" />
             </div>
             {adminTab === "home" && <StudioHome state={state} setAdminId={setAdminId} setAdminTab={setAdminTab} dark={themeKey === "midnight"} />}
-            {adminTab === "sessions" && <AdminSessions state={state} adminId={adminId} setAdminId={setAdminId} requestSetStage={requestSetStage} addComment={addComment} patchSession={patchSession} onReschedule={adminReschedule} slotTaken={slotTaken} markMessagesRead={markMessagesRead} onCancelBooking={requestCancelBooking} onCloseBooking={requestCloseBooking} onReopenBooking={requestReopenBooking} onSendBalance={requestSendBalance} onSendCharge={requestSendCharge} onCheckPayment={checkChargePayment} onNewInternal={() => setInternalOpen(true)} onEmailGallery={emailGalleryToClient} onDeleteBooking={requestDeleteBooking} />}
+            {adminTab === "sessions" && <AdminSessions state={state} adminId={adminId} setAdminId={setAdminId} requestSetStage={requestSetStage} addComment={addComment} patchSession={patchSession} onReschedule={adminReschedule} slotTaken={slotTaken} markMessagesRead={markMessagesRead} onCancelBooking={requestCancelBooking} onCloseBooking={requestCloseBooking} onReopenBooking={requestReopenBooking} onSendBalance={requestSendBalance} onSendCharge={requestSendCharge} onCheckPayment={checkChargePayment} onNewInternal={() => setInternalOpen(true)} onEmailGallery={emailGalleryToClient} onEmailVideo={emailVideoToClient} onDeleteBooking={requestDeleteBooking} />}
             {adminTab === "calendar" && <AdminCalendar state={state} onSelectSession={(id) => { setAdminId(id); setAdminTab("sessions"); }} />}
             {adminTab === "links" && <DirectLinks state={state} createDirectLink={createDirectLink} revokeDirectLink={revokeDirectLink} openDirectLink={openDirectLink} showToast={showToast} />}
             {adminTab === "availability" && <><CalendarSync showToast={showToast} /><AvailabilityManager availability={state.availability} addAvailability={addAvailability} removeAvailability={removeAvailability} showToast={showToast} /></>}
@@ -1820,7 +1824,7 @@ function StudioHome({ state, setAdminId, setAdminTab, dark }) {
 }
 
 /* ============================ ADMIN — SESSIONS ============================ */
-function AdminSessions({ state, adminId, setAdminId, requestSetStage, addComment, patchSession, onReschedule, slotTaken, markMessagesRead, onCancelBooking, onCloseBooking, onReopenBooking, onSendBalance, onSendCharge, onCheckPayment, onNewInternal, onEmailGallery, onDeleteBooking }) {
+function AdminSessions({ state, adminId, setAdminId, requestSetStage, addComment, patchSession, onReschedule, slotTaken, markMessagesRead, onCancelBooking, onCloseBooking, onReopenBooking, onSendBalance, onSendCharge, onCheckPayment, onNewInternal, onEmailGallery, onEmailVideo, onDeleteBooking }) {
   const [chgLabel, setChgLabel] = useState("");
   const [chgAmt, setChgAmt] = useState("");
   useEffect(() => { setChgLabel(""); setChgAmt(""); }, [adminId]);
@@ -2010,7 +2014,12 @@ function AdminSessions({ state, adminId, setAdminId, requestSetStage, addComment
           ) : (
             <>
               <div><LinkRow label="Preview / review" url={session.reviewLink} /><LinkRow label="Final video" url={session.deliveryVideo} /><LinkRow label="Final photos (gallery)" url={session.deliveryPhoto} /></div>
-              {session.deliveryPhoto ? <button onClick={() => onEmailGallery(session)} style={{ ...mono, fontSize: 10, letterSpacing: "0.06em", textTransform: "uppercase", color: "#fff", background: sg.color, border: "none", borderRadius: 7, padding: "9px 13px", cursor: "pointer", marginTop: 12, display: "inline-flex", alignItems: "center", gap: 6 }}><ImageIcon size={13} /> Email gallery to client</button> : null}
+              {(session.deliveryVideo || session.deliveryPhoto) ? (
+                <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 12 }}>
+                  {session.deliveryVideo ? <button onClick={() => onEmailVideo(session)} style={{ ...mono, fontSize: 10, letterSpacing: "0.06em", textTransform: "uppercase", color: "#fff", background: GROUPS.video.color, border: "none", borderRadius: 7, padding: "9px 13px", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 6 }}><Film size={13} /> Email video link to client</button> : null}
+                  {session.deliveryPhoto ? <button onClick={() => onEmailGallery(session)} style={{ ...mono, fontSize: 10, letterSpacing: "0.06em", textTransform: "uppercase", color: "#fff", background: GROUPS.photo.color, border: "none", borderRadius: 7, padding: "9px 13px", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 6 }}><ImageIcon size={13} /> Email gallery to client</button> : null}
+                </div>
+              ) : null}
             </>
           )}
         </div>

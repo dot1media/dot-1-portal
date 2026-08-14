@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { sql } from "@/lib/db";
 import { verifyToken, verifyClientToken, ADMIN_COOKIE, CLIENT_COOKIE } from "@/lib/auth";
-import { sendEmail, sendToClient, bookingStudioEmail, bookingClientEmail, stageClientEmail, messageEmail, stageLabelFor, briefStudioEmail, cancelClientEmail, internalBookingEmail, galleryEmail } from "@/lib/email";
+import { sendEmail, sendToClient, bookingStudioEmail, bookingClientEmail, stageClientEmail, messageEmail, stageLabelFor, briefStudioEmail, cancelClientEmail, internalBookingEmail, galleryEmail, videoEmail } from "@/lib/email";
 
 export const runtime = "nodejs";
 
@@ -104,6 +104,9 @@ export async function PATCH(request: Request) {
   }
   if (me.role === "admin" && body.emailGallery && merged.deliveryPhoto) {
     try { await sendEmail({ to: merged.clientEmail, subject: "Your gallery from Dot One Media is ready", html: galleryEmail(merged, merged.deliveryPhoto), replyTo: "contact@dot1.media" }); } catch (e) {}
+  }
+  if (me.role === "admin" && body.emailVideo && merged.deliveryVideo) {
+    try { await sendEmail({ to: merged.clientEmail, subject: "Your video from Dot One Media is ready", html: videoEmail(merged, merged.deliveryVideo), replyTo: "contact@dot1.media" }); } catch (e) {}
   }
   if (me.role === "client" && allowed.brief && allowed.brief.submitted && !(old.brief && old.brief.submitted)) {
     await sendEmail({ to: merged.notifyEmail || "contact@dot1.media", subject: (merged.clientName || "A client") + " submitted their production brief", html: briefStudioEmail(merged), replyTo: merged.clientEmail });
