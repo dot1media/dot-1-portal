@@ -291,6 +291,23 @@ export function galleryEmail(s: any, url: string): string {
   return shell(brand, "Your Gallery", "Your photos are ready", body);
 }
 
+export function deliveryEmail(s: any, kind: string, url: string): string {
+  const brand = brandFor(s);
+  const first = s && s.clientName ? esc(String(s.clientName).split(" ")[0]) : "";
+  const cfg: Record<string, { title: string; heading: string; noun: string; cta: string; tail: string }> = {
+    gallery: { title: "Your Gallery", heading: "Your photos are ready", noun: "photo gallery", cta: "View & download your gallery", tail: "Open the gallery to view, favorite, and download your photos. The link is yours to keep and share with family." },
+    video: { title: "Your Video", heading: "Your video is ready", noun: "video", cta: "Watch & download your video", tail: "Open the link to watch and download your finished video. The link is yours to keep." },
+    music: { title: "Your Audio", heading: "Your audio is ready", noun: "audio", cta: "Listen & download your audio", tail: "Open the link to listen to and download your finished tracks. The link is yours to keep." },
+    government: { title: "Your Deliverables", heading: "Your deliverables are ready", noun: "project deliverables", cta: "Open your deliverables", tail: "Open the link to access and download your project deliverables." },
+  };
+  const c = cfg[kind] || cfg.gallery;
+  const body =
+    para(`Hi${first ? " " + first : ""}, your ${c.noun} from your ${esc(s.type) || "project"} with Dot One Media is ready.`) +
+    button(brand, url, c.cta) +
+    para(c.tail);
+  return shell(brand, c.title, c.heading, body);
+}
+
 export async function sendEmail(opts: { to?: string; subject: string; html: string; replyTo?: string; attachments?: Array<{ filename: string; content: string }> }): Promise<void> {
   const key = process.env.RESEND_API_KEY;
   if (!key || !opts.to) return;

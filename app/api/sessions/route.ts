@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { sql } from "@/lib/db";
 import { verifyToken, verifyClientToken, ADMIN_COOKIE, CLIENT_COOKIE } from "@/lib/auth";
-import { sendEmail, sendToClient, bookingStudioEmail, bookingClientEmail, stageClientEmail, messageEmail, stageLabelFor, briefStudioEmail, cancelClientEmail, internalBookingEmail, galleryEmail, videoEmail, reviewEmail, isFinalStage } from "@/lib/email";
+import { sendEmail, sendToClient, bookingStudioEmail, bookingClientEmail, stageClientEmail, messageEmail, stageLabelFor, briefStudioEmail, cancelClientEmail, internalBookingEmail, galleryEmail, videoEmail, deliveryEmail, reviewEmail, isFinalStage } from "@/lib/email";
 
 export const runtime = "nodejs";
 
@@ -106,11 +106,24 @@ export async function PATCH(request: Request) {
       await sendToClient(merged.clientEmail, "messages", { subject: "New reply from Dot One Media", html: messageEmail(merged, false, last.body), replyTo: "contact@dot1.media" });
     }
   }
-  if (me.role === "admin" && body.emailGallery && merged.deliveryPhoto) {
-    try { await sendEmail({ to: merged.clientEmail, subject: "Your gallery from Dot One Media is ready", html: galleryEmail(merged, merged.deliveryPhoto), replyTo: "contact@dot1.media" }); } catch (e) {}
-  }
-  if (me.role === "admin" && body.emailVideo && merged.deliveryVideo) {
-    try { await sendEmail({ to: merged.clientEmail, subject: "Your video from Dot One Media is ready", html: videoEmail(merged, merged.deliveryVideo), replyTo: "contact@dot1.media" }); } catch (e) {}
+  if (me.role === "admin") {
+    const want = new Set<string>();
+    if (typeof body.emailDelivery === "string") want.add(body.emailDelivery);
+    if (Array.isArray(body.emailDeliveryKinds)) for (const k of body.emailDeliveryKinds) want.add(String(k));
+    if (want.size && merged.clientEmail) {
+      const DKINDS = [
+        { field: "deliveryPhoto", kind: "gallery", subj: "Your gallery from Dot One Media is ready" },
+        { field: "deliveryVideo", kind: "video", subj: "Your video from Dot One Media is ready" },
+        { field: "deliveryMusic", kind: "music", subj: "Your audio from Dot One Media is ready" },
+        { field: "deliveryGov", kind: "government", subj: "Your deliverables from Dot One Media are ready" },
+      ];
+      for (const d of DKINDS) {
+        const url = String((merged as any)[d.field] || "").trim();
+        if (want.has(d.kind) && url) {
+          try { await sendEmail({ to: merged.clientEmail, subject: d.subj, html: deliveryEmail(merged, d.kind, url), replyTo: "contact@dot1.media" }); } catch (e) {}
+        }
+      }
+    }
   }
   if (me.role === "admin" && body.sendReview && merged.clientEmail) {
     const rl = (process.env.GOOGLE_REVIEW_LINK || "").trim();

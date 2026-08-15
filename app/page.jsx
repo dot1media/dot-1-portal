@@ -370,8 +370,8 @@ export default function App() {
 
   const showToast = (msg) => { setToast(msg); if (toastTimer.current) clearTimeout(toastTimer.current); toastTimer.current = setTimeout(() => setToast(null), 3600); };
 
-  const saveSessionPatch = (id, patch) => { fetch("/api/sessions", { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ id, patch }) }).catch(() => {}); };
-  const patchSession = (id, patch) => { setState((s) => ({ ...s, sessions: s.sessions.map((x) => (x.id === id ? { ...x, ...patch } : x)) })); saveSessionPatch(id, patch); };
+  const saveSessionPatch = (id, patch, extra) => { fetch("/api/sessions", { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ id, patch, ...(extra || {}) }) }).catch(() => {}); };
+  const patchSession = (id, patch, extra) => { setState((s) => ({ ...s, sessions: s.sessions.map((x) => (x.id === id ? { ...x, ...patch } : x)) })); saveSessionPatch(id, patch, extra); };
   const setSessionGroup = (session, group) => {
     const type = (session && session.type) || "";
     const targets = (stateRef.current.sessions || []).filter((x) => (x.type || "") === type);
@@ -456,7 +456,7 @@ export default function App() {
   const createBooking = (booking) => {
     const id = uid("ses"); const grp = booking.group;
     const notifyEmail = NOTIFY_EMAILS[grp] || "contact@dot1.media";
-    const newSession = { id, clientName: booking.name, clientEmail: booking.email, clientImage: "", notifyEmail, type: booking.serviceName, serviceLine: grp, photographer: grp === "photo" ? "Brittany Matthews" : "Dennis Matthews", date: booking.date, time: booking.time, location: "", status: "active", durationMin: booking.duration || 60, apptMin: booking.apptMin || booking.duration || 60, padBefore: booking.padBefore || 0, padAfter: booking.padAfter || 0, currentStage: 0, stageTimes: { 0: "just now" }, comments: [], selectedAddons: booking.addons, total: booking.total, payChoice: booking.payChoice, paymentStatus: (booking.payAmount || 0) > 0 ? "pending" : "none", payAmount: booking.payAmount || 0, reviewLink: "", deliveryVideo: "", deliveryPhoto: "" };
+    const newSession = { id, clientName: booking.name, clientEmail: booking.email, clientImage: "", notifyEmail, type: booking.serviceName, serviceLine: grp, photographer: grp === "photo" ? "Brittany Matthews" : "Dennis Matthews", date: booking.date, time: booking.time, location: "", status: "active", durationMin: booking.duration || 60, apptMin: booking.apptMin || booking.duration || 60, padBefore: booking.padBefore || 0, padAfter: booking.padAfter || 0, currentStage: 0, stageTimes: { 0: "just now" }, comments: [], selectedAddons: booking.addons, total: booking.total, payChoice: booking.payChoice, paymentStatus: (booking.payAmount || 0) > 0 ? "pending" : "none", payAmount: booking.payAmount || 0, reviewLink: "", deliveryVideo: "", deliveryPhoto: "", deliveryMusic: "", deliveryGov: "" };
     setState((s) => ({ ...s, sessions: [...s.sessions, newSession] }));
     fetch("/api/sessions", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ session: newSession }) }).catch(() => {});
     if (booking.linkId) consumeDirectLink(booking.linkId);
@@ -514,20 +514,25 @@ export default function App() {
   const createInternalBooking = async (b) => {
     const id = uid("ses"); const grp = b.group;
     const notifyEmail = NOTIFY_EMAILS[grp] || "contact@dot1.media";
-    const newSession = { id, clientName: b.name, clientEmail: (b.email || "").toLowerCase(), clientImage: "", notifyEmail, type: b.serviceName, serviceLine: grp, photographer: grp === "photo" ? "Brittany Matthews" : "Dennis Matthews", date: b.date, time: b.time, location: "", status: "active", durationMin: Number(b.duration) || 60, apptMin: Number(b.duration) || 60, padBefore: 0, padAfter: 0, currentStage: 0, stageTimes: { 0: "just now" }, comments: [], selectedAddons: [], total: Number(b.total) || 0, payChoice: "deposit", paymentStatus: "none", payAmount: 0, reviewLink: "", deliveryVideo: "", deliveryPhoto: "", internal: true };
+    const newSession = { id, clientName: b.name, clientEmail: (b.email || "").toLowerCase(), clientImage: "", notifyEmail, type: b.serviceName, serviceLine: grp, photographer: grp === "photo" ? "Brittany Matthews" : "Dennis Matthews", date: b.date, time: b.time, location: "", status: "active", durationMin: Number(b.duration) || 60, apptMin: Number(b.duration) || 60, padBefore: 0, padAfter: 0, currentStage: 0, stageTimes: { 0: "just now" }, comments: [], selectedAddons: [], total: Number(b.total) || 0, payChoice: "deposit", paymentStatus: "none", payAmount: 0, reviewLink: "", deliveryVideo: "", deliveryPhoto: "", deliveryMusic: "", deliveryGov: "", internal: true };
     setState((s) => ({ ...s, sessions: [...s.sessions, newSession] }));
     await fetch("/api/sessions", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ session: newSession }) }).catch(() => {});
     if ((Number(b.deposit) || 0) > 0) { await requestSendCharge(newSession, b.serviceName + " payment", Number(b.deposit)); }
     setAdminId(id);
     showToast((Number(b.deposit) || 0) > 0 ? "Internal booking created and a payment request was sent." : "Internal booking created. The client was emailed the details.");
   };
-  const emailGalleryToClient = async (session) => {
-    if (!session.deliveryPhoto) { showToast("Add a gallery link first, then email it."); return; }
-    try { const r = await fetch("/api/sessions", { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ id: session.id, patch: {}, emailGallery: true }) }); if (r.ok) showToast("Gallery emailed to " + (session.clientName || "the client") + "."); else showToast("Could not email the gallery."); } catch (e) { showToast("Network error."); }
-  };
-  const emailVideoToClient = async (session) => {
-    if (!session.deliveryVideo) { showToast("Add a video link first, then email it."); return; }
-    try { const r = await fetch("/api/sessions", { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ id: session.id, patch: {}, emailVideo: true }) }); if (r.ok) showToast("Video link emailed to " + (session.clientName || "the client") + "."); else showToast("Could not email the video link."); } catch (e) { showToast("Network error."); }
+  const confirmSendDelivery = (session, kinds, linkPatch) => {
+    const arr = Array.isArray(kinds) ? kinds : [kinds];
+    const nameOf = { gallery: "photo gallery", video: "video", music: "audio", government: "deliverables" };
+    const names = arr.map((k) => nameOf[k] || k);
+    const label = names.length === 1 ? names[0] : names.slice(0, -1).join(", ") + " and " + names.slice(-1);
+    const noun = arr.some((k) => k === "gallery") ? "images" : (arr.some((k) => k === "video" || k === "music") ? "files" : "deliverables");
+    setConfirm({
+      title: "Send this to the client?",
+      message: "This emails " + (session.clientName || "the client") + " a link to their " + label + ". Please confirm the link points to the final " + noun + " before sending.",
+      confirmLabel: "Confirm & send",
+      onYes: () => { saveSessionPatch(session.id, linkPatch || {}, { emailDeliveryKinds: arr }); showToast("Sent to " + (session.clientName || "the client") + "."); setConfirm(null); },
+    });
   };
   const requestReview = async (session) => {
     try { const r = await fetch("/api/sessions", { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ id: session.id, patch: {}, sendReview: true }) }); if (r.ok) showToast("Review request sent to " + (session.clientName || "the client") + "."); else showToast("Could not send the review request."); } catch (e) { showToast("Network error."); }
@@ -615,7 +620,7 @@ export default function App() {
               <SubTab active={adminTab === "business"} onClick={() => setAdminTab("business")} label="Business Settings" />
             </div>
             {adminTab === "home" && <StudioHome state={state} setAdminId={setAdminId} setAdminTab={setAdminTab} dark={themeKey === "midnight"} />}
-            {adminTab === "sessions" && <AdminSessions state={state} adminId={adminId} setAdminId={setAdminId} requestSetStage={requestSetStage} addComment={addComment} patchSession={patchSession} onReschedule={adminReschedule} slotTaken={slotTaken} markMessagesRead={markMessagesRead} onCancelBooking={requestCancelBooking} onCloseBooking={requestCloseBooking} onReopenBooking={requestReopenBooking} onSendBalance={requestSendBalance} onSendCharge={requestSendCharge} onCheckPayment={checkChargePayment} onNewInternal={() => setInternalOpen(true)} onEmailGallery={emailGalleryToClient} onEmailVideo={emailVideoToClient} onRequestReview={requestReview} onSetGroup={setSessionGroup} onDeleteBooking={requestDeleteBooking} />}
+            {adminTab === "sessions" && <AdminSessions state={state} adminId={adminId} setAdminId={setAdminId} requestSetStage={requestSetStage} addComment={addComment} patchSession={patchSession} onReschedule={adminReschedule} slotTaken={slotTaken} markMessagesRead={markMessagesRead} onCancelBooking={requestCancelBooking} onCloseBooking={requestCloseBooking} onReopenBooking={requestReopenBooking} onSendBalance={requestSendBalance} onSendCharge={requestSendCharge} onCheckPayment={checkChargePayment} onNewInternal={() => setInternalOpen(true)} onEmailDelivery={confirmSendDelivery} onRequestReview={requestReview} onSetGroup={setSessionGroup} onDeleteBooking={requestDeleteBooking} />}
             {adminTab === "calendar" && <AdminCalendar state={state} onSelectSession={(id) => { setAdminId(id); setAdminTab("sessions"); }} />}
             {adminTab === "links" && <DirectLinks state={state} createDirectLink={createDirectLink} revokeDirectLink={revokeDirectLink} openDirectLink={openDirectLink} showToast={showToast} />}
             {adminTab === "availability" && <><CalendarSync showToast={showToast} /><AvailabilityManager availability={state.availability} addAvailability={addAvailability} removeAvailability={removeAvailability} showToast={showToast} /></>}
@@ -1795,6 +1800,8 @@ function ClientActionPanel({ session, grp, draft, setDraft, onSubmit }) {
     const vault = [
       ...(session.deliveryVideo ? [{ label: "Final Film", url: session.deliveryVideo, note: isVideo ? "Watch & download your film" : "Video file", kind: "film" }] : []),
       ...(session.deliveryPhoto ? [{ label: "Full Gallery", url: session.deliveryPhoto, note: "View & download your photos", kind: "image" }] : []),
+      ...(session.deliveryMusic ? [{ label: "Audio", url: session.deliveryMusic, note: "Listen & download your tracks", kind: "film" }] : []),
+      ...(session.deliveryGov ? [{ label: "Deliverables", url: session.deliveryGov, note: "Access your deliverables", kind: "image" }] : []),
       ...((Array.isArray(session.deliverables) ? session.deliverables : []).filter((d) => d && d.url).map((d) => ({ label: d.label || "Deliverable", url: d.url, note: d.note || "", kind: "file" }))),
     ];
     return (
@@ -1897,7 +1904,7 @@ function StudioHome({ state, setAdminId, setAdminTab, dark }) {
 }
 
 /* ============================ ADMIN — SESSIONS ============================ */
-function AdminSessions({ state, adminId, setAdminId, requestSetStage, addComment, patchSession, onReschedule, slotTaken, markMessagesRead, onCancelBooking, onCloseBooking, onReopenBooking, onSendBalance, onSendCharge, onCheckPayment, onNewInternal, onEmailGallery, onEmailVideo, onRequestReview, onSetGroup, onDeleteBooking }) {
+function AdminSessions({ state, adminId, setAdminId, requestSetStage, addComment, patchSession, onReschedule, slotTaken, markMessagesRead, onCancelBooking, onCloseBooking, onReopenBooking, onSendBalance, onSendCharge, onCheckPayment, onNewInternal, onEmailDelivery, onRequestReview, onSetGroup, onDeleteBooking }) {
   const [chgLabel, setChgLabel] = useState("");
   const [collapsed, setCollapsed] = useState({ completed: true });
   const [editType, setEditType] = useState(false);
@@ -1910,17 +1917,25 @@ function AdminSessions({ state, adminId, setAdminId, requestSetStage, addComment
   const [videoLink, setVideoLink] = useState("");
   const [photoLink, setPhotoLink] = useState("");
   const [reviewLink, setReviewLink] = useState("");
+  const [musicLink, setMusicLink] = useState("");
+  const [govLink, setGovLink] = useState("");
   const [delivLabel, setDelivLabel] = useState("");
   const [delivUrl, setDelivUrl] = useState("");
   const [delivNote, setDelivNote] = useState("");
   const [reschedOpen, setReschedOpen] = useState(false);
   const [reschedDate, setReschedDate] = useState("");
   const [reschedTime, setReschedTime] = useState("");
-  useEffect(() => { if (!session) return; setVideoLink(session.deliveryVideo || ""); setPhotoLink(session.deliveryPhoto || ""); setReviewLink(session.reviewLink || ""); setEditLinks(false); setEditType(false); setReschedOpen(false); setReschedDate(session.date || ""); setReschedTime(session.time || ""); }, [adminId]);
+  useEffect(() => { if (!session) return; setVideoLink(session.deliveryVideo || ""); setPhotoLink(session.deliveryPhoto || ""); setReviewLink(session.reviewLink || ""); setMusicLink(session.deliveryMusic || ""); setGovLink(session.deliveryGov || ""); setEditLinks(false); setEditType(false); setReschedOpen(false); setReschedDate(session.date || ""); setReschedTime(session.time || ""); }, [adminId]);
   if (!session) return <div style={{ ...card, marginTop: 4 }}><EmptyState icon={CalendarClock} title="No bookings yet" text="When a client books a session, it appears here automatically. Share your Direct Booking Link to bring in your first one." /></div>;
   const sg = GROUPS[session.serviceLine] || GROUPS.video;
   const status = session.status || "active";
-  const saveLinks = () => { patchSession(session.id, { deliveryVideo: videoLink.trim(), deliveryPhoto: photoLink.trim(), reviewLink: reviewLink.trim() }); setEditLinks(false); };
+  const saveLinks = () => {
+    const linkPatch = { deliveryVideo: videoLink.trim(), deliveryPhoto: photoLink.trim(), deliveryMusic: musicLink.trim(), deliveryGov: govLink.trim(), reviewLink: reviewLink.trim() };
+    const changed = [["deliveryPhoto", "gallery"], ["deliveryVideo", "video"], ["deliveryMusic", "music"], ["deliveryGov", "government"]].filter(([f]) => linkPatch[f] && linkPatch[f] !== (session[f] || "").trim()).map(([, k]) => k);
+    patchSession(session.id, linkPatch);
+    setEditLinks(false);
+    if (changed.length) onEmailDelivery(session, changed, linkPatch);
+  };
   const addDeliverable = () => { if (!delivLabel.trim() || !delivUrl.trim()) return; const item = { id: "d" + Date.now(), label: delivLabel.trim(), url: delivUrl.trim(), note: delivNote.trim() }; patchSession(session.id, { deliverables: [...(session.deliverables || []), item] }); setDelivLabel(""); setDelivUrl(""); setDelivNote(""); };
   const reschedClash = slotTaken(reschedDate, reschedTime, session.id);
 
@@ -2092,28 +2107,36 @@ function AdminSessions({ state, adminId, setAdminId, requestSetStage, addComment
             {!editLinks ? <button onClick={() => setEditLinks(true)} style={{ ...mono, fontSize: 10, letterSpacing: "0.08em", textTransform: "uppercase", color: sg.color, background: "transparent", border: `1px solid ${LINE}`, borderRadius: 6, padding: "6px 10px", cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}><Pencil size={11} /> Edit</button> : (
               <div style={{ display: "flex", gap: 6 }}>
                 <button onClick={saveLinks} style={{ ...mono, fontSize: 10, letterSpacing: "0.08em", textTransform: "uppercase", color: "#fff", background: sg.color, border: "none", borderRadius: 6, padding: "6px 10px", cursor: "pointer", display: "flex", alignItems: "center", gap: 5 }}><Check size={11} /> Save</button>
-                <button onClick={() => { setEditLinks(false); setVideoLink(session.deliveryVideo || ""); setPhotoLink(session.deliveryPhoto || ""); setReviewLink(session.reviewLink || ""); }} style={{ ...mono, fontSize: 10, letterSpacing: "0.08em", textTransform: "uppercase", color: STONE, background: "transparent", border: `1px solid ${LINE}`, borderRadius: 6, padding: "6px 10px", cursor: "pointer" }}>Cancel</button>
+                <button onClick={() => { setEditLinks(false); setVideoLink(session.deliveryVideo || ""); setPhotoLink(session.deliveryPhoto || ""); setReviewLink(session.reviewLink || ""); setMusicLink(session.deliveryMusic || ""); setGovLink(session.deliveryGov || ""); }} style={{ ...mono, fontSize: 10, letterSpacing: "0.08em", textTransform: "uppercase", color: STONE, background: "transparent", border: `1px solid ${LINE}`, borderRadius: 6, padding: "6px 10px", cursor: "pointer" }}>Cancel</button>
               </div>
             )}
           </div>
-          {editLinks ? (
-            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-              <LinkField label="Preview / review link" value={reviewLink} onChange={setReviewLink} placeholder="https://f.io/… or https://gallery…" />
-              <LinkField label="Final video delivery" value={videoLink} onChange={setVideoLink} placeholder="https://…" />
-              <LinkField label="Final photo delivery (gallery)" value={photoLink} onChange={setPhotoLink} placeholder="https://gallery.dot1.media/…" />
-            </div>
-          ) : (
-            <>
-              <div><LinkRow label="Preview / review" url={session.reviewLink} /><LinkRow label="Final video" url={session.deliveryVideo} /><LinkRow label="Final photos (gallery)" url={session.deliveryPhoto} /></div>
-              {(session.deliveryVideo || session.deliveryPhoto) ? (
-                <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 12 }}>
-                  {session.deliveryVideo ? <button onClick={() => onEmailVideo(session)} style={{ ...mono, fontSize: 10, letterSpacing: "0.06em", textTransform: "uppercase", color: "#fff", background: GROUPS.video.color, border: "none", borderRadius: 7, padding: "9px 13px", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 6 }}><Film size={13} /> Email video link to client</button> : null}
-                  {session.deliveryPhoto ? <button onClick={() => onEmailGallery(session)} style={{ ...mono, fontSize: 10, letterSpacing: "0.06em", textTransform: "uppercase", color: "#fff", background: GROUPS.photo.color, border: "none", borderRadius: 7, padding: "9px 13px", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 6 }}><ImageIcon size={13} /> Email gallery to client</button> : null}
-                </div>
-              ) : null}
-              <button onClick={() => onRequestReview(session)} title="Email the client a warm thank-you with your Google review link" style={{ ...mono, fontSize: 10, letterSpacing: "0.06em", textTransform: "uppercase", color: OK, background: "transparent", border: `1px solid ${OK}`, borderRadius: 7, padding: "9px 13px", cursor: "pointer", marginTop: 12, display: "inline-flex", alignItems: "center", gap: 6 }}><Star size={13} /> Request a Google review</button>
-            </>
-          )}
+          {(() => {
+            const DELIVERY = [
+              { key: "deliveryPhoto", kind: "gallery", line: "photo", label: "Photo gallery link", val: photoLink, set: setPhotoLink, color: GROUPS.photo.color, Icon: ImageIcon, btn: "Email gallery to client", ph: "https://gallery.dot1.media/…" },
+              { key: "deliveryVideo", kind: "video", line: "video", label: "Final video link", val: videoLink, set: setVideoLink, color: GROUPS.video.color, Icon: Film, btn: "Email video link to client", ph: "https://…" },
+              { key: "deliveryMusic", kind: "music", line: "music", label: "Audio / tracks link", val: musicLink, set: setMusicLink, color: GROUPS.music.color, Icon: Music, btn: "Email audio link to client", ph: "https://…" },
+              { key: "deliveryGov", kind: "government", line: "government", label: "Deliverables link", val: govLink, set: setGovLink, color: GROUPS.government.color, Icon: Landmark, btn: "Email deliverables to client", ph: "https://…" },
+            ];
+            const shown = DELIVERY.filter((d) => d.line === session.serviceLine || (session[d.key] || "").trim());
+            const withLink = shown.filter((d) => (session[d.key] || "").trim());
+            return editLinks ? (
+              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                <LinkField label="Preview / review link" value={reviewLink} onChange={setReviewLink} placeholder="https://f.io/… or https://gallery…" />
+                {shown.map((d) => <LinkField key={d.key} label={d.label} value={d.val} onChange={d.set} placeholder={d.ph} />)}
+              </div>
+            ) : (
+              <>
+                <div><LinkRow label="Preview / review" url={session.reviewLink} />{shown.map((d) => <LinkRow key={d.key} label={d.label} url={session[d.key]} />)}</div>
+                {withLink.length ? (
+                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 12 }}>
+                    {withLink.map((d) => <button key={d.key} onClick={() => onEmailDelivery(session, d.kind)} style={{ ...mono, fontSize: 10, letterSpacing: "0.06em", textTransform: "uppercase", color: "#fff", background: d.color, border: "none", borderRadius: 7, padding: "9px 13px", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 6 }}><d.Icon size={13} /> {d.btn}</button>)}
+                  </div>
+                ) : null}
+                <button onClick={() => onRequestReview(session)} title="Email the client a warm thank-you with your Google review link" style={{ ...mono, fontSize: 10, letterSpacing: "0.06em", textTransform: "uppercase", color: OK, background: "transparent", border: `1px solid ${OK}`, borderRadius: 7, padding: "9px 13px", cursor: "pointer", marginTop: 12, display: "inline-flex", alignItems: "center", gap: 6 }}><Star size={13} /> Request a Google review</button>
+              </>
+            );
+          })()}
         </div>
 
         <div style={{ ...cardDense, padding: "16px 18px", marginBottom: 22 }}>
@@ -3228,7 +3251,7 @@ function ImportSessions({ existing, onImport, showToast }) {
         durationMin: 60, apptMin: 60, padBefore: 0, padAfter: 0,
         currentStage: stageFor(d.date), stageTimes: {}, comments: [], selectedAddons: [],
         total: d.price, payChoice: "full", paymentStatus: d.paid ? "paid" : "none", payAmount: d.paid ? d.price : 0,
-        reviewLink: "", deliveryVideo: "", deliveryPhoto: "", imported: true, acuityId: d.acuityId,
+        reviewLink: "", deliveryVideo: "", deliveryPhoto: "", deliveryMusic: "", deliveryGov: "", imported: true, acuityId: d.acuityId,
       };
     });
     await onImport(sessions, (n) => setProgress(n));
