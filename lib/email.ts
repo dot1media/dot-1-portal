@@ -144,6 +144,20 @@ export function stageClientEmail(s: any, stageIdx: number): string {
   return shell(brand, "Session Update", "Your session moved forward", body);
 }
 
+export function isFinalStage(s: any, idx: number): boolean {
+  const L = /consult/i.test((s && s.type) || "") ? CONSULT_STAGE_LABELS : STAGE_LABELS;
+  return idx >= L.length - 1;
+}
+export function reviewEmail(s: any, link: string): string {
+  const brand = brandFor(s);
+  const first = s && s.clientName ? esc(String(s.clientName).split(" ")[0]) : "";
+  const body =
+    para(`Hi${first ? " " + first : ""}, it was such a joy creating your ${esc(s.type) || "session"} with you, and we hope you love how everything turned out.`) +
+    para("If you have a moment, a short review would mean the world to a small studio like ours. It helps other families and clients find us, and it truly makes our day.") +
+    button(brand, link, "Leave a quick review") +
+    para("Thank you for trusting us with your story. With gratitude, the whole Dot One Media team.");
+  return shell(brand, "Thank You", "We would love your feedback", body);
+}
 export function messageEmail(s: any, toStudio: boolean, msg: string): string {
   const brand = brandFor(s, toStudio);
   const who = toStudio ? (esc(s.clientName) || "Your client") : "Dot One Media";

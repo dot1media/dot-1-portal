@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { sql } from "@/lib/db";
 import { verifyToken, verifyClientToken, ADMIN_COOKIE, CLIENT_COOKIE } from "@/lib/auth";
-import { sendEmail, sendToClient, bookingStudioEmail, bookingClientEmail, stageClientEmail, messageEmail, stageLabelFor, briefStudioEmail, cancelClientEmail, internalBookingEmail, galleryEmail, videoEmail } from "@/lib/email";
+import { sendEmail, sendToClient, bookingStudioEmail, bookingClientEmail, stageClientEmail, messageEmail, stageLabelFor, briefStudioEmail, cancelClientEmail, internalBookingEmail, galleryEmail, videoEmail, reviewEmail, isFinalStage } from "@/lib/email";
 
 export const runtime = "nodejs";
 
@@ -93,6 +93,10 @@ export async function PATCH(request: Request) {
   const old = (cur.data || {}) as any;
   if (me.role === "admin" && typeof allowed.currentStage === "number" && allowed.currentStage > (old.currentStage || 0)) {
     await sendToClient(merged.clientEmail, "updates", { subject: "Your " + (merged.type || "session") + " status: " + stageLabelFor(merged, allowed.currentStage), html: stageClientEmail(merged, allowed.currentStage), replyTo: "contact@dot1.media" });
+    if (isFinalStage(merged, allowed.currentStage)) {
+      const rl = (process.env.GOOGLE_REVIEW_LINK || "").trim();
+      if (rl && merged.clientEmail) { try { await sendEmail({ to: merged.clientEmail, subject: "Thank you from Dot One Media", html: reviewEmail(merged, rl), replyTo: "contact@dot1.media" }); } catch (e) {} }
+    }
   }
   if (Array.isArray(allowed.comments) && allowed.comments.length > (old.comments || []).length) {
     const last = allowed.comments[allowed.comments.length - 1];
@@ -107,6 +111,10 @@ export async function PATCH(request: Request) {
   }
   if (me.role === "admin" && body.emailVideo && merged.deliveryVideo) {
     try { await sendEmail({ to: merged.clientEmail, subject: "Your video from Dot One Media is ready", html: videoEmail(merged, merged.deliveryVideo), replyTo: "contact@dot1.media" }); } catch (e) {}
+  }
+  if (me.role === "admin" && body.sendReview && merged.clientEmail) {
+    const rl = (process.env.GOOGLE_REVIEW_LINK || "").trim();
+    if (rl) { try { await sendEmail({ to: merged.clientEmail, subject: "Thank you from Dot One Media", html: reviewEmail(merged, rl), replyTo: "contact@dot1.media" }); } catch (e) {} }
   }
   if (me.role === "client" && allowed.brief && allowed.brief.submitted && !(old.brief && old.brief.submitted)) {
     await sendEmail({ to: merged.notifyEmail || "contact@dot1.media", subject: (merged.clientName || "A client") + " submitted their production brief", html: briefStudioEmail(merged), replyTo: merged.clientEmail });
