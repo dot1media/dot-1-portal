@@ -169,3 +169,9 @@ export function EmptyState({ icon: Icon, title, text, action, style }) {
   );
 }
 
+export function Avatar({ name, src, size = 40 }) {
+  const initials = (name || "?").split(/\s+/).map((w) => w[0]).slice(0, 2).join("").toUpperCase();
+  if (src) return <img src={src} alt={name} style={{ width: size, height: size, borderRadius: "50%", objectFit: "cover", border: `1px solid ${LINE}`, flexShrink: 0 }} />;
+  return <div style={{ width: size, height: size, borderRadius: "50%", background: CREAM, border: `1px solid ${LINE}`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, fontFamily: "'IBM Plex Mono', monospace", fontSize: Math.round(size * 0.32), color: STONE }}>{initials}</div>;
+}
+
