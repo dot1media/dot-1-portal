@@ -1920,7 +1920,7 @@ function AdminSessions({ state, adminId, setAdminId, requestSetStage, addComment
       <div>
         <div style={{ ...mono, fontSize: 10.5, letterSpacing: "0.2em", textTransform: "uppercase", color: RED, marginBottom: 14 }}>Sessions</div>
         <button onClick={onNewInternal} style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 7, marginBottom: 16, padding: "10px", borderRadius: 9, cursor: "pointer", border: `1px dashed ${LINE}`, background: CREAM, color: STONE, ...mono, fontSize: 10.5, letterSpacing: "0.06em", textTransform: "uppercase" }}><Plus size={13} /> New internal booking</button>
-        <MiniCalendar sessions={state.sessions} />
+        <MiniCalendar sessions={state.sessions} onSelectSession={(id) => { setAdminId(id); markMessagesRead(id, "client"); }} />
         {(() => {
           const now = new Date();
           const todayStr = now.getFullYear() + "-" + String(now.getMonth() + 1).padStart(2, "0") + "-" + String(now.getDate()).padStart(2, "0");
@@ -3265,26 +3265,29 @@ function ImportSessions({ existing, onImport, showToast }) {
   );
 }
 
-function MiniCalendar({ sessions }) {
+function MiniCalendar({ sessions, onSelectSession }) {
   const now = new Date();
   const [ym, setYm] = useState({ y: now.getFullYear(), m: now.getMonth() });
+  const [openDay, setOpenDay] = useState(null);
   const GOLD = "#d4a017";
   const byDay = {};
   for (const s of (sessions || [])) {
     if (!s.date || (s.status && s.status !== "active")) continue;
     const parts = s.date.split("-").map(Number);
-    if (parts[0] === ym.y && parts[1] - 1 === ym.m) { const d = parts[2]; (byDay[d] = byDay[d] || new Set()).add(s.serviceLine || "video"); }
+    if (parts[0] === ym.y && parts[1] - 1 === ym.m) { const d = parts[2]; (byDay[d] = byDay[d] || []).push(s); }
   }
+  for (const k in byDay) byDay[k].sort((a, b) => (a.time || "").localeCompare(b.time || ""));
   const startDow = new Date(ym.y, ym.m, 1).getDay();
   const daysIn = new Date(ym.y, ym.m + 1, 0).getDate();
   const cells = [];
   for (let i = 0; i < startDow; i++) cells.push(null);
   for (let d = 1; d <= daysIn; d++) cells.push(d);
-  const dayColor = (d) => { const set = byDay[d]; if (!set || set.size === 0) return null; if (set.size >= 2) return GOLD; return (GROUPS[Array.from(set)[0]] || GROUPS.video).color; };
+  const dayColor = (d) => { const arr = byDay[d]; if (!arr || arr.length === 0) return null; const lines = new Set(arr.map((s) => s.serviceLine || "video")); if (lines.size >= 2) return GOLD; return (GROUPS[Array.from(lines)[0]] || GROUPS.video).color; };
   const todayD = (now.getFullYear() === ym.y && now.getMonth() === ym.m) ? now.getDate() : -1;
   const monthName = new Date(ym.y, ym.m, 1).toLocaleString("en-US", { month: "long", year: "numeric" });
-  const step = (n) => setYm((o) => { let m = o.m + n, y = o.y; if (m < 0) { m = 11; y--; } if (m > 11) { m = 0; y++; } return { y, m }; });
+  const step = (n) => { setOpenDay(null); setYm((o) => { let m = o.m + n, y = o.y; if (m < 0) { m = 11; y--; } if (m > 11) { m = 0; y++; } return { y, m }; }); };
   const arrow = { display: "inline-flex", alignItems: "center", justifyContent: "center", width: 24, height: 24, borderRadius: 6, cursor: "pointer", background: "transparent", border: "1px solid " + LINE, color: STONE };
+  const openList = openDay ? (byDay[openDay] || []) : [];
   return (
     <div style={{ ...cardDense, padding: "12px 13px", marginBottom: 18 }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
@@ -3296,14 +3299,25 @@ function MiniCalendar({ sessions }) {
         {["S", "M", "T", "W", "T", "F", "S"].map((d, i) => <div key={"h" + i} style={{ ...mono, fontSize: 8, color: FAINT, textAlign: "center", paddingBottom: 2 }}>{d}</div>)}
         {cells.map((d, i) => {
           if (d === null) return <div key={"e" + i} />;
-          const col = dayColor(d);
-          return <div key={"d" + i} title={col ? "Session(s) on the " + d : ""} style={{ position: "relative", aspectRatio: "1", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, borderRadius: 6, ...mono, color: col ? "#fff" : (d === todayD ? INK : STONE), background: col || "transparent", fontWeight: col ? 700 : 400, border: d === todayD && !col ? "1px solid " + STONE : "1px solid transparent" }}>{d}</div>;
+          const col = dayColor(d); const has = !!col; const isOpen = openDay === d;
+          return <div key={"d" + i} onClick={has ? () => setOpenDay(isOpen ? null : d) : undefined} title={has ? "View sessions on this day" : ""} style={{ position: "relative", aspectRatio: "1", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, borderRadius: 6, ...mono, color: col ? "#fff" : (d === todayD ? INK : STONE), background: col || "transparent", fontWeight: col ? 700 : 400, cursor: has ? "pointer" : "default", boxShadow: isOpen ? "0 0 0 2px var(--d1-ink, #1a1a17)" : "none", border: d === todayD && !col ? "1px solid " + STONE : "1px solid transparent" }}>{d}</div>;
         })}
       </div>
-      <div style={{ display: "flex", flexWrap: "wrap", gap: "5px 9px", marginTop: 11 }}>
-        {GROUP_KEYS.map((k) => <span key={k} style={{ display: "inline-flex", alignItems: "center", gap: 4, ...mono, fontSize: 8, letterSpacing: "0.02em", color: STONE }}><span style={{ width: 7, height: 7, borderRadius: 2, background: GROUPS[k].color, flexShrink: 0 }} /> {GROUPS[k].label}</span>)}
-        <span style={{ display: "inline-flex", alignItems: "center", gap: 4, ...mono, fontSize: 8, letterSpacing: "0.02em", color: STONE }}><span style={{ width: 7, height: 7, borderRadius: 2, background: GOLD, flexShrink: 0 }} /> Multiple</span>
-      </div>
+      {openList.length > 0 && (
+        <div style={{ marginTop: 11, borderTop: "1px solid " + LINE, paddingTop: 10 }}>
+          <div style={{ ...mono, fontSize: 8.5, letterSpacing: "0.1em", textTransform: "uppercase", color: STONE, marginBottom: 7 }}>{fmtDate(openList[0].date)}{openList.length > 1 ? " " + "\u00b7" + " " + openList.length + " sessions" : ""}</div>
+          {openList.map((s) => { const gg = GROUPS[s.serviceLine] || GROUPS.video; return (
+            <button key={s.id} onClick={() => { if (onSelectSession) onSelectSession(s.id); }} className="d1-lift" style={{ width: "100%", display: "flex", alignItems: "center", gap: 8, padding: "7px 8px", borderRadius: 7, cursor: "pointer", background: CREAM, border: "1px solid " + LINE, marginBottom: 5, textAlign: "left" }}>
+              <span style={{ width: 8, height: 8, borderRadius: 2, background: gg.color, flexShrink: 0 }} />
+              <span style={{ flex: 1, minWidth: 0 }}>
+                <span style={{ display: "block", fontSize: 11.5, color: INK, fontWeight: 500, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{s.clientName}</span>
+                <span style={{ display: "block", ...mono, fontSize: 8, color: STONE, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{s.time ? fmtTime(s.time) + " " + "\u00b7" + " " : ""}{s.type}</span>
+              </span>
+              <ChevronRight size={12} color={FAINT} style={{ flexShrink: 0 }} />
+            </button>
+          ); })}
+        </div>
+      )}
     </div>
   );
 }
