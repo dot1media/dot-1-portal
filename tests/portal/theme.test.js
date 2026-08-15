@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { THEMES, THEME_VARS, ACCENT_SWATCHES, RED, PAPER, card, cardDense, mono, display, applyTheme } from "../../lib/portal/theme.js";
+import { THEMES, THEME_VARS, ACCENT_SWATCHES, RED, PAPER, card, cardDense, mono, display, applyTheme, inputStyle, btnSolid, btnGhost } from "../../lib/portal/theme.js";
 describe("theme tokens", () => {
   it("colors are css-var fallbacks", () => { expect(RED).toContain("--d1-accent"); expect(PAPER).toContain("--d1-paper"); });
   it("THEMES includes the expected themes + midnight", () => {
@@ -14,5 +14,10 @@ describe("theme tokens", () => {
 });
 describe("applyTheme", () => {
   it("is a no-throw function when document is absent (node)", () => { expect(typeof applyTheme).toBe("function"); expect(() => applyTheme("midnight")).not.toThrow(); });
+});
+describe("shared element styles", () => {
+  it("inputStyle is a full-width bordered box", () => { expect(inputStyle.width).toBe("100%"); expect(inputStyle.border).toContain("1px solid"); });
+  it("btnSolid is a borderless white-text button", () => { expect(btnSolid.border).toBe("none"); expect(btnSolid.color).toBe("#fff"); });
+  it("btnGhost has a border and mono font", () => { expect(btnGhost.border).toContain("1px solid"); expect(btnGhost.fontFamily).toContain("IBM Plex Mono"); });
 });
 
