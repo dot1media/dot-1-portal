@@ -158,3 +158,14 @@ export function FontLoader() {
   return null;
 }
 
+export function EmptyState({ icon: Icon, title, text, action, style }) {
+  return (
+    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center", padding: "40px 22px", ...style }}>
+      {Icon && <div style={{ width: 54, height: 54, borderRadius: 15, background: CREAM, border: `1px solid ${LINE}`, display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 16 }}><Icon size={23} color={STONE} /></div>}
+      <div style={{ ...display, fontWeight: 600, fontSize: 18, color: INK, marginBottom: text ? 6 : 0 }}>{title}</div>
+      {text && <div style={{ fontSize: 13.5, color: STONE, lineHeight: 1.55, maxWidth: 380, marginBottom: action ? 18 : 0 }}>{text}</div>}
+      {action}
+    </div>
+  );
+}
+

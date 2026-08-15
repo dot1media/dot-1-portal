@@ -2,15 +2,16 @@
 
 import React, { useState, useEffect, useLayoutEffect, useRef } from "react";
 import { parseCsvRows, ACUITY_MONTHS, parseAcuityStart, importServiceLine } from "../lib/portal/csv";
-import { uid, fmtDate, fmtTime, pad2, calDate, addMinutes, gcalLink, icsContent, money, compactMoney, MONTH_ABBR, monthShort, payKindLabel, payCardLabel, payMoney, payDateShort, sessionBucket } from "../lib/portal/format";
+import { uid, fmtDate, fmtTime, pad2, calDate, addMinutes, gcalLink, icsContent, money, compactMoney, MONTH_ABBR, monthShort, payKindLabel, payCardLabel, payMoney, payDateShort, sessionBucket, timeGreeting } from "../lib/portal/format";
 import { RED, INK, BODY, STONE, FAINT, LINE, PAPER, CREAM, OK, WARN, DANGER, THEME_VARS, THEMES, ACCENT_SWATCHES, applyTheme, display, mono, card, cardDense, inputStyle, iconBtnStyle, navBtn, shareBtn, btnGhost, btnSolid } from "../lib/portal/theme";
 import { GROUPS, GROUP_KEYS } from "../lib/portal/groups";
-import { DonutChart, HBars, MiniColumns, LinkRow, LinkField, FieldLabel, TextInput, RadioPill, IconBtn, EmptyHint, MiniCalendar, FontLoader } from "../lib/portal/ui";
+import { DonutChart, HBars, MiniColumns, LinkRow, LinkField, FieldLabel, TextInput, RadioPill, IconBtn, EmptyHint, MiniCalendar, FontLoader, EmptyState } from "../lib/portal/ui";
 import { useIsMobile } from "../lib/portal/hooks";
 import { LandingPage, LoginView, StudioLogin, ResetPassword } from "../lib/portal/auth";
 import { NOTIFY_EMAILS, isConsult, GOOGLE_REVIEW_URL, ADMINS, PORTAL_BASE, STORAGE_KEY, DEFAULT_STATE, PHOTO_CATEGORIES, CLIENT_SERVICES_VERSION, RELEASE_VERSION, PDF_CLIENT_SERVICES, PDF_RELEASE, PDF_MINOR, DOC_META, DOC_USAGE, BRIEF_FIELDS, CLIENT_SERVICES_SUMMARY, RELEASE_SUMMARY, MINOR_SUMMARY } from "../lib/portal/constants";
 import { PAYMENT_RULES, STAGES, CONSULT_STAGES, stagesFor, curStage } from "../lib/portal/stages";
 import { AdminCalendar } from "../lib/portal/AdminCalendar";
+import { StudioHome } from "../lib/portal/StudioHome";
 import {
   CalendarCheck, FileCheck, Camera, Upload, Scissors, Eye, PackageCheck,
   CheckCircle2, User, LayoutDashboard, Send, Play, Image as ImageIcon,
@@ -1033,7 +1034,6 @@ function ConfirmDialog({ title, message, confirmLabel = "Confirm", danger, onYes
 }
 
 /* ============================ CLIENT VIEW ============================ */
-function timeGreeting() { const h = new Date().getHours(); return h < 12 ? "Good morning" : h < 18 ? "Good afternoon" : "Good evening"; }
 
 function ProgressBar({ stages, current, accent }) {
   const target = stages.length > 1 ? Math.max(0, Math.min(1, current / (stages.length - 1))) * 100 : 0;
@@ -1493,66 +1493,6 @@ function ClientActionPanel({ session, grp, draft, setDraft, onSubmit }) {
 }
 
 /* ============================ ADMIN — HOME ============================ */
-function StudioHome({ state, setAdminId, setAdminTab, dark }) {
-  const sessions = state.sessions || [];
-  const now = new Date();
-  const todayStr = now.getFullYear() + "-" + String(now.getMonth() + 1).padStart(2, "0") + "-" + String(now.getDate()).padStart(2, "0");
-  const live = sessions.filter((s) => { const st = s.status || "active"; return st !== "cancelled" && st !== "closed"; });
-  const upcoming = live.filter((s) => s.date && s.date >= todayStr).sort((a, b) => ((a.date || "") + (a.time || "")).localeCompare((b.date || "") + (b.time || "")));
-  const collected = sessions.reduce((sum, s) => sum + (s.paymentStatus === "paid" ? (Number(s.payAmount) || 0) : 0), 0);
-  const outstanding = sessions.reduce((sum, s) => { if ((s.status || "active") === "cancelled") return sum; const paid = s.paymentStatus === "paid" ? (Number(s.payAmount) || 0) : 0; return sum + Math.max(0, (Number(s.total) || 0) - paid); }, 0);
-  const activeCount = sessions.filter((s) => (s.status || "active") !== "cancelled").length;
-  const next = upcoming[0];
-  const goTo = (id) => { setAdminId(id); setAdminTab("sessions"); };
-  const stat = (val, label, color) => (
-    <div style={{ ...cardDense, padding: "16px 18px" }}>
-      <div style={{ ...display, fontSize: 26, color: color || INK }}>{val}</div>
-      <div style={{ ...mono, fontSize: 9.5, letterSpacing: "0.1em", textTransform: "uppercase", color: STONE, marginTop: 3 }}>{label}</div>
-    </div>
-  );
-  return (
-    <div className="d1-stagger">
-      <div style={{ ...card, padding: "26px 28px", marginBottom: 18, display: "flex", alignItems: "center", gap: 26, flexWrap: "wrap" }}>
-        <img src={dark ? "/dot1-logo-white.png" : "/dot1-logo.png"} alt="Dot One Media" style={{ height: 46, width: "auto", display: "block" }} />
-        <div style={{ flex: 1, minWidth: 220 }}>
-          <div style={{ ...mono, fontSize: 10, letterSpacing: "0.18em", textTransform: "uppercase", color: RED, marginBottom: 6 }}>{timeGreeting()}</div>
-          <h2 style={{ ...display, fontWeight: 700, fontSize: 24, color: INK, letterSpacing: "-0.01em" }}>Studio Dashboard</h2>
-          <div style={{ fontSize: 13.5, color: STONE, marginTop: 6, lineHeight: 1.5 }}>{upcoming.length === 0 ? "No upcoming sessions on the calendar right now. A good time to line up your next shoot." : "You have " + upcoming.length + " upcoming " + (upcoming.length === 1 ? "session" : "sessions") + "." + (next ? " Next up: " + next.clientName + "'s " + next.type + " on " + fmtDate(next.date) + (next.time ? " at " + fmtTime(next.time) : "") + "." : "")}</div>
-        </div>
-      </div>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(148px, 1fr))", gap: 12, marginBottom: 18 }}>
-        {stat(upcoming.length, "Upcoming")}
-        {stat(activeCount, "Active bookings")}
-        {stat(money(Math.round(collected)), "Collected", OK)}
-        {stat(money(Math.round(outstanding)), "Outstanding", outstanding > 0 ? WARN : INK)}
-      </div>
-      <div style={{ ...cardDense, padding: "18px 20px", marginBottom: 18 }}>
-        <div style={{ ...mono, fontSize: 10.5, letterSpacing: "0.16em", textTransform: "uppercase", color: STONE, marginBottom: 14 }}>Upcoming sessions</div>
-        {upcoming.length === 0 ? (
-          <EmptyState icon={CalendarClock} title="Nothing scheduled" text="New bookings appear here automatically as clients book." style={{ padding: "22px 14px" }} />
-        ) : (
-          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-            {upcoming.slice(0, 5).map((s) => { const grp = GROUPS[s.serviceLine] || GROUPS.video; return (
-              <button key={s.id} className="d1-lift" onClick={() => goTo(s.id)} style={{ display: "flex", alignItems: "center", gap: 14, textAlign: "left", cursor: "pointer", background: CREAM, border: `1px solid ${LINE}`, borderRadius: 10, padding: "12px 14px", width: "100%" }}>
-                <div style={{ width: 38, height: 38, borderRadius: 9, background: grp.bg, border: `1px solid ${grp.border}`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}><grp.Icon size={17} color={grp.color} /></div>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ ...display, fontWeight: 600, fontSize: 15.5, color: INK }}>{s.clientName}</div>
-                  <div style={{ ...mono, fontSize: 10, color: STONE, marginTop: 2, letterSpacing: "0.04em" }}>{s.type} {"\u00b7"} {curStage(s).label}</div>
-                </div>
-                <div style={{ textAlign: "right", flexShrink: 0 }}>
-                  <div style={{ ...mono, fontSize: 11, color: INK, letterSpacing: "0.04em" }}>{fmtDate(s.date)}</div>
-                  {s.time && <div style={{ ...mono, fontSize: 10, color: FAINT, marginTop: 2 }}>{fmtTime(s.time)}</div>}
-                </div>
-                <ChevronRight size={16} color={FAINT} />
-              </button>
-            ); })}
-          </div>
-        )}
-      </div>
-      <AdminCalendar state={state} onSelectSession={(id) => { setAdminId(id); setAdminTab("sessions"); }} />
-    </div>
-  );
-}
 
 /* ============================ ADMIN — SESSIONS ============================ */
 function AdminSessions({ state, adminId, setAdminId, requestSetStage, addComment, patchSession, onReschedule, slotTaken, markMessagesRead, onCancelBooking, onCloseBooking, onReopenBooking, onSendBalance, onSendCharge, onCheckPayment, onNewInternal, onEmailDelivery, onRequestReview, onSetGroup, onDeleteBooking }) {
@@ -2488,16 +2428,6 @@ function Skeleton({ w = "100%", h = 14, r = 8, style }) {
   return <div aria-hidden="true" className="d1-skel" style={{ width: w, height: h, borderRadius: r, ...style }} />;
 }
 
-function EmptyState({ icon: Icon, title, text, action, style }) {
-  return (
-    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center", padding: "40px 22px", ...style }}>
-      {Icon && <div style={{ width: 54, height: 54, borderRadius: 15, background: CREAM, border: `1px solid ${LINE}`, display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 16 }}><Icon size={23} color={STONE} /></div>}
-      <div style={{ ...display, fontWeight: 600, fontSize: 18, color: INK, marginBottom: text ? 6 : 0 }}>{title}</div>
-      {text && <div style={{ fontSize: 13.5, color: STONE, lineHeight: 1.55, maxWidth: 380, marginBottom: action ? 18 : 0 }}>{text}</div>}
-      {action}
-    </div>
-  );
-}
 
 function PortalSplash() {
   return (

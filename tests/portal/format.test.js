@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { money, compactMoney, payMoney, payKindLabel, fmtDate, fmtTime, pad2, addMinutes, calDate, monthShort, sessionBucket, uid } from "../../lib/portal/format.js";
+import { money, compactMoney, payMoney, payKindLabel, fmtDate, fmtTime, pad2, addMinutes, calDate, monthShort, sessionBucket, uid, timeGreeting } from "../../lib/portal/format.js";
 
 describe("money", () => {
   it("formats dollars with commas", () => { expect(money(1500)).toBe("$1,500"); });
@@ -34,5 +34,8 @@ describe("sessionBucket", () => {
 });
 describe("uid", () => {
   it("prefixes and appends", () => { const u = uid("rcpt"); expect(u.startsWith("rcpt_")).toBe(true); expect(u.length).toBeGreaterThan(6); });
+});
+describe("timeGreeting", () => {
+  it("returns a greeting for the current hour", () => { expect(["Good morning","Good afternoon","Good evening"]).toContain(timeGreeting()); });
 });
 
