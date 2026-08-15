@@ -96,6 +96,8 @@ function parseAcuityStart(str) {
   return { date: "", time: "" };
 }
 
+function importServiceLine(t) { return /\b(film|films|video|videos|cinema|cinematic|motion|documentary|reel|footage)\b/i.test(String(t || "")) ? "video" : "photo"; }
+
 function resizeImageTo(file, max) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -1889,6 +1891,7 @@ function StudioHome({ state, setAdminId, setAdminTab, dark }) {
 function AdminSessions({ state, adminId, setAdminId, requestSetStage, addComment, patchSession, onReschedule, slotTaken, markMessagesRead, onCancelBooking, onCloseBooking, onReopenBooking, onSendBalance, onSendCharge, onCheckPayment, onNewInternal, onEmailGallery, onEmailVideo, onRequestReview, onDeleteBooking }) {
   const [chgLabel, setChgLabel] = useState("");
   const [collapsed, setCollapsed] = useState({ completed: true });
+  const [editType, setEditType] = useState(false);
   const [chgAmt, setChgAmt] = useState("");
   useEffect(() => { setChgLabel(""); setChgAmt(""); }, [adminId]);
   const isMobile = useIsMobile();
@@ -1904,7 +1907,7 @@ function AdminSessions({ state, adminId, setAdminId, requestSetStage, addComment
   const [reschedOpen, setReschedOpen] = useState(false);
   const [reschedDate, setReschedDate] = useState("");
   const [reschedTime, setReschedTime] = useState("");
-  useEffect(() => { if (!session) return; setVideoLink(session.deliveryVideo || ""); setPhotoLink(session.deliveryPhoto || ""); setReviewLink(session.reviewLink || ""); setEditLinks(false); setReschedOpen(false); setReschedDate(session.date || ""); setReschedTime(session.time || ""); }, [adminId]);
+  useEffect(() => { if (!session) return; setVideoLink(session.deliveryVideo || ""); setPhotoLink(session.deliveryPhoto || ""); setReviewLink(session.reviewLink || ""); setEditLinks(false); setEditType(false); setReschedOpen(false); setReschedDate(session.date || ""); setReschedTime(session.time || ""); }, [adminId]);
   if (!session) return <div style={{ ...card, marginTop: 4 }}><EmptyState icon={CalendarClock} title="No bookings yet" text="When a client books a session, it appears here automatically. Share your Direct Booking Link to bring in your first one." /></div>;
   const sg = GROUPS[session.serviceLine] || GROUPS.video;
   const status = session.status || "active";
@@ -1954,7 +1957,19 @@ function AdminSessions({ state, adminId, setAdminId, requestSetStage, addComment
         <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 4, flexWrap: "wrap" }}>
           <Avatar name={session.clientName} src={session.clientImage} size={40} />
           <h2 style={{ ...display, fontWeight: 700, fontSize: 26, color: INK, letterSpacing: "-0.01em" }}>{session.clientName}</h2>
-          <ServicePill line={session.serviceLine} />
+          <div style={{ position: "relative" }}>
+            <button onClick={() => setEditType((v) => !v)} title="Change the session type" style={{ background: "none", border: "none", padding: 0, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 5 }}>
+              <ServicePill line={session.serviceLine} />
+              <ChevronDown size={12} color={STONE} style={{ transform: editType ? "rotate(180deg)" : "none", transition: "transform 160ms" }} />
+            </button>
+            {editType && (
+              <div style={{ position: "absolute", top: "calc(100% + 6px)", left: 0, zIndex: 30, background: PAPER, border: `1px solid ${LINE}`, borderRadius: 10, padding: 8, boxShadow: "0 10px 28px rgba(26,26,23,0.14)", display: "flex", flexWrap: "wrap", gap: 6, width: 208 }}>
+                {GROUP_KEYS.map((k) => { const gg = GROUPS[k]; const active = session.serviceLine === k; return (
+                  <button key={k} onClick={() => { patchSession(session.id, { serviceLine: k, photographer: k === "photo" ? "Brittany Matthews" : "Dennis Matthews", notifyEmail: NOTIFY_EMAILS[k] || "contact@dot1.media" }); setEditType(false); }} style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "6px 10px", borderRadius: 7, cursor: "pointer", fontSize: 11.5, border: `1px solid ${active ? gg.color : LINE}`, background: active ? gg.color : PAPER, color: active ? "#fff" : STONE }}><gg.Icon size={11} /> {gg.label}</button>
+                ); })}
+              </div>
+            )}
+          </div>
         </div>
         <div style={{ ...mono, fontSize: 11, color: STONE, marginBottom: session.notifyEmail ? 4 : 18, letterSpacing: "0.04em" }}>{session.type} · {fmtDate(session.date) || "date TBD"}{session.time ? " at " + fmtTime(session.time) : ""} · {session.clientEmail}</div>
         {session.notifyEmail && <div style={{ ...mono, fontSize: 10, color: FAINT, marginBottom: 18, letterSpacing: "0.04em", display: "flex", alignItems: "center", gap: 6 }}><Send size={11} /> New-booking alert routed to {session.notifyEmail}</div>}
@@ -3199,7 +3214,7 @@ function ImportSessions({ existing, onImport, showToast }) {
       return {
         clientName: d.name, clientEmail: d.email, clientImage: "",
         notifyEmail: NOTIFY_EMAILS.photo || "contact@dot1.media",
-        type: d.type, serviceLine: "photo", photographer: "Brittany Matthews",
+        type: d.type, serviceLine: importServiceLine(d.type), photographer: importServiceLine(d.type) === "photo" ? "Brittany Matthews" : "Dennis Matthews",
         date: d.date, time: d.time, location: "", status: "active",
         durationMin: 60, apptMin: 60, padBefore: 0, padAfter: 0,
         currentStage: stageFor(d.date), stageTimes: {}, comments: [], selectedAddons: [],
