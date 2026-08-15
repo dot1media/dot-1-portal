@@ -1878,6 +1878,7 @@ function StudioHome({ state, setAdminId, setAdminTab, dark }) {
 /* ============================ ADMIN — SESSIONS ============================ */
 function AdminSessions({ state, adminId, setAdminId, requestSetStage, addComment, patchSession, onReschedule, slotTaken, markMessagesRead, onCancelBooking, onCloseBooking, onReopenBooking, onSendBalance, onSendCharge, onCheckPayment, onNewInternal, onEmailGallery, onEmailVideo, onRequestReview, onDeleteBooking }) {
   const [chgLabel, setChgLabel] = useState("");
+  const [collapsed, setCollapsed] = useState({ completed: true });
   const [chgAmt, setChgAmt] = useState("");
   useEffect(() => { setChgLabel(""); setChgAmt(""); }, [adminId]);
   const isMobile = useIsMobile();
@@ -1906,6 +1907,7 @@ function AdminSessions({ state, adminId, setAdminId, requestSetStage, addComment
       <div>
         <div style={{ ...mono, fontSize: 10.5, letterSpacing: "0.2em", textTransform: "uppercase", color: RED, marginBottom: 14 }}>Sessions</div>
         <button onClick={onNewInternal} style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 7, marginBottom: 16, padding: "10px", borderRadius: 9, cursor: "pointer", border: `1px dashed ${LINE}`, background: CREAM, color: STONE, ...mono, fontSize: 10.5, letterSpacing: "0.06em", textTransform: "uppercase" }}><Plus size={13} /> New internal booking</button>
+        <MiniCalendar sessions={state.sessions} />
         {(() => {
           const now = new Date();
           const todayStr = now.getFullYear() + "-" + String(now.getMonth() + 1).padStart(2, "0") + "-" + String(now.getDate()).padStart(2, "0");
@@ -1915,21 +1917,24 @@ function AdminSessions({ state, adminId, setAdminId, requestSetStage, addComment
           groups.upcoming.sort((a, b) => ((a.date || "") + (a.time || "")).localeCompare((b.date || "") + (b.time || "")));
           groups.completed.sort((a, b) => ((b.date || "") + (b.time || "")).localeCompare((a.date || "") + (a.time || "")));
           const renderBtn = (s) => { const selected = s.id === adminId; const grp = GROUPS[s.serviceLine] || GROUPS.video; const unread = s.comments.filter((c) => c.author === "client" && !c.read).length; return (
-            <button key={s.id} className="d1-lift" onClick={() => { setAdminId(s.id); markMessagesRead(s.id, "client"); }} style={{ width: "100%", textAlign: "left", marginBottom: 8, padding: "12px 14px", borderRadius: 9, cursor: "pointer", border: `1px solid ${selected ? INK : LINE}`, background: selected ? INK : PAPER, color: selected ? "#fff" : BODY }}>
+            <button key={s.id} className="d1-lift" onClick={() => { setAdminId(s.id); markMessagesRead(s.id, "client"); }} style={{ width: "100%", textAlign: "left", marginBottom: 8, padding: "12px 14px", borderRadius: 9, cursor: "pointer", border: `1px solid ${selected ? grp.color : LINE}`, background: selected ? grp.color : PAPER, color: selected ? "#fff" : BODY }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, marginBottom: 3 }}>
                 <span style={{ ...display, fontWeight: 600, fontSize: 15 }}>{s.clientName}</span>
-                {unread > 0 && <span style={{ ...mono, background: RED, color: "#fff", borderRadius: 20, fontSize: 9.5, minWidth: 16, height: 16, padding: "0 5px", display: "inline-flex", alignItems: "center", justifyContent: "center" }}>{unread}</span>}
+                {unread > 0 && <span style={{ ...mono, background: selected ? "#fff" : RED, color: selected ? grp.color : "#fff", borderRadius: 20, fontSize: 9.5, minWidth: 16, height: 16, padding: "0 5px", display: "inline-flex", alignItems: "center", justifyContent: "center" }}>{unread}</span>}
               </div>
-              <div style={{ ...mono, fontSize: 10, letterSpacing: "0.06em", color: selected ? "#c9c6bd" : STONE, display: "flex", alignItems: "center", gap: 6 }}><grp.Icon size={11} /> {s.internal ? "Internal · " : ""}{s.type} · {(s.status && s.status !== "active") ? (s.status === "cancelled" ? "Cancelled" : "Closed") : curStage(s).label}</div>
-              {s.date && <div style={{ ...mono, fontSize: 9.5, letterSpacing: "0.04em", color: selected ? "#b3b0a7" : FAINT, marginTop: 3 }}>{fmtDate(s.date)}{s.time ? " \u00b7 " + fmtTime(s.time) : ""}</div>}
+              <div style={{ ...mono, fontSize: 10, letterSpacing: "0.06em", color: selected ? "rgba(255,255,255,0.85)" : STONE, display: "flex", alignItems: "center", gap: 6 }}><grp.Icon size={11} /> {s.internal ? "Internal · " : ""}{s.type} · {(s.status && s.status !== "active") ? (s.status === "cancelled" ? "Cancelled" : "Closed") : curStage(s).label}</div>
+              {s.date && <div style={{ ...mono, fontSize: 9.5, letterSpacing: "0.04em", color: selected ? "rgba(255,255,255,0.72)" : FAINT, marginTop: 3 }}>{fmtDate(s.date)}{s.time ? " \u00b7 " + fmtTime(s.time) : ""}</div>}
             </button>
           ); };
           if (!(state.sessions || []).length) return null;
           const sections = [["today", "Today"], ["upcoming", "Upcoming"], ["completed", "Completed"]];
           return sections.map(([key, label]) => groups[key].length === 0 ? null : (
             <div key={key} style={{ marginBottom: 16 }}>
-              <div style={{ ...mono, fontSize: 9.5, letterSpacing: "0.16em", textTransform: "uppercase", color: key === "today" ? RED : STONE, marginBottom: 8 }}>{label} <span style={{ color: FAINT }}>{"\u00b7 "}{groups[key].length}</span></div>
-              {groups[key].map(renderBtn)}
+              <button onClick={() => setCollapsed((c) => ({ ...c, [key]: !c[key] }))} style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, background: "transparent", border: "none", padding: 0, cursor: "pointer", marginBottom: 8 }}>
+                <span style={{ ...mono, fontSize: 9.5, letterSpacing: "0.16em", textTransform: "uppercase", color: key === "today" ? RED : STONE }}>{label} <span style={{ color: FAINT }}>{"\u00b7 "}{groups[key].length}</span></span>
+                <ChevronDown size={13} color={FAINT} style={{ transform: collapsed[key] ? "rotate(-90deg)" : "none", transition: "transform 180ms" }} />
+              </button>
+              {!collapsed[key] && groups[key].map(renderBtn)}
             </div>
           ));
         })()}
@@ -3222,6 +3227,49 @@ function ImportSessions({ existing, onImport, showToast }) {
           <button onClick={runImport} disabled={importing || freshCount === 0} style={{ ...btnSolid, background: (importing || freshCount === 0) ? FAINT : RED, width: "100%", justifyContent: "center", marginTop: 14, padding: "11px" }}>{importing ? ("Importing " + progress + " of " + freshCount + "\u2026") : ("Import " + freshCount + " session" + (freshCount === 1 ? "" : "s"))}</button>
         </div>
       )}
+    </div>
+  );
+}
+
+function MiniCalendar({ sessions }) {
+  const now = new Date();
+  const [ym, setYm] = useState({ y: now.getFullYear(), m: now.getMonth() });
+  const GOLD = "#d4a017";
+  const byDay = {};
+  for (const s of (sessions || [])) {
+    if (!s.date || (s.status && s.status !== "active")) continue;
+    const parts = s.date.split("-").map(Number);
+    if (parts[0] === ym.y && parts[1] - 1 === ym.m) { const d = parts[2]; (byDay[d] = byDay[d] || new Set()).add(s.serviceLine || "video"); }
+  }
+  const startDow = new Date(ym.y, ym.m, 1).getDay();
+  const daysIn = new Date(ym.y, ym.m + 1, 0).getDate();
+  const cells = [];
+  for (let i = 0; i < startDow; i++) cells.push(null);
+  for (let d = 1; d <= daysIn; d++) cells.push(d);
+  const dayColor = (d) => { const set = byDay[d]; if (!set || set.size === 0) return null; if (set.size >= 2) return GOLD; return (GROUPS[Array.from(set)[0]] || GROUPS.video).color; };
+  const todayD = (now.getFullYear() === ym.y && now.getMonth() === ym.m) ? now.getDate() : -1;
+  const monthName = new Date(ym.y, ym.m, 1).toLocaleString("en-US", { month: "long", year: "numeric" });
+  const step = (n) => setYm((o) => { let m = o.m + n, y = o.y; if (m < 0) { m = 11; y--; } if (m > 11) { m = 0; y++; } return { y, m }; });
+  const arrow = { display: "inline-flex", alignItems: "center", justifyContent: "center", width: 24, height: 24, borderRadius: 6, cursor: "pointer", background: "transparent", border: "1px solid " + LINE, color: STONE };
+  return (
+    <div style={{ ...cardDense, padding: "12px 13px", marginBottom: 18 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+        <button onClick={() => step(-1)} style={arrow} aria-label="Previous month"><ChevronLeft size={14} /></button>
+        <span style={{ ...mono, fontSize: 9.5, letterSpacing: "0.08em", textTransform: "uppercase", color: INK }}>{monthName}</span>
+        <button onClick={() => step(1)} style={arrow} aria-label="Next month"><ChevronRight size={14} /></button>
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 3 }}>
+        {["S", "M", "T", "W", "T", "F", "S"].map((d, i) => <div key={"h" + i} style={{ ...mono, fontSize: 8, color: FAINT, textAlign: "center", paddingBottom: 2 }}>{d}</div>)}
+        {cells.map((d, i) => {
+          if (d === null) return <div key={"e" + i} />;
+          const col = dayColor(d);
+          return <div key={"d" + i} title={col ? "Session(s) on the " + d : ""} style={{ position: "relative", aspectRatio: "1", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, borderRadius: 6, ...mono, color: col ? "#fff" : (d === todayD ? INK : STONE), background: col || "transparent", fontWeight: col ? 700 : 400, border: d === todayD && !col ? "1px solid " + STONE : "1px solid transparent" }}>{d}</div>;
+        })}
+      </div>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: "5px 9px", marginTop: 11 }}>
+        {GROUP_KEYS.map((k) => <span key={k} style={{ display: "inline-flex", alignItems: "center", gap: 4, ...mono, fontSize: 8, letterSpacing: "0.02em", color: STONE }}><span style={{ width: 7, height: 7, borderRadius: 2, background: GROUPS[k].color, flexShrink: 0 }} /> {GROUPS[k].label}</span>)}
+        <span style={{ display: "inline-flex", alignItems: "center", gap: 4, ...mono, fontSize: 8, letterSpacing: "0.02em", color: STONE }}><span style={{ width: 7, height: 7, borderRadius: 2, background: GOLD, flexShrink: 0 }} /> Multiple</span>
+      </div>
     </div>
   );
 }
