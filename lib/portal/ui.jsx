@@ -175,3 +175,7 @@ export function Avatar({ name, src, size = 40 }) {
   return <div style={{ width: size, height: size, borderRadius: "50%", background: CREAM, border: `1px solid ${LINE}`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, fontFamily: "'IBM Plex Mono', monospace", fontSize: Math.round(size * 0.32), color: STONE }}>{initials}</div>;
 }
 
+export function Skeleton({ w = "100%", h = 14, r = 8, style }) {
+  return <div aria-hidden="true" className="d1-skel" style={{ width: w, height: h, borderRadius: r, ...style }} />;
+}
+
