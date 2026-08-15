@@ -78,12 +78,22 @@ function parseCsvRows(text) {
 }
 const ACUITY_MONTHS = { january: 1, february: 2, march: 3, april: 4, may: 5, june: 6, july: 7, august: 8, september: 9, october: 10, november: 11, december: 12 };
 function parseAcuityStart(str) {
-  const m = String(str || "").trim().match(/^([A-Za-z]+)\s+(\d{1,2}),\s*(\d{4})\s+(\d{1,2}):(\d{2})\s*(am|pm)/i);
-  if (!m) return { date: "", time: "" };
-  const mo = ACUITY_MONTHS[m[1].toLowerCase()]; if (!mo) return { date: "", time: "" };
-  let hh = parseInt(m[4], 10); const mm = m[5]; const ap = m[6].toLowerCase();
-  if (ap === "pm" && hh !== 12) hh += 12; if (ap === "am" && hh === 12) hh = 0;
-  return { date: m[3] + "-" + String(mo).padStart(2, "0") + "-" + String(m[2]).padStart(2, "0"), time: String(hh).padStart(2, "0") + ":" + mm };
+  const s = String(str || "").trim();
+  let m = s.match(/^([A-Za-z]+)\s+(\d{1,2}),\s*(\d{4})\s+(\d{1,2}):(\d{2})\s*(am|pm)?/i);
+  if (m && ACUITY_MONTHS[m[1].toLowerCase()]) {
+    const mo = ACUITY_MONTHS[m[1].toLowerCase()];
+    let hh = parseInt(m[4], 10); const ap = (m[6] || "").toLowerCase();
+    if (ap === "pm" && hh !== 12) hh += 12; if (ap === "am" && hh === 12) hh = 0;
+    return { date: m[3] + "-" + String(mo).padStart(2, "0") + "-" + String(m[2]).padStart(2, "0"), time: String(hh).padStart(2, "0") + ":" + m[5] };
+  }
+  m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})\s+(\d{1,2}):(\d{2})\s*(am|pm)?/i);
+  if (m) {
+    let yr = parseInt(m[3], 10); if (yr < 100) yr += 2000;
+    let hh = parseInt(m[4], 10); const ap = (m[6] || "").toLowerCase();
+    if (ap === "pm" && hh !== 12) hh += 12; if (ap === "am" && hh === 12) hh = 0;
+    return { date: yr + "-" + String(parseInt(m[1], 10)).padStart(2, "0") + "-" + String(parseInt(m[2], 10)).padStart(2, "0"), time: String(hh).padStart(2, "0") + ":" + m[5] };
+  }
+  return { date: "", time: "" };
 }
 
 function resizeImageTo(file, max) {
@@ -514,8 +524,8 @@ export default function App() {
   const importSessions = async (sessions, onProgress) => {
     let done = 0;
     for (const draft of sessions) {
-      const session = { ...draft, id: uid("ses") };
-      setState((s) => ({ ...s, sessions: [...s.sessions, session] }));
+      const session = draft.id ? draft : { ...draft, id: uid("ses") };
+      setState((s) => { const has = s.sessions.some((x) => x.id === session.id); return { ...s, sessions: has ? s.sessions.map((x) => (x.id === session.id ? session : x)) : [...s.sessions, session] }; });
       await fetch("/api/sessions", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ session }) }).catch(() => {});
       done++; if (onProgress) onProgress(done);
     }
@@ -3143,7 +3153,8 @@ function ImportSessions({ existing, onImport, showToast }) {
   const [drafts, setDrafts] = useState(null);
   const [importing, setImporting] = useState(false);
   const [progress, setProgress] = useState(0);
-  const existingAcuity = new Set((existing || []).map((s) => s.acuityId).filter(Boolean));
+  const exByAcuity = new Map();
+  for (const s of (existing || [])) { if (s.acuityId) exByAcuity.set(String(s.acuityId), s); }
   const handleFile = (file) => {
     if (!file) return;
     const reader = new FileReader();
@@ -3165,7 +3176,10 @@ function ImportSessions({ existing, onImport, showToast }) {
           const price = parseFloat(String(iP >= 0 ? row[iP] : "").replace(/[^0-9.]/g, "")) || 0;
           const paid = /^y/i.test(String(iPd >= 0 ? row[iPd] : "").trim());
           const acuityId = String(iId >= 0 ? row[iId] : "").trim();
-          out.push({ name, email, type, date: parsed.date, time: parsed.time, price, paid, acuityId, dup: !!acuityId && existingAcuity.has(acuityId) });
+          const ex = acuityId ? exByAcuity.get(acuityId) : null;
+          let mode = "new";
+          if (ex) mode = (!ex.date && parsed.date) ? "repair" : "skip";
+          out.push({ name, email, type, date: parsed.date, time: parsed.time, price, paid, acuityId, mode, existing: ex || null });
         }
         if (out.length === 0) { showToast("No importable rows found in that file."); return; }
         setDrafts(out);
@@ -3175,27 +3189,32 @@ function ImportSessions({ existing, onImport, showToast }) {
     reader.readAsText(file);
   };
   const runImport = async () => {
-    const fresh = (drafts || []).filter((d) => !d.dup);
-    if (fresh.length === 0) { showToast("Nothing new to import."); return; }
+    const todo = (drafts || []).filter((d) => d.mode !== "skip");
+    if (todo.length === 0) { showToast("Nothing new to import."); return; }
     setImporting(true); setProgress(0);
     const today = new Date().toISOString().slice(0, 10);
-    const sessions = fresh.map((d) => ({
-      clientName: d.name, clientEmail: d.email, clientImage: "",
-      notifyEmail: NOTIFY_EMAILS.photo || "contact@dot1.media",
-      type: d.type, serviceLine: "photo", photographer: "Brittany Matthews",
-      date: d.date, time: d.time, location: "", status: "active",
-      durationMin: 60, apptMin: 60, padBefore: 0, padAfter: 0,
-      currentStage: (d.date && d.date < today) ? Math.max(0, STAGES.length - 1) : 0,
-      stageTimes: {}, comments: [], selectedAddons: [],
-      total: d.price, payChoice: "full", paymentStatus: d.paid ? "paid" : "none", payAmount: d.paid ? d.price : 0,
-      reviewLink: "", deliveryVideo: "", deliveryPhoto: "", imported: true, acuityId: d.acuityId,
-    }));
+    const stageFor = (date) => (date && date < today) ? Math.max(0, STAGES.length - 1) : 0;
+    const sessions = todo.map((d) => {
+      if (d.mode === "repair" && d.existing) return { ...d.existing, date: d.date, time: d.time, currentStage: stageFor(d.date) };
+      return {
+        clientName: d.name, clientEmail: d.email, clientImage: "",
+        notifyEmail: NOTIFY_EMAILS.photo || "contact@dot1.media",
+        type: d.type, serviceLine: "photo", photographer: "Brittany Matthews",
+        date: d.date, time: d.time, location: "", status: "active",
+        durationMin: 60, apptMin: 60, padBefore: 0, padAfter: 0,
+        currentStage: stageFor(d.date), stageTimes: {}, comments: [], selectedAddons: [],
+        total: d.price, payChoice: "full", paymentStatus: d.paid ? "paid" : "none", payAmount: d.paid ? d.price : 0,
+        reviewLink: "", deliveryVideo: "", deliveryPhoto: "", imported: true, acuityId: d.acuityId,
+      };
+    });
     await onImport(sessions, (n) => setProgress(n));
     setImporting(false); setDrafts(null);
-    showToast("Imported " + sessions.length + " session" + (sessions.length === 1 ? "" : "s") + " into your history.");
+    showToast("Done. " + sessions.length + " session" + (sessions.length === 1 ? "" : "s") + " updated in your history.");
   };
-  const freshCount = (drafts || []).filter((d) => !d.dup).length;
-  const dupCount = (drafts || []).filter((d) => d.dup).length;
+  const newCount = (drafts || []).filter((d) => d.mode === "new").length;
+  const repairCount = (drafts || []).filter((d) => d.mode === "repair").length;
+  const skipCount = (drafts || []).filter((d) => d.mode === "skip").length;
+  const todoCount = newCount + repairCount;
   return (
     <div style={{ marginBottom: 28 }}>
       <div style={{ ...mono, fontSize: 10.5, letterSpacing: "0.16em", textTransform: "uppercase", color: STONE, marginBottom: 12 }}>Import past sessions</div>
@@ -3209,22 +3228,22 @@ function ImportSessions({ existing, onImport, showToast }) {
       ) : (
         <div style={{ ...card, padding: "16px 18px" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12, gap: 10 }}>
-            <div style={{ fontSize: 13, color: BODY }}><strong style={{ color: INK }}>{freshCount}</strong> to import{dupCount > 0 ? <span style={{ color: STONE }}> · {dupCount} already imported</span> : null}</div>
+            <div style={{ fontSize: 13, color: BODY }}><strong style={{ color: INK }}>{newCount}</strong> to import{repairCount > 0 ? <span style={{ color: WARN }}> {"\u00b7"} {repairCount} to fix</span> : null}{skipCount > 0 ? <span style={{ color: STONE }}> {"\u00b7"} {skipCount} already imported</span> : null}</div>
             {!importing && <button onClick={() => setDrafts(null)} style={{ ...mono, fontSize: 9, letterSpacing: "0.06em", textTransform: "uppercase", color: STONE, background: "transparent", border: "1px solid " + LINE, borderRadius: 6, padding: "6px 10px", cursor: "pointer" }}>Choose another file</button>}
           </div>
           <div style={{ maxHeight: 260, overflowY: "auto", border: "1px solid " + LINE, borderRadius: 8 }}>
             {drafts.map((d, i) => (
-              <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 12px", borderBottom: i < drafts.length - 1 ? "1px solid " + LINE : "none", opacity: d.dup ? 0.5 : 1 }}>
+              <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 12px", borderBottom: i < drafts.length - 1 ? "1px solid " + LINE : "none", opacity: d.mode === "skip" ? 0.5 : 1 }}>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontSize: 13, color: INK, fontWeight: 500, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{d.name || "(no name)"}</div>
-                  <div style={{ ...mono, fontSize: 9.5, color: STONE, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{d.type} · {d.date || "no date"}</div>
+                  <div style={{ ...mono, fontSize: 9.5, color: STONE, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{d.type} {"\u00b7"} {d.date || "no date"}</div>
                 </div>
-                <div style={{ ...mono, fontSize: 11, color: d.paid ? OK : STONE, flexShrink: 0 }}>{d.price ? money(d.price) : ""}{d.paid ? " · paid" : ""}</div>
-                {d.dup ? <span style={{ ...mono, fontSize: 8.5, letterSpacing: "0.06em", textTransform: "uppercase", color: FAINT, flexShrink: 0 }}>imported</span> : null}
+                <div style={{ ...mono, fontSize: 11, color: d.paid ? OK : STONE, flexShrink: 0 }}>{d.price ? money(d.price) : ""}{d.paid ? " " + "\u00b7" + " paid" : ""}</div>
+                {d.mode === "skip" ? <span style={{ ...mono, fontSize: 8.5, letterSpacing: "0.06em", textTransform: "uppercase", color: FAINT, flexShrink: 0 }}>imported</span> : (d.mode === "repair" ? <span style={{ ...mono, fontSize: 8.5, letterSpacing: "0.06em", textTransform: "uppercase", color: WARN, flexShrink: 0 }}>fix date</span> : null)}
               </div>
             ))}
           </div>
-          <button onClick={runImport} disabled={importing || freshCount === 0} style={{ ...btnSolid, background: (importing || freshCount === 0) ? FAINT : RED, width: "100%", justifyContent: "center", marginTop: 14, padding: "11px" }}>{importing ? ("Importing " + progress + " of " + freshCount + "\u2026") : ("Import " + freshCount + " session" + (freshCount === 1 ? "" : "s"))}</button>
+          <button onClick={runImport} disabled={importing || todoCount === 0} style={{ ...btnSolid, background: (importing || todoCount === 0) ? FAINT : RED, width: "100%", justifyContent: "center", marginTop: 14, padding: "11px" }}>{importing ? ("Working " + progress + " of " + todoCount + "\u2026") : (repairCount > 0 && newCount > 0 ? ("Import " + newCount + " " + "\u00b7" + " fix " + repairCount) : (repairCount > 0 ? ("Fix " + repairCount + " session" + (repairCount === 1 ? "" : "s")) : ("Import " + newCount + " session" + (newCount === 1 ? "" : "s"))))}</button>
         </div>
       )}
     </div>
