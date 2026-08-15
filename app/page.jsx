@@ -2632,7 +2632,7 @@ function BusinessSettings({ sessions, showToast, onImport }) {
     else showToast("Receipts are already up to date.");
   };
 
-  const inRange = (s) => { if (!s.date) return false; if (start && s.date < start) return false; if (end && s.date > end) return false; return true; };
+  const inRange = (s) => { if (start && (!s.date || s.date < start)) return false; if (end && (!s.date || s.date > end)) return false; return true; };
   const rows = (sessions || []).filter(inRange).sort((a, b) => (a.date + (a.time || "")).localeCompare(b.date + (b.time || "")));
   const collected = rows.reduce((sum, s) => sum + (s.paymentStatus === "paid" ? (Number(s.payAmount) || 0) : 0), 0);
   const outstanding = rows.reduce((sum, s) => { if (s.status === "cancelled") return sum; const paid = s.paymentStatus === "paid" ? (Number(s.payAmount) || 0) : 0; return sum + Math.max(0, (Number(s.total) || 0) - paid); }, 0);
