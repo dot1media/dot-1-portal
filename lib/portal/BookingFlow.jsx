@@ -6,6 +6,7 @@ import { GROUPS, GROUP_KEYS } from "./groups";
 import { fmtDate, fmtTime, money } from "./format";
 import { PHOTO_CATEGORIES, CLIENT_SERVICES_VERSION, RELEASE_VERSION, PDF_CLIENT_SERVICES, PDF_RELEASE, PDF_MINOR, CLIENT_SERVICES_SUMMARY, RELEASE_SUMMARY, MINOR_SUMMARY } from "./constants";
 import { PAYMENT_RULES, STAGES } from "./stages";
+import { bookingTotal, optionAmount } from "./pricing";
 import { FieldLabel, TextInput, EmptyState, Skeleton, Row } from "./ui";
 
 const USAGE_OPTIONS = [
@@ -99,7 +100,7 @@ export function BookingFlow({ state, direct, slotTaken, onCancel, onComplete, on
   useEffect(() => { holdRef.current = holdId; }, [holdId]);
   useEffect(() => { return () => { if (holdRef.current) { try { fetch("/api/hold?id=" + encodeURIComponent(holdRef.current), { method: "DELETE", keepalive: true }); } catch (e) {} } }; }, []);
   useEffect(() => { if (step === 3 && refreshSlots) refreshSlots(); }, [step]);
-  const total = basePrice + chosenAddons.reduce((s, a) => s + (Number(a.price) || 0), 0);
+  const total = bookingTotal(basePrice, chosenAddons);
   const rules = PAYMENT_RULES[group];
   const A = GROUPS[group].color, AB = GROUPS[group].bg, ABD = GROUPS[group].border, AT = GROUPS[group].text;
   const taken = !direct && slotTaken(date, time);
@@ -368,7 +369,7 @@ export function BookingFlow({ state, direct, slotTaken, onCancel, onComplete, on
 
           <FieldLabel>Payment</FieldLabel>
           <div style={{ background: CREAM, border: `1px solid ${LINE}`, borderLeft: `3px solid ${GROUPS[group].color}`, borderRadius: 8, padding: "10px 14px", marginBottom: 12 }}><div style={{ fontSize: 12, color: STONE, lineHeight: 1.45 }}>{rules.note}</div></div>
-          {rules.options.map((o) => { const amt = o.fixed != null ? o.fixed : Math.round(total * (o.pct / 100)); const sel = payChoice === o.key; return (
+          {rules.options.map((o) => { const amt = optionAmount(o, total); const sel = payChoice === o.key; return (
             <div key={o.key} onClick={() => setPayChoice(o.key)} style={{ display: "flex", alignItems: "center", gap: 11, padding: "12px 14px", marginBottom: 8, borderRadius: 9, cursor: "pointer", border: `1.5px solid ${sel ? GROUPS[group].color : LINE}`, background: sel ? AB : PAPER }}>
               <span style={{ width: 17, height: 17, borderRadius: "50%", border: `1.5px solid ${sel ? GROUPS[group].color : LINE}`, background: sel ? GROUPS[group].color : PAPER, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>{sel && <span style={{ width: 7, height: 7, borderRadius: "50%", background: "#fff" }} />}</span>
               <span style={{ flex: 1, fontSize: 13.5, color: INK }}>{o.label}</span>
@@ -379,7 +380,7 @@ export function BookingFlow({ state, direct, slotTaken, onCancel, onComplete, on
 
           <div style={{ display: "flex", justifyContent: "space-between" }}>
             <button onClick={() => setStep(2)} style={btnGhost}><ArrowLeft size={14} /> Back</button>
-            <button onClick={() => { if (!date || !time || !payChoice || taken) return; const so = rules.options.find((o) => o.key === payChoice); const payAmount = so ? (so.fixed != null ? so.fixed : Math.round(total * ((so.pct || 0) / 100))) : 0; onComplete({ linkId: direct?.id, group, serviceName: service.name, duration: apptLen, apptMin: apptLen, padBefore: padB, padAfter: padA, addons: chosenAddons.map((a) => ({ name: a.name, price: Number(a.price) || 0, addTime: Number(a.addTime) || 0 })), total, payAmount, date, time, payChoice, name: acct.name, email: acct.email }); }} style={{ ...btnSolid, background: date && time && payChoice && !taken ? A : FAINT }}><Check size={15} /> {(() => { const so = rules.options.find((o) => o.key === payChoice); const amt = so ? (so.fixed != null ? so.fixed : Math.round(total * ((so.pct || 0) / 100))) : 0; return amt > 0 ? "Continue to payment · " + money(amt) : "Confirm booking"; })()}</button>
+            <button onClick={() => { if (!date || !time || !payChoice || taken) return; const payAmount = optionAmount(rules.options.find((o) => o.key === payChoice), total); onComplete({ linkId: direct?.id, group, serviceName: service.name, duration: apptLen, apptMin: apptLen, padBefore: padB, padAfter: padA, addons: chosenAddons.map((a) => ({ name: a.name, price: Number(a.price) || 0, addTime: Number(a.addTime) || 0 })), total, payAmount, date, time, payChoice, name: acct.name, email: acct.email }); }} style={{ ...btnSolid, background: date && time && payChoice && !taken ? A : FAINT }}><Check size={15} /> {(() => { const amt = optionAmount(rules.options.find((o) => o.key === payChoice), total); return amt > 0 ? "Continue to payment · " + money(amt) : "Confirm booking"; })()}</button>
           </div>
         </div>
       )}
