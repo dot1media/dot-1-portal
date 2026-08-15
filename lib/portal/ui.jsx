@@ -179,3 +179,12 @@ export function Skeleton({ w = "100%", h = 14, r = 8, style }) {
   return <div aria-hidden="true" className="d1-skel" style={{ width: w, height: h, borderRadius: r, ...style }} />;
 }
 
+export function Row({ k, v, bold, sub, red }) {
+  return (
+    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", padding: sub ? "3px 0" : "5px 0" }}>
+      <span style={{ fontSize: sub ? 12.5 : 13.5, color: sub ? STONE : BODY, fontWeight: bold ? 600 : 400 }}>{k}</span>
+      <span style={{ ...mono, fontSize: sub ? 12 : 13.5, color: red ? RED : INK, fontWeight: bold ? 600 : 400 }}>{v}</span>
+    </div>
+  );
+}
+
