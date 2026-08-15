@@ -372,6 +372,15 @@ export default function App() {
 
   const saveSessionPatch = (id, patch) => { fetch("/api/sessions", { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ id, patch }) }).catch(() => {}); };
   const patchSession = (id, patch) => { setState((s) => ({ ...s, sessions: s.sessions.map((x) => (x.id === id ? { ...x, ...patch } : x)) })); saveSessionPatch(id, patch); };
+  const setSessionGroup = (session, group) => {
+    const type = (session && session.type) || "";
+    const targets = (stateRef.current.sessions || []).filter((x) => (x.type || "") === type);
+    const patch = { serviceLine: group, photographer: group === "photo" ? "Brittany Matthews" : "Dennis Matthews", notifyEmail: NOTIFY_EMAILS[group] || "contact@dot1.media" };
+    (targets.length ? targets : [session]).forEach((t) => patchSession(t.id, patch));
+    const g = GROUPS[group] || GROUPS.video;
+    const n = targets.length || 1;
+    showToast(n > 1 ? ("Set " + n + " \u201c" + type + "\u201d sessions to " + g.label + ".") : ("Session type set to " + g.label + "."));
+  };
 
   const doSetStage = (id, idx) => { const cur = stateRef.current.sessions.find((x) => x.id === id); if (!cur) return; const times = { ...cur.stageTimes }; if (times[idx] === undefined) times[idx] = "just now"; patchSession(id, { currentStage: idx, stageTimes: times }); };
 
@@ -606,7 +615,7 @@ export default function App() {
               <SubTab active={adminTab === "business"} onClick={() => setAdminTab("business")} label="Business Settings" />
             </div>
             {adminTab === "home" && <StudioHome state={state} setAdminId={setAdminId} setAdminTab={setAdminTab} dark={themeKey === "midnight"} />}
-            {adminTab === "sessions" && <AdminSessions state={state} adminId={adminId} setAdminId={setAdminId} requestSetStage={requestSetStage} addComment={addComment} patchSession={patchSession} onReschedule={adminReschedule} slotTaken={slotTaken} markMessagesRead={markMessagesRead} onCancelBooking={requestCancelBooking} onCloseBooking={requestCloseBooking} onReopenBooking={requestReopenBooking} onSendBalance={requestSendBalance} onSendCharge={requestSendCharge} onCheckPayment={checkChargePayment} onNewInternal={() => setInternalOpen(true)} onEmailGallery={emailGalleryToClient} onEmailVideo={emailVideoToClient} onRequestReview={requestReview} onDeleteBooking={requestDeleteBooking} />}
+            {adminTab === "sessions" && <AdminSessions state={state} adminId={adminId} setAdminId={setAdminId} requestSetStage={requestSetStage} addComment={addComment} patchSession={patchSession} onReschedule={adminReschedule} slotTaken={slotTaken} markMessagesRead={markMessagesRead} onCancelBooking={requestCancelBooking} onCloseBooking={requestCloseBooking} onReopenBooking={requestReopenBooking} onSendBalance={requestSendBalance} onSendCharge={requestSendCharge} onCheckPayment={checkChargePayment} onNewInternal={() => setInternalOpen(true)} onEmailGallery={emailGalleryToClient} onEmailVideo={emailVideoToClient} onRequestReview={requestReview} onSetGroup={setSessionGroup} onDeleteBooking={requestDeleteBooking} />}
             {adminTab === "calendar" && <AdminCalendar state={state} onSelectSession={(id) => { setAdminId(id); setAdminTab("sessions"); }} />}
             {adminTab === "links" && <DirectLinks state={state} createDirectLink={createDirectLink} revokeDirectLink={revokeDirectLink} openDirectLink={openDirectLink} showToast={showToast} />}
             {adminTab === "availability" && <><CalendarSync showToast={showToast} /><AvailabilityManager availability={state.availability} addAvailability={addAvailability} removeAvailability={removeAvailability} showToast={showToast} /></>}
@@ -1888,7 +1897,7 @@ function StudioHome({ state, setAdminId, setAdminTab, dark }) {
 }
 
 /* ============================ ADMIN — SESSIONS ============================ */
-function AdminSessions({ state, adminId, setAdminId, requestSetStage, addComment, patchSession, onReschedule, slotTaken, markMessagesRead, onCancelBooking, onCloseBooking, onReopenBooking, onSendBalance, onSendCharge, onCheckPayment, onNewInternal, onEmailGallery, onEmailVideo, onRequestReview, onDeleteBooking }) {
+function AdminSessions({ state, adminId, setAdminId, requestSetStage, addComment, patchSession, onReschedule, slotTaken, markMessagesRead, onCancelBooking, onCloseBooking, onReopenBooking, onSendBalance, onSendCharge, onCheckPayment, onNewInternal, onEmailGallery, onEmailVideo, onRequestReview, onSetGroup, onDeleteBooking }) {
   const [chgLabel, setChgLabel] = useState("");
   const [collapsed, setCollapsed] = useState({ completed: true });
   const [editType, setEditType] = useState(false);
@@ -1965,7 +1974,7 @@ function AdminSessions({ state, adminId, setAdminId, requestSetStage, addComment
             {editType && (
               <div style={{ position: "absolute", top: "calc(100% + 6px)", left: 0, zIndex: 30, background: PAPER, border: `1px solid ${LINE}`, borderRadius: 10, padding: 8, boxShadow: "0 10px 28px rgba(26,26,23,0.14)", display: "flex", flexWrap: "wrap", gap: 6, width: 208 }}>
                 {GROUP_KEYS.map((k) => { const gg = GROUPS[k]; const active = session.serviceLine === k; return (
-                  <button key={k} onClick={() => { patchSession(session.id, { serviceLine: k, photographer: k === "photo" ? "Brittany Matthews" : "Dennis Matthews", notifyEmail: NOTIFY_EMAILS[k] || "contact@dot1.media" }); setEditType(false); }} style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "6px 10px", borderRadius: 7, cursor: "pointer", fontSize: 11.5, border: `1px solid ${active ? gg.color : LINE}`, background: active ? gg.color : PAPER, color: active ? "#fff" : STONE }}><gg.Icon size={11} /> {gg.label}</button>
+                  <button key={k} onClick={() => { onSetGroup(session, k); setEditType(false); }} style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "6px 10px", borderRadius: 7, cursor: "pointer", fontSize: 11.5, border: `1px solid ${active ? gg.color : LINE}`, background: active ? gg.color : PAPER, color: active ? "#fff" : STONE }}><gg.Icon size={11} /> {gg.label}</button>
                 ); })}
               </div>
             )}
