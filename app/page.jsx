@@ -8,6 +8,8 @@ import { GROUPS, GROUP_KEYS } from "../lib/portal/groups";
 import { DonutChart, HBars, MiniColumns, LinkRow, LinkField, FieldLabel, TextInput, RadioPill, IconBtn, EmptyHint, MiniCalendar, FontLoader } from "../lib/portal/ui";
 import { useIsMobile } from "../lib/portal/hooks";
 import { LandingPage, LoginView, StudioLogin, ResetPassword } from "../lib/portal/auth";
+import { NOTIFY_EMAILS, isConsult, GOOGLE_REVIEW_URL, ADMINS, PORTAL_BASE, STORAGE_KEY, DEFAULT_STATE, PHOTO_CATEGORIES, CLIENT_SERVICES_VERSION, RELEASE_VERSION, PDF_CLIENT_SERVICES, PDF_RELEASE, PDF_MINOR, DOC_META, DOC_USAGE, BRIEF_FIELDS, CLIENT_SERVICES_SUMMARY, RELEASE_SUMMARY, MINOR_SUMMARY } from "../lib/portal/constants";
+import { PAYMENT_RULES, STAGES, CONSULT_STAGES, stagesFor, curStage } from "../lib/portal/stages";
 import {
   CalendarCheck, FileCheck, Camera, Upload, Scissors, Eye, PackageCheck,
   CheckCircle2, User, LayoutDashboard, Send, Play, Image as ImageIcon,
@@ -54,119 +56,16 @@ function resizeImageTo(file, max) {
 }
 
 /* where a new-booking notification email is routed, per group */
-const NOTIFY_EMAILS = {
-  video: "video@dot1.media",
-  photo: "photo@dot1.media",
-  music: "contact@dot1.media",
-  government: "contact@dot1.media",
-};
 
-const PAYMENT_RULES = {
-  video: { label: "Video payment", Icon: CreditCard, options: [{ key: "retainer", label: "Pay 50% retainer now", pct: 50 }, { key: "full", label: "Pay in full", pct: 100 }], note: "A 50% retainer (of your total, add-ons included) reserves your date. Balance due 24 hours before filming. Retainer is non-refundable.", reschedFee: 150 },
-  photo: { label: "Photography payment", Icon: Wallet, options: [{ key: "full", label: "Pay in full now", pct: 100 }, { key: "half", label: "Pay 50% deposit now", pct: 50 }], note: "Payment is due before your session. A 50% deposit holds your date; the balance is due before the session start.", reschedFee: 0 },
-  music: { label: "Music payment", Icon: Wallet, options: [{ key: "quote", label: "Request a quote", pct: 0 }], note: "Custom-quoted per project. No online checkout yet.", reschedFee: 0 },
-  government: { label: "Government payment", Icon: Wallet, options: [{ key: "quote", label: "Request a quote", pct: 0 }], note: "Always custom-quoted and invoiced. No online checkout.", reschedFee: 0 },
-};
 
-const STAGES = [
-  { key: "scheduled", label: "Session Scheduled", Icon: CalendarCheck, desc: "Your session is on the calendar. We'll review the details and confirm everything with you shortly." },
-  { key: "confirmed", label: "Booked & Confirmed", Icon: FileCheck, desc: "Everything's confirmed and locked in. Next, we prepare for your session day." },
-  { key: "dayof", label: "Day of Session", Icon: Camera, desc: "It's session day, when we capture everything. Afterward, we move into post-production." },
-  { key: "post", label: "Post-Session", Icon: Upload, desc: "That's a wrap. Your files are safely backed up while we select the strongest moments to edit." },
-  { key: "editing", label: "Editing", Icon: Scissors, desc: "The creative work is underway. We're editing and crafting your final pieces frame by frame." },
-  { key: "predelivery", label: "Pre-Delivery Review", Icon: Eye, desc: "Your preview is ready to review. Take a look and tell us if you'd like any changes before final delivery." },
-  { key: "delivered", label: "Final Delivery", Icon: PackageCheck, desc: "All done. Your finished work is ready and delivered below. Thank you for trusting us with your story." },
-];
 
-const CONSULT_STAGES = [
-  { key: "scheduled", label: "Consultation Scheduled", Icon: CalendarCheck, desc: "Your consultation is on the calendar. We'll confirm the details with you shortly." },
-  { key: "confirmed", label: "Confirmed", Icon: FileCheck, desc: "Your consultation is confirmed. We're looking forward to speaking with you." },
-  { key: "complete", label: "Consultation Complete", Icon: CheckCircle2, desc: "Your consultation is complete. Thank you for meeting with us. If we discussed a project, we'll follow up with next steps." },
-];
-function isConsult(s) { return !!(s && /consult/i.test(s.type || "")); }
-function stagesFor(s) { return isConsult(s) ? CONSULT_STAGES : STAGES; }
-function curStage(s) { const st = stagesFor(s); return st[Math.min(Math.max((s && s.currentStage) || 0, 0), st.length - 1)] || st[0]; }
-const GOOGLE_REVIEW_URL = "https://g.page/r/Ceb1aSxQSvm6EBM/review/";
-const ADMINS = ["video@dot1.media", "photo@dot1.media"]; // studio login accounts
-const PORTAL_BASE = "https://portal.dot1.media/book/";
-const STORAGE_KEY = "dot1_portal_v4";
 
 const downloadIcs = (session) => { try { const blob = new Blob([icsContent(session)], { type: "text/calendar;charset=utf-8" }); const url = URL.createObjectURL(blob); const a = document.createElement("a"); a.href = url; a.download = "dot-one-media-session.ics"; document.body.appendChild(a); a.click(); document.body.removeChild(a); setTimeout(() => URL.revokeObjectURL(url), 1500); } catch (e) {} };
 
-const DEFAULT_STATE = {
-  sessions: [],
-  takenSlots: [],
-  services: [],
-  addons: [],
-  availability: [],
-  directLinks: [],
-};
 
-const PHOTO_CATEGORIES = ["Destination Photography", "Event Photography", "Portrait Photography"];
-const CLIENT_SERVICES_VERSION = "1.0";
-const RELEASE_VERSION = "1.0";
-const PDF_CLIENT_SERVICES = "/Dot-One-Media-Client-Services-Agreement.pdf";
-const PDF_RELEASE = "/Dot-One-Media-Release-and-Waiver.pdf";
-const PDF_MINOR = "/Dot-One-Media-Minor-Release-and-Waiver.pdf";
-const DOC_META = {
-  client_services: { label: "Client Services Agreement", pdf: PDF_CLIENT_SERVICES },
-  media_release: { label: "Media Release & Waiver", pdf: PDF_RELEASE },
-  minor_release: { label: "Minor Release & Waiver", pdf: PDF_MINOR },
-};
-const DOC_USAGE = { A: "Portfolio Use", B: "Full Commercial Use", C: "Private Use" };
-const BRIEF_FIELDS = [
-  { key: "objective", label: "Project objective", help: "What should this project accomplish?" },
-  { key: "audience", label: "Audience", help: "Who needs to see this, and what should they feel or do?" },
-  { key: "keyMessages", label: "Key messages", help: "What must viewers understand or remember?" },
-  { key: "visualDirection", label: "Visual direction", help: "Look and feel, tone, and any references or examples." },
-  { key: "participants", label: "People / participants", help: "Who will be filmed or photographed? Names and roles." },
-  { key: "locations", label: "Locations", help: "Where will we work? Address, parking, and access notes." },
-  { key: "requirements", label: "Special requirements", help: "Wardrobe, accessibility, safety, timing, or anything else." },
-];
 
-const CLIENT_SERVICES_SUMMARY = `Key terms for your booking. The full agreement is linked below.
 
-Payment. Full payment is due no later than the start of your session; for video, the balance is due at least 24 hours before the filming date. We don't begin work or deliver until the payment due at that stage is paid in full.
 
-Video sessions. A non-refundable 50% retainer (of your total, including any add-ons) is due at booking to reserve your date. Reschedule with at least 3 days' notice for a $150 fee (your retainer transfers). Fewer than 3 days' notice is treated as a cancellation.
-
-Photography sessions. No retainer; the full session fee is due at or before your session. You may reschedule once with at least 24 hours' notice at no charge. Less notice, or cancelling, forfeits the fee.
-
-No-shows & late payment. Missing a session without notice forfeits payments made. If we proceed despite an unpaid balance, a $100/day late fee (up to 7 days) may apply.
-
-Travel. Video includes travel within 50 miles of the Mat-Su Valley; photography includes within 25 minutes of Eagle River. Beyond that, a travel add-on or $0.52/mile applies.
-
-Deliverables & style. You're booking our creative style. We deliver the strongest images and footage, not every frame. Photography images may be purged after 6 months, so please download promptly.
-
-Copyright. Dot One Media retains copyright; you receive a personal-use license unless a commercial license is arranged.
-
-Liability is limited to the amount you paid for the project. Governed by Alaska law.`;
-
-const RELEASE_SUMMARY = `Media release and liability waiver for adults (18 and over). The full document is linked below.
-
-You consent to being photographed and filmed, and to the capture of your name, likeness, image, and voice.
-
-Dot One Media owns the copyright in the content; you receive use rights according to the choice you make below.
-
-You choose how your images and video may be used (Option A, B, or C below).
-
-You waive the right to pre-approve the finished content, and you release Dot One Media from claims arising from the permitted uses and from ordinary session risks.
-
-Liability is limited to the amount paid for the session. Governed by Alaska law.
-
-If the person being photographed is under 18, check the box above and a parent or guardian will sign the Minor Release instead.`;
-
-const MINOR_SUMMARY = `Media release and liability waiver for a child under 18, signed by the parent or legal guardian. The full document is linked below.
-
-You confirm you are the parent or legal guardian, with authority to sign for the child.
-
-You consent, on the child's behalf, to the child being photographed and filmed.
-
-Dot One Media owns the copyright; use of the child's images follows the choice you make below.
-
-Dot One Media will not publish the child's full name or identifying details without your separate permission, and will use only a first name or no name in permitted uses.
-
-You release Dot One Media, on your and the child's behalf, from claims arising from the permitted uses and ordinary session risks. Liability is limited to the amount paid.`;
 
 const USAGE_OPTIONS = [
   { key: "A", label: "Portfolio & Marketing (default)", desc: "Dot One Media may use the content to promote its own business, including its website, social media, portfolio, samples, competition entries, and its own advertising. It will not sell or license your images to unrelated third parties." },
