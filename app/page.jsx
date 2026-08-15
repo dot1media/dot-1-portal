@@ -126,7 +126,7 @@ const NOTIFY_EMAILS = {
 };
 
 const PAYMENT_RULES = {
-  video: { label: "Video payment", Icon: CreditCard, options: [{ key: "retainer", label: "Pay $750 retainer now", fixed: 750 }, { key: "full", label: "Pay in full", pct: 100 }], note: "Balance due 24 hours before filming. Retainer is non-refundable.", reschedFee: 150 },
+  video: { label: "Video payment", Icon: CreditCard, options: [{ key: "retainer", label: "Pay 50% retainer now", pct: 50 }, { key: "full", label: "Pay in full", pct: 100 }], note: "A 50% retainer (of your total, add-ons included) reserves your date. Balance due 24 hours before filming. Retainer is non-refundable.", reschedFee: 150 },
   photo: { label: "Photography payment", Icon: Wallet, options: [{ key: "full", label: "Pay in full now", pct: 100 }, { key: "half", label: "Pay 50% deposit now", pct: 50 }], note: "Payment is due before your session. A 50% deposit holds your date; the balance is due before the session start.", reschedFee: 0 },
   music: { label: "Music payment", Icon: Wallet, options: [{ key: "quote", label: "Request a quote", pct: 0 }], note: "Custom-quoted per project. No online checkout yet.", reschedFee: 0 },
   government: { label: "Government payment", Icon: Wallet, options: [{ key: "quote", label: "Request a quote", pct: 0 }], note: "Always custom-quoted and invoiced. No online checkout.", reschedFee: 0 },
@@ -218,7 +218,7 @@ const CLIENT_SERVICES_SUMMARY = `Key terms for your booking. The full agreement 
 
 Payment. Full payment is due no later than the start of your session; for video, the balance is due at least 24 hours before the filming date. We don't begin work or deliver until the payment due at that stage is paid in full.
 
-Video sessions. A non-refundable $750 retainer is due at booking to reserve your date. Reschedule with at least 3 days' notice for a $150 fee (your retainer transfers). Fewer than 3 days' notice is treated as a cancellation.
+Video sessions. A non-refundable 50% retainer (of your total, including any add-ons) is due at booking to reserve your date. Reschedule with at least 3 days' notice for a $150 fee (your retainer transfers). Fewer than 3 days' notice is treated as a cancellation.
 
 Photography sessions. No retainer; the full session fee is due at or before your session. You may reschedule once with at least 24 hours' notice at no charge. Less notice, or cancelling, forfeits the fee.
 
