@@ -66,6 +66,26 @@ const GROUPS = {
   government: { label: "Government", color: "#586b2e", soft: "#6b7d40", bg: "color-mix(in srgb, #586b2e 13%, var(--d1-paper,#fff))", border: "color-mix(in srgb, #586b2e 32%, var(--d1-paper,#fff))", text: "color-mix(in srgb, #586b2e 76%, var(--d1-ink,#1a1a17))", Icon: Landmark },
 };
 const GROUP_KEYS = ["photo", "video", "music", "government"];
+function parseCsvRows(text) {
+  const rows = []; let row = []; let field = ""; let inQ = false;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (inQ) { if (c === '"') { if (text[i + 1] === '"') { field += '"'; i++; } else inQ = false; } else field += c; }
+    else { if (c === '"') inQ = true; else if (c === ",") { row.push(field); field = ""; } else if (c === "\n") { row.push(field); rows.push(row); row = []; field = ""; } else if (c !== "\r") field += c; }
+  }
+  if (field.length > 0 || row.length > 0) { row.push(field); rows.push(row); }
+  return rows;
+}
+const ACUITY_MONTHS = { january: 1, february: 2, march: 3, april: 4, may: 5, june: 6, july: 7, august: 8, september: 9, october: 10, november: 11, december: 12 };
+function parseAcuityStart(str) {
+  const m = String(str || "").trim().match(/^([A-Za-z]+)\s+(\d{1,2}),\s*(\d{4})\s+(\d{1,2}):(\d{2})\s*(am|pm)/i);
+  if (!m) return { date: "", time: "" };
+  const mo = ACUITY_MONTHS[m[1].toLowerCase()]; if (!mo) return { date: "", time: "" };
+  let hh = parseInt(m[4], 10); const mm = m[5]; const ap = m[6].toLowerCase();
+  if (ap === "pm" && hh !== 12) hh += 12; if (ap === "am" && hh === 12) hh = 0;
+  return { date: m[3] + "-" + String(mo).padStart(2, "0") + "-" + String(m[2]).padStart(2, "0"), time: String(hh).padStart(2, "0") + ":" + mm };
+}
+
 function resizeImageTo(file, max) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -491,6 +511,16 @@ export default function App() {
   const requestReview = async (session) => {
     try { const r = await fetch("/api/sessions", { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ id: session.id, patch: {}, sendReview: true }) }); if (r.ok) showToast("Review request sent to " + (session.clientName || "the client") + "."); else showToast("Could not send the review request."); } catch (e) { showToast("Network error."); }
   };
+  const importSessions = async (sessions, onProgress) => {
+    let done = 0;
+    for (const draft of sessions) {
+      const session = { ...draft, id: uid("ses") };
+      setState((s) => ({ ...s, sessions: [...s.sessions, session] }));
+      await fetch("/api/sessions", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ session }) }).catch(() => {});
+      done++; if (onProgress) onProgress(done);
+    }
+    return done;
+  };
   const requestSendCharge = async (session, label, amountDollars) => { try { const res = await fetch("/api/charge", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ sessionId: session.id, label, amount: amountDollars }) }); const data = await res.json().catch(() => ({})); if (res.ok && data.charge) { showToast("Payment request sent to " + session.clientEmail + "."); setState((s) => ({ ...s, sessions: s.sessions.map((x) => x.id === session.id ? { ...x, charges: [...(x.charges || []), data.charge] } : x) })); return { ok: true }; } else { showToast(data.error || "Could not send the payment request."); return { ok: false }; } } catch (e) { showToast("Network error."); return { ok: false }; } };
 
   const resetDemo = () => setConfirm({ title: "Reset the demo?", message: "This clears all sessions, services, add-ons, and booking links back to the starting state.", confirmLabel: "Reset everything", danger: true, onYes: async () => { setState(DEFAULT_STATE); try { await storage.delete(STORAGE_KEY); } catch (e) {} showToast("Demo reset."); setConfirm(null); } });
@@ -569,7 +599,7 @@ export default function App() {
             {adminTab === "links" && <DirectLinks state={state} createDirectLink={createDirectLink} revokeDirectLink={revokeDirectLink} openDirectLink={openDirectLink} showToast={showToast} />}
             {adminTab === "availability" && <><CalendarSync showToast={showToast} /><AvailabilityManager availability={state.availability} addAvailability={addAvailability} removeAvailability={removeAvailability} showToast={showToast} /></>}
             {adminTab === "services" && <ServiceCatalog state={state} addService={addService} updateService={updateService} deleteService={deleteService} addAddon={addAddon} updateAddon={updateAddon} deleteAddon={deleteAddon} showToast={showToast} setConfirm={setConfirm} />}
-            {adminTab === "business" && <BusinessSettings sessions={state.sessions} showToast={showToast} />}
+            {adminTab === "business" && <BusinessSettings sessions={state.sessions} showToast={showToast} onImport={importSessions} />}
           </div>
         )}
       </main>
@@ -2538,7 +2568,7 @@ function MiniColumns({ items }) {
   );
 }
 
-function BusinessSettings({ sessions, showToast }) {
+function BusinessSettings({ sessions, showToast, onImport }) {
   const isMobile = useIsMobile();
   const [start, setStart] = useState("");
   const [end, setEnd] = useState("");
@@ -2696,6 +2726,8 @@ function BusinessSettings({ sessions, showToast }) {
           )}
         </div>
       )}
+
+      <ImportSessions existing={sessions} onImport={onImport} showToast={showToast} />
 
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginBottom: 12 }}>
         <div style={{ ...mono, fontSize: 10.5, letterSpacing: "0.16em", textTransform: "uppercase", color: STONE }}>Receipts</div>
@@ -3098,6 +3130,98 @@ function InternalBookingModal({ state, showToast, onClose, onCreate }) {
         <div style={{ ...mono, fontSize: 9.5, color: FAINT, marginTop: 8, lineHeight: 1.5 }}>Enter an amount to collect now and the client is emailed a secure Square payment request.</div>
         <button onClick={submit} disabled={busy} style={{ ...btnSolid, background: busy ? FAINT : RED, width: "100%", justifyContent: "center", marginTop: 16, padding: "11px" }}>{busy ? "Creating\u2026" : "Create booking & notify client"}</button>
       </div>
+    </div>
+  );
+}
+
+function ImportSessions({ existing, onImport, showToast }) {
+  const [drafts, setDrafts] = useState(null);
+  const [importing, setImporting] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const existingAcuity = new Set((existing || []).map((s) => s.acuityId).filter(Boolean));
+  const handleFile = (file) => {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const rows = parseCsvRows(String(reader.result || ""));
+        if (rows.length < 2) { showToast("That file has no rows."); return; }
+        const head = rows[0].map((x) => String(x).trim().toLowerCase());
+        const idx = (n) => head.indexOf(n.toLowerCase());
+        const iF = idx("First Name"), iL = idx("Last Name"), iE = idx("Email"), iT = idx("Type"), iS = idx("Start Time"), iP = idx("Appointment Price"), iPd = idx("Paid?"), iId = idx("Appointment ID");
+        const out = [];
+        for (let r = 1; r < rows.length; r++) {
+          const row = rows[r]; if (!row || row.every((c) => !String(c).trim())) continue;
+          const name = ((iF >= 0 ? row[iF] : "") + " " + (iL >= 0 ? row[iL] : "")).trim();
+          const email = String(iE >= 0 ? row[iE] : "").trim().toLowerCase();
+          if (!name && !email) continue;
+          const type = String(iT >= 0 ? row[iT] : "").trim() || "Session";
+          const parsed = parseAcuityStart(iS >= 0 ? row[iS] : "");
+          const price = parseFloat(String(iP >= 0 ? row[iP] : "").replace(/[^0-9.]/g, "")) || 0;
+          const paid = /^y/i.test(String(iPd >= 0 ? row[iPd] : "").trim());
+          const acuityId = String(iId >= 0 ? row[iId] : "").trim();
+          out.push({ name, email, type, date: parsed.date, time: parsed.time, price, paid, acuityId, dup: !!acuityId && existingAcuity.has(acuityId) });
+        }
+        if (out.length === 0) { showToast("No importable rows found in that file."); return; }
+        setDrafts(out);
+      } catch (e) { showToast("Could not read that CSV file."); }
+    };
+    reader.onerror = () => showToast("Could not read that file.");
+    reader.readAsText(file);
+  };
+  const runImport = async () => {
+    const fresh = (drafts || []).filter((d) => !d.dup);
+    if (fresh.length === 0) { showToast("Nothing new to import."); return; }
+    setImporting(true); setProgress(0);
+    const today = new Date().toISOString().slice(0, 10);
+    const sessions = fresh.map((d) => ({
+      clientName: d.name, clientEmail: d.email, clientImage: "",
+      notifyEmail: NOTIFY_EMAILS.photo || "contact@dot1.media",
+      type: d.type, serviceLine: "photo", photographer: "Brittany Matthews",
+      date: d.date, time: d.time, location: "", status: "active",
+      durationMin: 60, apptMin: 60, padBefore: 0, padAfter: 0,
+      currentStage: (d.date && d.date < today) ? Math.max(0, STAGES.length - 1) : 0,
+      stageTimes: {}, comments: [], selectedAddons: [],
+      total: d.price, payChoice: "full", paymentStatus: d.paid ? "paid" : "none", payAmount: d.paid ? d.price : 0,
+      reviewLink: "", deliveryVideo: "", deliveryPhoto: "", imported: true, acuityId: d.acuityId,
+    }));
+    await onImport(sessions, (n) => setProgress(n));
+    setImporting(false); setDrafts(null);
+    showToast("Imported " + sessions.length + " session" + (sessions.length === 1 ? "" : "s") + " into your history.");
+  };
+  const freshCount = (drafts || []).filter((d) => !d.dup).length;
+  const dupCount = (drafts || []).filter((d) => d.dup).length;
+  return (
+    <div style={{ marginBottom: 28 }}>
+      <div style={{ ...mono, fontSize: 10.5, letterSpacing: "0.16em", textTransform: "uppercase", color: STONE, marginBottom: 12 }}>Import past sessions</div>
+      {!drafts ? (
+        <label style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 8, padding: "26px", borderRadius: 12, border: "1.5px dashed " + LINE, background: CREAM, cursor: "pointer", textAlign: "center" }}>
+          <Upload size={20} color={STONE} />
+          <div style={{ fontSize: 13.5, color: BODY, fontWeight: 500 }}>Upload your Acuity CSV export</div>
+          <div style={{ ...mono, fontSize: 9.5, color: FAINT, letterSpacing: "0.04em", maxWidth: 320, lineHeight: 1.5 }}>Past appointments are added as completed sessions in your history. No emails are sent to anyone.</div>
+          <input type="file" accept=".csv,text/csv" style={{ display: "none" }} onChange={(e) => { const f = e.target.files && e.target.files[0]; handleFile(f); if (e.target) e.target.value = ""; }} />
+        </label>
+      ) : (
+        <div style={{ ...card, padding: "16px 18px" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12, gap: 10 }}>
+            <div style={{ fontSize: 13, color: BODY }}><strong style={{ color: INK }}>{freshCount}</strong> to import{dupCount > 0 ? <span style={{ color: STONE }}> · {dupCount} already imported</span> : null}</div>
+            {!importing && <button onClick={() => setDrafts(null)} style={{ ...mono, fontSize: 9, letterSpacing: "0.06em", textTransform: "uppercase", color: STONE, background: "transparent", border: "1px solid " + LINE, borderRadius: 6, padding: "6px 10px", cursor: "pointer" }}>Choose another file</button>}
+          </div>
+          <div style={{ maxHeight: 260, overflowY: "auto", border: "1px solid " + LINE, borderRadius: 8 }}>
+            {drafts.map((d, i) => (
+              <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 12px", borderBottom: i < drafts.length - 1 ? "1px solid " + LINE : "none", opacity: d.dup ? 0.5 : 1 }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 13, color: INK, fontWeight: 500, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{d.name || "(no name)"}</div>
+                  <div style={{ ...mono, fontSize: 9.5, color: STONE, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{d.type} · {d.date || "no date"}</div>
+                </div>
+                <div style={{ ...mono, fontSize: 11, color: d.paid ? OK : STONE, flexShrink: 0 }}>{d.price ? money(d.price) : ""}{d.paid ? " · paid" : ""}</div>
+                {d.dup ? <span style={{ ...mono, fontSize: 8.5, letterSpacing: "0.06em", textTransform: "uppercase", color: FAINT, flexShrink: 0 }}>imported</span> : null}
+              </div>
+            ))}
+          </div>
+          <button onClick={runImport} disabled={importing || freshCount === 0} style={{ ...btnSolid, background: (importing || freshCount === 0) ? FAINT : RED, width: "100%", justifyContent: "center", marginTop: 14, padding: "11px" }}>{importing ? ("Importing " + progress + " of " + freshCount + "\u2026") : ("Import " + freshCount + " session" + (freshCount === 1 ? "" : "s"))}</button>
+        </div>
+      )}
     </div>
   );
 }

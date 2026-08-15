@@ -32,7 +32,7 @@ export async function GET(request: Request) {
     const rows = await sql`SELECT data FROM portal_sessions ORDER BY created_at DESC`;
     return NextResponse.json({ sessions: rows.map((r: any) => r.data) });
   }
-  const rows = await sql`SELECT data FROM portal_sessions WHERE lower(client_email) = ${me.email.toLowerCase()} AND (data->>'internal') IS DISTINCT FROM 'true' ORDER BY created_at DESC`;
+  const rows = await sql`SELECT data FROM portal_sessions WHERE lower(client_email) = ${me.email.toLowerCase()} AND (data->>'internal') IS DISTINCT FROM 'true' AND (data->>'imported') IS DISTINCT FROM 'true' ORDER BY created_at DESC`;
   return NextResponse.json({ sessions: rows.map((r: any) => r.data) });
 }
 
@@ -52,7 +52,7 @@ export async function POST(request: Request) {
           status = EXCLUDED.status, data = EXCLUDED.data, updated_at = now()
     RETURNING (xmax = 0) AS inserted
   `;
-  if (ins[0] && (ins[0] as any).inserted) {
+  if (ins[0] && (ins[0] as any).inserted && !s.imported) {
     await sendEmail({ to: s.notifyEmail || "contact@dot1.media", subject: "New booking: " + (s.type || "session") + " for " + (s.clientName || "a client"), html: bookingStudioEmail(s), replyTo: s.clientEmail });
     if (s.internal) {
       await sendEmail({ to: s.clientEmail, subject: "Your Dot One Media session is reserved", html: internalBookingEmail(s), replyTo: "contact@dot1.media" });
