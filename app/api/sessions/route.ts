@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import { sql } from "@/lib/db";
 import { verifyToken, verifyClientToken, ADMIN_COOKIE, CLIENT_COOKIE } from "@/lib/auth";
 import { sendEmail, sendToClient, bookingStudioEmail, bookingClientEmail, stageClientEmail, messageEmail, stageLabelFor, briefStudioEmail, cancelClientEmail, internalBookingEmail, galleryEmail, videoEmail, deliveryEmail, reviewEmail, isFinalStage } from "@/lib/email";
+import { GOOGLE_REVIEW_URL } from "@/lib/portal/constants";
 
 export const runtime = "nodejs";
 
@@ -94,7 +95,7 @@ export async function PATCH(request: Request) {
   if (me.role === "admin" && typeof allowed.currentStage === "number" && allowed.currentStage > (old.currentStage || 0)) {
     await sendToClient(merged.clientEmail, "updates", { subject: "Your " + (merged.type || "session") + " status: " + stageLabelFor(merged, allowed.currentStage), html: stageClientEmail(merged, allowed.currentStage), replyTo: "contact@dot1.media" });
     if (isFinalStage(merged, allowed.currentStage)) {
-      const rl = (process.env.GOOGLE_REVIEW_LINK || "").trim();
+      const rl = (process.env.GOOGLE_REVIEW_LINK || GOOGLE_REVIEW_URL || "").trim();
       if (rl && merged.clientEmail) { try { await sendEmail({ to: merged.clientEmail, subject: "Thank you from Dot One Media", html: reviewEmail(merged, rl), replyTo: "contact@dot1.media" }); } catch (e) {} }
     }
   }
@@ -126,7 +127,7 @@ export async function PATCH(request: Request) {
     }
   }
   if (me.role === "admin" && body.sendReview && merged.clientEmail) {
-    const rl = (process.env.GOOGLE_REVIEW_LINK || "").trim();
+    const rl = (process.env.GOOGLE_REVIEW_LINK || GOOGLE_REVIEW_URL || "").trim();
     if (rl) { try { await sendEmail({ to: merged.clientEmail, subject: "Thank you from Dot One Media", html: reviewEmail(merged, rl), replyTo: "contact@dot1.media" }); } catch (e) {} }
   }
   if (me.role === "client" && allowed.brief && allowed.brief.submitted && !(old.brief && old.brief.submitted)) {
@@ -156,4 +157,5 @@ export async function DELETE(request: Request) {
   await sql`DELETE FROM portal_sessions WHERE id = ${id}`;
   return NextResponse.json({ ok: true });
 }
+
 
