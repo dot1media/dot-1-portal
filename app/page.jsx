@@ -1076,7 +1076,7 @@ function NotificationBell({ mode, sessions, clientId, onOpenSession, onMarkRead,
               {count === 0 ? (
                 <div style={{ padding: "34px 20px", textAlign: "center" }}>
                   <Bell size={20} color={FAINT} />
-                  <div style={{ fontSize: 13, color: STONE, marginTop: 9 }}>You\u2019re all caught up.</div>
+                  <div style={{ fontSize: 13, color: STONE, marginTop: 9 }}>{"You\u2019re all caught up."}</div>
                 </div>
               ) : items.map((it) => {
                 const Ico = it.Icon;
