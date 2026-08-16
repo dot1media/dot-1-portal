@@ -1,7 +1,7 @@
 // Dot One Media portal - studio-only internal booking modal (manual booking + optional Square payment request).
 import React, { useState, useEffect } from "react";
 import { X } from "lucide-react";
-import { RED, INK, STONE, FAINT, LINE, PAPER, display, mono, card, inputStyle, iconBtnStyle, btnSolid } from "./theme";
+import { RED, INK, STONE, FAINT, LINE, PAPER, CREAM, display, mono, card, inputStyle, iconBtnStyle, btnSolid } from "./theme";
 import { GROUPS, GROUP_KEYS } from "./groups";
 import { money } from "./format";
 import { FieldLabel, TextInput } from "./ui";
@@ -16,6 +16,7 @@ export function InternalBookingModal({ state, showToast, onClose, onCreate }) {
   const [total, setTotal] = useState("");
   const [deposit, setDeposit] = useState("");
   const [busy, setBusy] = useState(false);
+  const [invite, setInvite] = useState(false);
   const groupServices = state.services.filter((s) => s.group === group);
   const svc = state.services.find((s) => s.id === serviceId);
   useEffect(() => { if (svc) setTotal(String(svc.price || "")); }, [serviceId]);
@@ -25,7 +26,7 @@ export function InternalBookingModal({ state, showToast, onClose, onCreate }) {
     if (!svc) { showToast("Choose a service."); return; }
     if (!date || !time) { showToast("Pick a date and time."); return; }
     setBusy(true);
-    await onCreate({ group, serviceName: svc.name, serviceId: svc.id, duration: svc.duration, name: name.trim(), email: email.trim(), date, time, total, deposit });
+    await onCreate({ group, serviceName: svc.name, serviceId: svc.id, duration: svc.duration, name: name.trim(), email: email.trim(), date, time, total, deposit, invite });
     setBusy(false); onClose();
   };
   return (
@@ -36,7 +37,7 @@ export function InternalBookingModal({ state, showToast, onClose, onCreate }) {
           <button onClick={onClose} style={iconBtnStyle}><X size={15} /></button>
         </div>
         <h2 style={{ ...display, fontWeight: 700, fontSize: 21, color: INK, marginBottom: 6 }}>Book a session for a client</h2>
-        <p style={{ fontSize: 12.5, color: STONE, lineHeight: 1.5, marginBottom: 18 }}>You track this one yourself. The client gets the agreement and any payment request by email, and their gallery when you're done. No portal account is created for them.</p>
+        <p style={{ fontSize: 12.5, color: STONE, lineHeight: 1.5, marginBottom: 18 }}>You track this one yourself. The client gets the agreement and any payment request by email, and their gallery when you're done. Invite them to the portal below and this session shows up in their account to track and pay.</p>
         <FieldLabel>Client name</FieldLabel><TextInput value={name} onChange={setName} placeholder="Sarah Miller" />
         <div style={{ height: 10 }} />
         <FieldLabel>Client email</FieldLabel><input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="sarah@example.com" style={inputStyle} />
@@ -61,7 +62,11 @@ export function InternalBookingModal({ state, showToast, onClose, onCreate }) {
           <div style={{ flex: 1 }}><FieldLabel>Collect now (optional)</FieldLabel><input type="number" value={deposit} onChange={(e) => setDeposit(e.target.value)} placeholder="0" style={inputStyle} /></div>
         </div>
         <div style={{ ...mono, fontSize: 9.5, color: FAINT, marginTop: 8, lineHeight: 1.5 }}>Enter an amount to collect now and the client is emailed a secure Square payment request.</div>
-        <button onClick={submit} disabled={busy} style={{ ...btnSolid, background: busy ? FAINT : RED, width: "100%", justifyContent: "center", marginTop: 16, padding: "11px" }}>{busy ? "Creating\u2026" : "Create booking & notify client"}</button>
+        <label style={{ display: "flex", alignItems: "flex-start", gap: 9, marginTop: 16, cursor: "pointer", padding: "12px 13px", borderRadius: 9, border: `1px solid ${invite ? RED : LINE}`, background: CREAM }}>
+          <input type="checkbox" checked={invite} onChange={(e) => setInvite(e.target.checked)} style={{ marginTop: 2, width: 15, height: 15, accentColor: RED, cursor: "pointer", flexShrink: 0 }} />
+          <span style={{ fontSize: 12.5, color: STONE, lineHeight: 1.5 }}><span style={{ fontWeight: 600, color: INK }}>Invite this client to the portal.</span> They get a link to set a password, and this session appears in their account to track, message, and pay through.</span>
+        </label>
+        <button onClick={submit} disabled={busy} style={{ ...btnSolid, background: busy ? FAINT : RED, width: "100%", justifyContent: "center", marginTop: 16, padding: "11px" }}>{busy ? "Creating\u2026" : (invite ? "Create booking & send invite" : "Create booking & notify client")}</button>
       </div>
     </div>
   );

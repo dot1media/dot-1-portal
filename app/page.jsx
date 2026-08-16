@@ -323,8 +323,10 @@ export default function App() {
     setState((s) => ({ ...s, sessions: [...s.sessions, newSession] }));
     await fetch("/api/sessions", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ session: newSession }) }).catch(() => {});
     if ((Number(b.deposit) || 0) > 0) { await requestSendCharge(newSession, b.serviceName + " payment", Number(b.deposit)); }
+    if (b.invite && newSession.clientEmail) { await fetch("/api/sessions", { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ id: newSession.id, patch: {}, sendInvite: true }) }).catch(() => {}); }
     setAdminId(id);
-    showToast((Number(b.deposit) || 0) > 0 ? "Internal booking created and a payment request was sent." : "Internal booking created. The client was emailed the details.");
+    const _paid = (Number(b.deposit) || 0) > 0;
+    showToast(b.invite ? ("Internal booking created and a portal invite was sent to " + (b.name || "the client") + ".") : (_paid ? "Internal booking created and a payment request was sent." : "Internal booking created. The client was emailed the details."));
   };
   const confirmSendDelivery = (session, kinds, linkPatch) => {
     const arr = Array.isArray(kinds) ? kinds : [kinds];
