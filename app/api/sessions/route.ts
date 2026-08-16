@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { sql } from "@/lib/db";
-import { verifyToken, verifyClientToken, ADMIN_COOKIE, CLIENT_COOKIE } from "@/lib/auth";
-import { sendEmail, sendToClient, bookingStudioEmail, bookingClientEmail, stageClientEmail, messageEmail, stageLabelFor, briefStudioEmail, cancelClientEmail, internalBookingEmail, galleryEmail, videoEmail, deliveryEmail, reviewEmail, isFinalStage } from "@/lib/email";
+import { verifyToken, verifyClientToken, ADMIN_COOKIE, CLIENT_COOKIE, makeInviteToken } from "@/lib/auth";
+import { sendEmail, sendToClient, bookingStudioEmail, bookingClientEmail, stageClientEmail, messageEmail, stageLabelFor, briefStudioEmail, cancelClientEmail, internalBookingEmail, galleryEmail, videoEmail, deliveryEmail, reviewEmail, inviteEmail, isFinalStage } from "@/lib/email";
 import { GOOGLE_REVIEW_URL } from "@/lib/portal/constants";
 
 export const runtime = "nodejs";
@@ -129,6 +129,10 @@ export async function PATCH(request: Request) {
   if (me.role === "admin" && body.sendReview && merged.clientEmail) {
     const rl = (process.env.GOOGLE_REVIEW_LINK || GOOGLE_REVIEW_URL || "").trim();
     if (rl) { try { await sendEmail({ to: merged.clientEmail, subject: "Thank you from Dot One Media", html: reviewEmail(merged, rl), replyTo: "contact@dot1.media" }); } catch (e) {} }
+  }
+  if (me.role === "admin" && body.sendInvite && merged.clientEmail) {
+    const link = "https://portal.dot1.media/?invite=" + encodeURIComponent(makeInviteToken(merged.clientEmail, merged.clientName || ""));
+    try { await sendEmail({ to: merged.clientEmail, subject: "Track your session with Dot One Media", html: inviteEmail(merged, link), replyTo: "contact@dot1.media" }); } catch (e) {}
   }
   if (me.role === "client" && allowed.brief && allowed.brief.submitted && !(old.brief && old.brief.submitted)) {
     await sendEmail({ to: merged.notifyEmail || "contact@dot1.media", subject: (merged.clientName || "A client") + " submitted their production brief", html: briefStudioEmail(merged), replyTo: merged.clientEmail });

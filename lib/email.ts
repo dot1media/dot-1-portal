@@ -1,4 +1,5 @@
 import { sql } from "@/lib/db";
+import { GOOGLE_REVIEW_URL } from "@/lib/portal/constants";
 
 // Transactional email via Resend. Fail-soft: if RESEND_API_KEY is unset, this does nothing.
 // Brand-aware: client-facing photography emails use the Dot One Photography logo + blue accent.
@@ -175,6 +176,17 @@ export function resetEmail(link: string): string {
   return shell(brand, "Password Reset", "Reset your password", body);
 }
 
+export function inviteEmail(s: any, link: string): string {
+  const brand = brandFor(s);
+  const first = s && s.clientName ? esc(String(s.clientName).split(" ")[0]) : "";
+  const body =
+    para(`Hi${first ? " " + first : ""}, you have a ${esc(s.type) || "session"} with Dot One Media, and we would love for you to have your own portal to follow it from start to finish, along with any future sessions, all in one place.`) +
+    para("Creating your account takes less than a minute. Just choose a password and you are in.") +
+    button(brand, link, "Create your portal account") +
+    para("Everything about your work with us will live in your portal, all yours to keep.");
+  return shell(brand, "Your Portal", "Create your account to track your session", body);
+}
+
 export function balanceEmail(s: any, link: string, balance: number): string {
   const brand = brandFor(s);
   const body = para(`The remaining balance for your <strong style="color:${INK};">${esc(s.type) || "session"}</strong> is ready to pay.`) +
@@ -301,10 +313,12 @@ export function deliveryEmail(s: any, kind: string, url: string): string {
     government: { title: "Your Deliverables", heading: "Your deliverables are ready", noun: "project deliverables", cta: "Open your deliverables", tail: "Open the link to access and download your project deliverables." },
   };
   const c = cfg[kind] || cfg.gallery;
+  const reviewLink = (process.env.GOOGLE_REVIEW_LINK || GOOGLE_REVIEW_URL || "").trim();
   const body =
     para(`Hi${first ? " " + first : ""}, your ${c.noun} from your ${esc(s.type) || "project"} with Dot One Media is ready.`) +
     button(brand, url, c.cta) +
-    para(c.tail);
+    para(c.tail) +
+    (reviewLink ? para("If you love how everything turned out, a quick review would mean the world to a small studio like ours.") + button(brand, reviewLink, "Leave a Google review") : "");
   return shell(brand, c.title, c.heading, body);
 }
 
@@ -322,4 +336,5 @@ export async function sendEmail(opts: { to?: string; subject: string; html: stri
     /* fail-soft */
   }
 }
+
 

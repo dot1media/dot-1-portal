@@ -160,3 +160,36 @@ export function LoginView({ onLogin, onBook, onStudio, onForgot }) {
 }
 
 
+
+export function InviteAccept({ token, showToast }) {
+  const [name, setName] = useState("");
+  const [pw, setPw] = useState("");
+  const [busy, setBusy] = useState(false);
+  const submit = async () => {
+    if (pw.length < 8) { showToast("Password must be at least 8 characters."); return; }
+    setBusy(true);
+    try {
+      const res = await fetch("/api/invite", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ token, name: name.trim(), password: pw }) });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok) { showToast("Welcome! Setting up your portal..."); window.location.href = "/"; }
+      else { setBusy(false); showToast(data.error || "Could not create your account."); }
+    } catch (e) { setBusy(false); showToast("Network error."); }
+  };
+  return (
+    <div style={{ maxWidth: 400, margin: "20px auto 0" }}>
+      <div style={{ textAlign: "center", marginBottom: 24 }}>
+        <div style={{ ...display, fontWeight: 700, fontSize: 28, color: INK, marginBottom: 6 }}>Create your account</div>
+        <div style={{ fontSize: 13.5, color: STONE, lineHeight: 1.5 }}>Set a password to track your session and any future ones, all in one place.</div>
+      </div>
+      <div style={{ background: PAPER, border: `1px solid ${LINE}`, borderRadius: 12, padding: "22px 24px" }}>
+        <FieldLabel>Your name</FieldLabel>
+        <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Your name (optional)" style={inputStyle} />
+        <FieldLabel>Choose a password</FieldLabel>
+        <input type="password" value={pw} onChange={(e) => setPw(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") submit(); }} placeholder="At least 8 characters" style={inputStyle} />
+        <PasswordMeter value={pw} />
+        <button onClick={submit} disabled={busy} style={{ ...btnSolid, background: busy ? FAINT : RED, width: "100%", justifyContent: "center", marginTop: 14, padding: "11px" }}>{busy ? "Creating..." : "Create account"}</button>
+      </div>
+    </div>
+  );
+}
+

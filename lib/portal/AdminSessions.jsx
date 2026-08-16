@@ -1,6 +1,6 @@
 // Dot One Media portal - studio session management view (list + detail: stages, comments, delivery, payment) + private ServicePill.
 import React, { useState, useEffect } from "react";
-import { AlertTriangle, ArrowRight, Ban, CalendarClock, Check, ChevronDown, Download, FileText, Film, Image as ImageIcon, Landmark, Link2, MessageSquare, Music, PackageCheck, Pencil, Plus, RefreshCw, Send, Star, Trash2, Wallet, XCircle } from "lucide-react";
+import { AlertTriangle, ArrowRight, Ban, CalendarClock, Check, ChevronDown, Download, FileText, Film, Image as ImageIcon, Landmark, Link2, MessageSquare, Music, PackageCheck, Pencil, Plus, RefreshCw, Send, Star, Trash2, UserPlus, Wallet, XCircle } from "lucide-react";
 import { RED, INK, BODY, STONE, FAINT, LINE, PAPER, CREAM, OK, WARN, DANGER, display, mono, card, cardDense, inputStyle, btnGhost, btnSolid } from "./theme";
 import { GROUPS, GROUP_KEYS } from "./groups";
 import { fmtDate, fmtTime, money, sessionBucket } from "./format";
@@ -14,7 +14,7 @@ function ServicePill({ line }) {
   return <span style={{ ...mono, fontSize: 9.5, letterSpacing: "0.14em", textTransform: "uppercase", padding: "3px 9px", borderRadius: 20, background: g.color, color: "#fff", display: "inline-flex", alignItems: "center", gap: 5 }}><g.Icon size={11} /> {g.label}</span>;
 }
 
-export function AdminSessions({ state, adminId, setAdminId, requestSetStage, addComment, patchSession, onReschedule, slotTaken, markMessagesRead, onCancelBooking, onCloseBooking, onReopenBooking, onSendBalance, onSendCharge, onCheckPayment, onNewInternal, onEmailDelivery, onRequestReview, onSetGroup, onDeleteBooking }) {
+export function AdminSessions({ state, adminId, setAdminId, requestSetStage, addComment, patchSession, onReschedule, slotTaken, markMessagesRead, onCancelBooking, onCloseBooking, onReopenBooking, onSendBalance, onSendCharge, onCheckPayment, onNewInternal, onEmailDelivery, onRequestReview, onSendInvite, onSetGroup, onDeleteBooking }) {
   const [chgLabel, setChgLabel] = useState("");
   const [collapsed, setCollapsed] = useState({ completed: true });
   const [editType, setEditType] = useState(false);
@@ -244,6 +244,7 @@ export function AdminSessions({ state, adminId, setAdminId, requestSetStage, add
                   </div>
                 ) : null}
                 <button onClick={() => onRequestReview(session)} title="Email the client a warm thank-you with your Google review link" style={{ ...mono, fontSize: 10, letterSpacing: "0.06em", textTransform: "uppercase", color: OK, background: "transparent", border: `1px solid ${OK}`, borderRadius: 7, padding: "9px 13px", cursor: "pointer", marginTop: 12, display: "inline-flex", alignItems: "center", gap: 6 }}><Star size={13} /> Request a Google review</button>
+                <button onClick={() => onSendInvite(session)} title="Email the client an invite to create a portal account that includes this session and any future ones" style={{ ...mono, fontSize: 10, letterSpacing: "0.06em", textTransform: "uppercase", color: STONE, background: "transparent", border: `1px solid ${LINE}`, borderRadius: 7, padding: "9px 13px", cursor: "pointer", marginTop: 12, marginLeft: 8, display: "inline-flex", alignItems: "center", gap: 6 }}><UserPlus size={13} /> Invite to portal</button>
               </>
             );
           })()}
@@ -288,4 +289,5 @@ export function AdminSessions({ state, adminId, setAdminId, requestSetStage, add
     </div>
   );
 }
+
 

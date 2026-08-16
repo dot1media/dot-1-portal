@@ -84,3 +84,27 @@ export function verifyResetToken(token: string | undefined | null): { email: str
   } catch { return null; }
 }
 
+
+
+export function makeInviteToken(email: string, name: string): string {
+  const secret = process.env.SESSION_SECRET || "";
+  const payload = JSON.stringify({ role: "invite", email, name, exp: Date.now() + 1000 * 60 * 60 * 24 * 30 });
+  const body = Buffer.from(payload).toString("base64url");
+  const sig = crypto.createHmac("sha256", secret).update(body).digest("base64url");
+  return body + "." + sig;
+}
+export function verifyInviteToken(token: string | undefined | null): { email: string; name: string } | null {
+  const secret = process.env.SESSION_SECRET || "";
+  if (!token || !secret) return null;
+  const [body, sig] = token.split(".");
+  if (!body || !sig) return null;
+  const expected = crypto.createHmac("sha256", secret).update(body).digest("base64url");
+  const a = Buffer.from(sig), e = Buffer.from(expected);
+  if (a.length !== e.length || !crypto.timingSafeEqual(a, e)) return null;
+  try {
+    const p = JSON.parse(Buffer.from(body, "base64url").toString());
+    if (p.role !== "invite" || typeof p.exp !== "number" || Date.now() > p.exp) return null;
+    return { email: String(p.email || ""), name: String(p.name || "") };
+  } catch { return null; }
+}
+
