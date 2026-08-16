@@ -19,6 +19,8 @@ import { AdminSessions } from "../lib/portal/AdminSessions";
 import { BusinessSettings } from "../lib/portal/BusinessSettings";
 import { BookingFlow } from "../lib/portal/BookingFlow";
 import { ClientView } from "../lib/portal/ClientView";
+import { GuidePage } from "../lib/portal/GuidePage";
+import { CLIENT_GUIDE_HTML, ADMIN_GUIDE_HTML } from "../lib/portal/guides";
 import {
   CalendarCheck, FileCheck, Camera, Upload, Scissors, Eye, PackageCheck,
   CheckCircle2, User, LayoutDashboard, Send, Play, Image as ImageIcon,
@@ -76,6 +78,7 @@ export default function App() {
   const [clientAuth, setClientAuth] = useState(null);
   const [resetToken, setResetToken] = useState("");
   const [guideSeen, setGuideSeen] = useState(true);
+  const [clientGuideOpen, setClientGuideOpen] = useState(false);
   const [themeKey, setThemeKey] = useState("default");
   const [customAccent, setCustomAccent] = useState("");
   const [themeOpen, setThemeOpen] = useState(false);
@@ -378,6 +381,7 @@ export default function App() {
                 <span style={{ ...mono, fontSize: 10, letterSpacing: "0.08em", color: STONE }}>{(clientSession && clientSession.clientName) || "Signed in"}</span>
                 <NotificationBell mode="client" sessions={state.sessions} clientId={clientId} onMarkRead={() => markMessagesRead(clientId, "studio")} />
                 <button onClick={() => { setDirectContext(null); setView("book"); }} style={{ display: "flex", alignItems: "center", gap: 7, padding: "8px 14px", borderRadius: 7, cursor: "pointer", fontSize: 12.5, border: `1px solid ${RED}`, background: "#fff", color: RED, fontWeight: 500 }}><Plus size={14} /> Book Again</button>
+                <button onClick={() => setClientGuideOpen(true)} style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 12px", borderRadius: 7, cursor: "pointer", fontSize: 12.5, border: `1px solid ${LINE}`, background: PAPER, color: STONE }}><FileText size={13} /> Guide</button>
                 <button onClick={clientLogout} style={{ ...mono, fontSize: 10.5, letterSpacing: "0.08em", textTransform: "uppercase", color: STONE, background: "transparent", border: `1px solid ${LINE}`, borderRadius: 6, padding: "8px 12px", cursor: "pointer" }}>Sign out</button>
               </>
             ) : (
@@ -398,7 +402,8 @@ export default function App() {
         {view === "login" && <LoginView onLogin={loginAs} onBook={() => { setDirectContext(null); setView("book"); }} onStudio={() => setView("studiologin")} onForgot={requestReset} />}
         {view === "resetpw" && <ResetPassword token={resetToken} onDone={() => setView("login")} showToast={showToast} />}
         {(view === "terms" || view === "privacy") && <LegalPage kind={view} onBack={() => setView(legalReturn)} />}
-        {view === "client" && <ClientView session={clientSession} sessions={state.sessions} clientId={clientId} setClientId={setClientId} addComment={addComment} onRescheduleRequest={clientRescheduleRequest} markMessagesRead={markMessagesRead} patchSession={patchSession} resizeImage={resizeImage} showToast={showToast} />}
+        {view === "client" && clientGuideOpen && <GuidePage title="Client Guide" html={CLIENT_GUIDE_HTML} pdf="/guides/dot1-client-guide.pdf" onBack={() => setClientGuideOpen(false)} />}
+        {view === "client" && !clientGuideOpen && <ClientView session={clientSession} sessions={state.sessions} clientId={clientId} setClientId={setClientId} addComment={addComment} onRescheduleRequest={clientRescheduleRequest} markMessagesRead={markMessagesRead} patchSession={patchSession} resizeImage={resizeImage} showToast={showToast} />}
         {view === "thankyou" && <ThankYou session={clientSession} onPortal={() => setView("client")} />}
         {view === "client" && !guideSeen && clientSession && <ClientGuide onClose={() => { setGuideSeen(true); try { localStorage.setItem("dot1_guide_seen", "1"); } catch (e) {} }} />}
         {themeOpen && <ThemePicker themeKey={themeKey} customAccent={customAccent} onPick={(k, a) => setTheme(k, a)} onClose={() => setThemeOpen(false)} />}
@@ -413,6 +418,7 @@ export default function App() {
               <SubTab active={adminTab === "availability"} onClick={() => setAdminTab("availability")} label="Availability" />
               <SubTab active={adminTab === "services"} onClick={() => setAdminTab("services")} label="Services & Add-ons" />
               <SubTab active={adminTab === "business"} onClick={() => setAdminTab("business")} label="Business Settings" />
+              <SubTab active={adminTab === "guide"} onClick={() => setAdminTab("guide")} label="Guide" />
             </div>
             {adminTab === "home" && <StudioHome state={state} setAdminId={setAdminId} setAdminTab={setAdminTab} dark={themeKey === "midnight"} />}
             {adminTab === "sessions" && <AdminSessions state={state} adminId={adminId} setAdminId={setAdminId} requestSetStage={requestSetStage} addComment={addComment} patchSession={patchSession} onReschedule={adminReschedule} slotTaken={slotTaken} markMessagesRead={markMessagesRead} onCancelBooking={requestCancelBooking} onCloseBooking={requestCloseBooking} onReopenBooking={requestReopenBooking} onSendBalance={requestSendBalance} onSendCharge={requestSendCharge} onCheckPayment={checkChargePayment} onNewInternal={() => setInternalOpen(true)} onEmailDelivery={confirmSendDelivery} onRequestReview={requestReview} onSetGroup={setSessionGroup} onDeleteBooking={requestDeleteBooking} />}
@@ -421,6 +427,7 @@ export default function App() {
             {adminTab === "availability" && <><CalendarSync showToast={showToast} /><AvailabilityManager availability={state.availability} addAvailability={addAvailability} removeAvailability={removeAvailability} showToast={showToast} /></>}
             {adminTab === "services" && <ServiceCatalog state={state} addService={addService} updateService={updateService} deleteService={deleteService} addAddon={addAddon} updateAddon={updateAddon} deleteAddon={deleteAddon} showToast={showToast} setConfirm={setConfirm} />}
             {adminTab === "business" && <BusinessSettings sessions={state.sessions} showToast={showToast} onImport={importSessions} />}
+            {adminTab === "guide" && <GuidePage title="Studio Admin Guide" html={ADMIN_GUIDE_HTML} pdf="/guides/dot1-admin-guide.pdf" />}
           </div>
         )}
       </main>
@@ -585,6 +592,7 @@ function ClientGuide({ onClose }) {
             <div><div style={{ ...display, fontWeight: 600, fontSize: 14.5, color: INK, marginBottom: 2 }}>{it.title}</div><div style={{ fontSize: 12.5, color: BODY, lineHeight: 1.5 }}>{it.body}</div></div>
           </div>
         ); })}
+        <div style={{ fontSize: 12, color: STONE, lineHeight: 1.5, marginBottom: 8 }}>You can reopen this guide anytime from the <strong style={{ color: INK }}>Guide</strong> button at the top of your portal.</div>
         <button onClick={onClose} style={{ ...btnSolid, background: RED, width: "100%", justifyContent: "center", marginTop: 8, padding: "12px" }}>Got it, let's go</button>
       </div>
     </div>
@@ -1085,6 +1093,7 @@ function NotificationBell({ mode, sessions, clientId, onOpenSession, onMarkRead,
     </div>
   );
 }
+
 
 
 
