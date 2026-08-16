@@ -740,10 +740,12 @@ function ServiceCatalog({ state, addService, updateService, deleteService, addAd
   const [group, setGroup] = useState("photo");
   const [svcForm, setSvcForm] = useState(null);
   const [addonForm, setAddonForm] = useState(null);
+  const [cameraPackages, setCameraPackages] = useState([]);
+  useEffect(() => { (async () => { try { const res = await fetch("/api/camera-packages"); const d = await res.json(); if (res.ok) setCameraPackages(d.packages || []); } catch (e) {} })(); }, []);
   const groupServices = state.services.filter((s) => s.group === group);
   const groupAddons = state.addons.filter((a) => a.group === group);
   const g = GROUPS[group];
-  const startNewService = () => setSvcForm({ name: "", description: "", price: "", category: "", duration: "", padBefore: "", padAfter: "", addonMode: "group", addonIds: [], visible: true, image: "" });
+  const startNewService = () => setSvcForm({ name: "", description: "", price: "", category: "", duration: "", padBefore: "", padAfter: "", addonMode: "group", addonIds: [], visible: true, packageId: "", image: "" });
   const saveService = async () => { if (!svcForm.name.trim()) { showToast("Give the service a name first."); return; } const r = svcForm.id ? await updateService(svcForm.id, svcForm) : await addService({ ...svcForm, group }); if (r && r.ok) { showToast(svcForm.id ? "Service updated." : "Service created."); setSvcForm(null); } else { showToast((r && r.error) || "Could not save the service."); } };
   const startNewAddon = () => setAddonForm({ name: "", price: "", addTime: "", visible: true });
   const saveAddon = async () => { if (!addonForm.name.trim()) { showToast("Give the add-on a name first."); return; } const r = addonForm.id ? await updateAddon(addonForm.id, addonForm) : await addAddon({ ...addonForm, group }); if (r && r.ok) { showToast(addonForm.id ? "Add-on updated." : "Add-on created."); setAddonForm(null); } else { showToast((r && r.error) || "Could not save the add-on."); } };
@@ -762,9 +764,9 @@ function ServiceCatalog({ state, addService, updateService, deleteService, addAd
             <div style={{ ...mono, fontSize: 11, letterSpacing: "0.18em", textTransform: "uppercase", color: g.color, display: "flex", alignItems: "center", gap: 8 }}><Tag size={13} /> {g.label} Services</div>
             {!svcForm && <button onClick={startNewService} style={{ ...mono, fontSize: 10.5, letterSpacing: "0.06em", textTransform: "uppercase", color: "#fff", background: g.color, border: "none", borderRadius: 7, padding: "8px 12px", cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}><Plus size={13} /> New service</button>}
           </div>
-          {svcForm && <ServiceForm form={svcForm} setForm={setSvcForm} onSave={saveService} onCancel={() => setSvcForm(null)} group={group} groupAddons={groupAddons} />}
+          {svcForm && <ServiceForm form={svcForm} setForm={setSvcForm} onSave={saveService} onCancel={() => setSvcForm(null)} group={group} groupAddons={groupAddons} packages={cameraPackages} />}
           {groupServices.length === 0 && !svcForm && <EmptyState icon={g.Icon} title={"No " + g.label.toLowerCase() + " services yet"} text={'Click "New service" to create your first appointment type.'} style={{ padding: "32px 16px" }} />}
-          {groupServices.map((s) => <ServiceCard key={s.id} svc={s} groupAddons={groupAddons} onEdit={() => setSvcForm({ ...s, addonIds: s.addonIds || [] })} onDelete={() => setConfirm({ title: "Delete this appointment type?", message: "\u201c" + s.name + "\u201d will be permanently removed as a bookable appointment type. This cannot be undone.", confirmLabel: "Delete", danger: true, onYes: async () => { setConfirm(null); const r = await deleteService(s.id); if (r && r.ok) showToast("Appointment type deleted."); else showToast((r && r.error) || "Could not delete the service."); } })} onToggleVisible={async () => { const r = await updateService(s.id, { visible: s.visible === false }); if (r && !r.ok) showToast(r.error || "Could not update."); }} />)}
+          {groupServices.map((s) => <ServiceCard key={s.id} svc={s} packages={cameraPackages} groupAddons={groupAddons} onEdit={() => setSvcForm({ ...s, addonIds: s.addonIds || [] })} onDelete={() => setConfirm({ title: "Delete this appointment type?", message: "\u201c" + s.name + "\u201d will be permanently removed as a bookable appointment type. This cannot be undone.", confirmLabel: "Delete", danger: true, onYes: async () => { setConfirm(null); const r = await deleteService(s.id); if (r && r.ok) showToast("Appointment type deleted."); else showToast((r && r.error) || "Could not delete the service."); } })} onToggleVisible={async () => { const r = await updateService(s.id, { visible: s.visible === false }); if (r && !r.ok) showToast(r.error || "Could not update."); }} />)}
         </div>
         <div>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
@@ -802,8 +804,9 @@ function AddonForm({ form, setForm, onSave, onCancel, accent }) {
   );
 }
 
-function ServiceCard({ svc, groupAddons, onEdit, onDelete, onToggleVisible }) {
+function ServiceCard({ svc, groupAddons, onEdit, onDelete, onToggleVisible, packages }) {
   const attached = svc.addonMode === "group" ? groupAddons : groupAddons.filter((a) => (svc.addonIds || []).includes(a.id));
+  const pkg = svc.packageId ? (packages || []).find((p) => String(p.id) === String(svc.packageId)) : null;
   return (
     <div style={{ ...cardDense, padding: "14px 16px", marginBottom: 10 }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 10 }}>
@@ -815,6 +818,7 @@ function ServiceCard({ svc, groupAddons, onEdit, onDelete, onToggleVisible }) {
       </div>
       {svc.description ? <div style={{ fontSize: 12.5, color: BODY, lineHeight: 1.5, marginTop: 5 }}>{svc.description}</div> : null}
       <div style={{ ...mono, fontSize: 9.5, letterSpacing: "0.05em", color: FAINT, marginTop: 9, display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}><Package size={11} /> {svc.addonMode === "group" ? "All group add-ons" : `${attached.length} selected`}{attached.length > 0 && <span style={{ color: STONE }}>· {attached.map((a) => a.name).join(", ")}</span>}</div>
+      {pkg && <div style={{ ...mono, fontSize: 9.5, letterSpacing: "0.05em", color: RED, marginTop: 6, display: "flex", alignItems: "center", gap: 6 }}><Camera size={11} /> {pkg.name}{pkg.unit_count ? ` \u00b7 ${pkg.unit_count} items` : ""}</div>}
     </div>
   );
 }

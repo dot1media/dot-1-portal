@@ -1,7 +1,7 @@
 // Dot One Media portal - service editor form (+ its private image-resize helper).
 import React from "react";
 import { Check, Image as ImageIcon, Trash2, Upload } from "lucide-react";
-import { BODY, STONE, FAINT, LINE, PAPER, CREAM, mono, btnGhost, btnSolid } from "./theme";
+import { BODY, STONE, FAINT, LINE, PAPER, CREAM, mono, inputStyle, btnGhost, btnSolid } from "./theme";
 import { GROUPS } from "./groups";
 import { FieldLabel, TextInput, RadioPill } from "./ui";
 
@@ -24,8 +24,9 @@ function resizeImageTo(file, max) {
   });
 }
 
-export function ServiceForm({ form, setForm, onSave, onCancel, group, groupAddons }) {
+export function ServiceForm({ form, setForm, onSave, onCancel, group, groupAddons, packages }) {
   const g = GROUPS[group];
+  const multiBiz = new Set((packages || []).map((p) => p.business_name).filter(Boolean)).size > 1;
   return (
     <div style={{ border: `1px solid ${g.color}`, borderRadius: 10, padding: "16px", marginBottom: 14, background: PAPER }}>
       <FieldLabel>Service name</FieldLabel>
@@ -54,6 +55,12 @@ export function ServiceForm({ form, setForm, onSave, onCancel, group, groupAddon
         <div style={{ flex: 1 }}><FieldLabel>Pad after</FieldLabel><TextInput value={form.padAfter || ""} onChange={(v) => setForm({ ...form, padAfter: v })} placeholder="0" /></div>
       </div>
       <div style={{ ...mono, fontSize: 10, color: FAINT, margin: "4px 0 12px", lineHeight: 1.5 }}>Duration plus padding is the total time this booking reserves on the calendar. Add-on minutes stack on top.</div>
+      <FieldLabel>Camera package (optional, the gear kit this appointment type needs)</FieldLabel>
+      <select value={form.packageId || ""} onChange={(e) => setForm({ ...form, packageId: e.target.value })} style={{ ...inputStyle, cursor: "pointer", marginBottom: (packages && packages.length) ? 12 : 4 }}>
+        <option value="">No package</option>
+        {(packages || []).map((p) => <option key={p.id} value={p.id}>{p.name}{multiBiz && p.business_name ? ` \u00b7 ${p.business_name}` : ""}{p.unit_count ? ` \u00b7 ${p.unit_count} items` : ""}</option>)}
+      </select>
+      {(!packages || packages.length === 0) && <div style={{ ...mono, fontSize: 10, color: FAINT, margin: "0 0 12px", lineHeight: 1.5 }}>No camera packages found yet. Create them in the assets app.</div>}
       <FieldLabel>Add-on availability</FieldLabel>
       <div style={{ display: "flex", gap: 8, marginBottom: 10, flexWrap: "wrap" }}>
         <RadioPill active={form.addonMode === "group"} onClick={() => setForm({ ...form, addonMode: "group" })} label={`All ${g.label} add-ons`} accent={g.color} />
