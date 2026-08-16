@@ -79,6 +79,7 @@ export function StudioLogin({ onLogin, onBack }) {
   const [email, setEmail] = useState("");
   const [name, setName] = useState("");
   const [pw, setPw] = useState("");
+  const [pw2, setPw2] = useState("");
   const [code, setCode] = useState("");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
@@ -97,7 +98,8 @@ export function StudioLogin({ onLogin, onBack }) {
   const submitSetup = async () => {
     if (!email.trim() || !pw) { setErr("Enter an email and a new password."); return; }
     if (pw.length < 8) { setErr("Password must be at least 8 characters."); return; }
-    if (!code) { setErr("Enter your current studio password to authorize setup."); return; }
+    if (pw !== pw2) { setErr("The two passwords do not match."); return; }
+    if (!code) { setErr("Enter your studio master password to authorize this."); return; }
     setErr(""); setBusy(true);
     try {
       const res = await fetch("/api/auth/setup", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ email: email.trim(), name: name.trim(), password: pw, setupCode: code }) });
@@ -106,13 +108,14 @@ export function StudioLogin({ onLogin, onBack }) {
     } catch (e) { setErr("Network error."); setBusy(false); }
   };
   const pwStyle = { width: "100%", border: `1px solid ${LINE}`, borderRadius: 8, padding: "10px 12px", fontSize: 14, fontFamily: "inherit", background: PAPER, color: BODY, boxSizing: "border-box" };
+  const linkStyle = { color: RED, cursor: "pointer" };
   if (mode === "setup") {
     return (
       <div style={{ maxWidth: 400, margin: "20px auto 0" }}>
         <div style={{ textAlign: "center", marginBottom: 24 }}>
           <div style={{ width: 46, height: 46, borderRadius: "50%", background: INK, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 12px" }}><LayoutDashboard size={22} color="#fff" /></div>
-          <div style={{ ...display, fontWeight: 700, fontSize: 26, color: INK, marginBottom: 6 }}>Create your admin account</div>
-          <div style={{ fontSize: 13.5, color: STONE, lineHeight: 1.5 }}>First-time setup for the shared Dot One login. Authorize it with the studio password you use now.</div>
+          <div style={{ ...display, fontWeight: 700, fontSize: 26, color: INK, marginBottom: 6 }}>Admin account setup</div>
+          <div style={{ fontSize: 13.5, color: STONE, lineHeight: 1.5 }}>Create or reset an admin sign-in, authorized by your studio master password. @dot1.media only.</div>
         </div>
         <div style={{ background: PAPER, border: `1px solid ${LINE}`, borderRadius: 12, padding: "22px 24px" }}>
           <FieldLabel>Studio email (@dot1.media)</FieldLabel>
@@ -122,12 +125,14 @@ export function StudioLogin({ onLogin, onBack }) {
           <FieldLabel>New password</FieldLabel>
           <input type="password" value={pw} onChange={(e) => setPw(e.target.value)} placeholder="At least 8 characters" style={pwStyle} />
           <PasswordMeter value={pw} />
-          <FieldLabel>Current studio password</FieldLabel>
-          <input type="password" value={code} onChange={(e) => setCode(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") submitSetup(); }} placeholder="The password you sign in with today" style={pwStyle} />
+          <FieldLabel>Confirm new password</FieldLabel>
+          <input type="password" value={pw2} onChange={(e) => setPw2(e.target.value)} placeholder="Type it again" style={pwStyle} />
+          <FieldLabel>Studio master password</FieldLabel>
+          <input type="password" value={code} onChange={(e) => setCode(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") submitSetup(); }} placeholder="The studio's original password" style={pwStyle} />
           {err && <div style={{ marginTop: 10, fontSize: 12.5, color: DANGER, display: "flex", alignItems: "center", gap: 7 }}><AlertTriangle size={13} /> {err}</div>}
-          <button onClick={submitSetup} disabled={busy} style={{ ...btnSolid, background: busy ? FAINT : INK, width: "100%", justifyContent: "center", marginTop: 14, padding: "11px" }}><LogIn size={15} /> {busy ? "Creating..." : "Create admin account"}</button>
+          <button onClick={submitSetup} disabled={busy} style={{ ...btnSolid, background: busy ? FAINT : INK, width: "100%", justifyContent: "center", marginTop: 14, padding: "11px" }}><LogIn size={15} /> {busy ? "Saving..." : "Save and sign in"}</button>
         </div>
-        <div style={{ textAlign: "center", marginTop: 16, fontSize: 13, color: STONE }}><span onClick={onBack} style={{ color: RED, cursor: "pointer" }}>← Back to portal home</span></div>
+        <div style={{ textAlign: "center", marginTop: 16, fontSize: 13, color: STONE }}><span onClick={() => { setErr(""); setMode("login"); }} style={linkStyle}>← Back to sign in</span></div>
       </div>
     );
   }
@@ -145,8 +150,9 @@ export function StudioLogin({ onLogin, onBack }) {
         <input type="password" value={pw} onChange={(e) => setPw(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") submitLogin(); }} placeholder="Your password" style={pwStyle} />
         {err && <div style={{ marginTop: 10, fontSize: 12.5, color: DANGER, display: "flex", alignItems: "center", gap: 7 }}><AlertTriangle size={13} /> {err}</div>}
         <button onClick={submitLogin} disabled={busy} style={{ ...btnSolid, background: busy ? FAINT : INK, width: "100%", justifyContent: "center", marginTop: 14, padding: "11px" }}><LogIn size={15} /> {busy ? "Signing in..." : "Sign in to studio"}</button>
+        <div style={{ textAlign: "center", marginTop: 14, fontSize: 12.5, color: STONE }}><span onClick={() => { setErr(""); setPw(""); setMode("setup"); }} style={linkStyle}>Trouble signing in? Set up or reset your admin account</span></div>
       </div>
-      <div style={{ textAlign: "center", marginTop: 16, fontSize: 13, color: STONE }}><span onClick={onBack} style={{ color: RED, cursor: "pointer" }}>← Back to portal home</span></div>
+      <div style={{ textAlign: "center", marginTop: 16, fontSize: 13, color: STONE }}><span onClick={onBack} style={linkStyle}>← Back to portal home</span></div>
     </div>
   );
 }
