@@ -1,42 +1,27 @@
-import crypto from "crypto";
 import { NextResponse } from "next/server";
-import { makeToken, ADMIN_COOKIE } from "@/lib/auth";
+import { makeToken, ADMIN_COOKIE, verifyPassword } from "@/lib/auth";
+import { ensureAdminTable, isDot1Email, getAdminHash, adminCookieOpts } from "@/lib/admins";
 
 export const runtime = "nodejs";
 
-const ADMINS = ["video@dot1.media", "photo@dot1.media"];
-
-function safeEqual(a: string, b: string): boolean {
-  const ab = Buffer.from(a);
-  const bb = Buffer.from(b);
-  if (ab.length !== bb.length) return false;
-  return crypto.timingSafeEqual(ab, bb);
-}
-
+// One admin login for the whole suite. Verifies against admin_accounts and sets a cookie on
+// .dot1.media so every *.dot1.media app recognizes the session.
 export async function POST(request: Request) {
+  if (!process.env.SESSION_SECRET) {
+    return NextResponse.json({ error: "Admin login isn't configured yet. Set SESSION_SECRET in Vercel." }, { status: 503 });
+  }
   const body = await request.json().catch(() => ({}));
   const email = String(body.email || "").trim().toLowerCase();
   const password = String(body.password || "");
-  const expected = process.env.ADMIN_PASSWORD || "";
 
-  if (!expected || !process.env.SESSION_SECRET) {
-    return NextResponse.json(
-      { error: "Admin login isn't configured yet. Set ADMIN_PASSWORD and SESSION_SECRET in Vercel." },
-      { status: 503 }
-    );
-  }
-  if (!ADMINS.includes(email) || !safeEqual(password, expected)) {
+  await ensureAdminTable();
+  if (!isDot1Email(email)) return NextResponse.json({ error: "Incorrect email or password." }, { status: 401 });
+  const hash = await getAdminHash(email);
+  if (!hash || !verifyPassword(password, hash)) {
     return NextResponse.json({ error: "Incorrect email or password." }, { status: 401 });
   }
 
   const res = NextResponse.json({ ok: true, email });
-  res.cookies.set(ADMIN_COOKIE, makeToken(email), {
-    httpOnly: true,
-    secure: true,
-    sameSite: "lax",
-    path: "/",
-    maxAge: 60 * 60 * 24 * 7,
-  });
+  res.cookies.set(ADMIN_COOKIE, makeToken(email), adminCookieOpts(request.headers.get("host")));
   return res;
 }
-

@@ -17,6 +17,7 @@ import { ServiceForm } from "../lib/portal/ServiceForm";
 import { DirectLinks } from "../lib/portal/DirectLinks";
 import { AdminSessions } from "../lib/portal/AdminSessions";
 import { BusinessSettings } from "../lib/portal/BusinessSettings";
+import { AdminAccounts } from "../lib/portal/AdminAccounts";
 import { BookingFlow } from "../lib/portal/BookingFlow";
 import { ClientView } from "../lib/portal/ClientView";
 import { GuidePage } from "../lib/portal/GuidePage";
@@ -430,6 +431,7 @@ export default function App() {
               <SubTab active={adminTab === "services"} onClick={() => setAdminTab("services")} label="Services & Add-ons" />
               <SubTab active={adminTab === "business"} onClick={() => setAdminTab("business")} label="Business Settings" />
               <SubTab active={adminTab === "account"} onClick={() => setAdminTab("account")} label="Client Accounts" />
+              <SubTab active={adminTab === "admins"} onClick={() => setAdminTab("admins")} label="Admins" />
             </div>
             {adminTab === "home" && <StudioHome state={state} setAdminId={setAdminId} setAdminTab={setAdminTab} dark={themeKey === "midnight"} />}
             {adminTab === "sessions" && <AdminSessions state={state} adminId={adminId} setAdminId={setAdminId} requestSetStage={requestSetStage} addComment={addComment} patchSession={patchSession} onReschedule={adminReschedule} slotTaken={slotTaken} markMessagesRead={markMessagesRead} onCancelBooking={requestCancelBooking} onCloseBooking={requestCloseBooking} onReopenBooking={requestReopenBooking} onSendBalance={requestSendBalance} onSendCharge={requestSendCharge} onCheckPayment={checkChargePayment} onNewInternal={() => setInternalOpen(true)} onEmailDelivery={confirmSendDelivery} onRequestReview={requestReview} onSendInvite={requestInvite} onSetGroup={setSessionGroup} onDeleteBooking={requestDeleteBooking} />}
@@ -439,6 +441,7 @@ export default function App() {
             {adminTab === "services" && <ServiceCatalog state={state} addService={addService} updateService={updateService} deleteService={deleteService} addAddon={addAddon} updateAddon={updateAddon} deleteAddon={deleteAddon} showToast={showToast} setConfirm={setConfirm} />}
             {adminTab === "business" && <BusinessSettings sessions={state.sessions} showToast={showToast} onImport={importSessions} />}
             {adminTab === "account" && <AccountManagement state={state} showToast={showToast} />}
+            {adminTab === "admins" && <AdminAccounts showToast={showToast} />}
             {adminTab === "guide" && <GuidePage title="Studio Admin Guide" html={ADMIN_GUIDE_HTML} pdf="/guides/dot1-admin-guide.pdf" onBack={() => setAdminTab(prevTab)} />}
           </div>
         )}

@@ -75,17 +75,62 @@ export function LandingPage({ onBook, onClientLogin, onStudioLogin }) {
 }
 
 export function StudioLogin({ onLogin, onBack }) {
+  const [mode, setMode] = useState("login");
   const [email, setEmail] = useState("");
+  const [name, setName] = useState("");
   const [pw, setPw] = useState("");
+  const [code, setCode] = useState("");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
-  const submit = async () => {
+  React.useEffect(() => {
+    let alive = true;
+    fetch("/api/auth/needs-setup").then((r) => r.json()).then((d) => { if (alive && d && d.needsSetup) setMode("setup"); }).catch(() => {});
+    return () => { alive = false; };
+  }, []);
+  const submitLogin = async () => {
     if (!email.trim() || !pw) { setErr("Enter your studio email and password."); return; }
     setErr(""); setBusy(true);
     const r = await onLogin(email, pw);
     setBusy(false);
     if (r && !r.ok) setErr(r.error || "Sign in failed.");
   };
+  const submitSetup = async () => {
+    if (!email.trim() || !pw) { setErr("Enter an email and a new password."); return; }
+    if (pw.length < 8) { setErr("Password must be at least 8 characters."); return; }
+    if (!code) { setErr("Enter your current studio password to authorize setup."); return; }
+    setErr(""); setBusy(true);
+    try {
+      const res = await fetch("/api/auth/setup", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ email: email.trim(), name: name.trim(), password: pw, setupCode: code }) });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data.ok) { window.location.reload(); } else { setErr(data.error || "Setup failed."); setBusy(false); }
+    } catch (e) { setErr("Network error."); setBusy(false); }
+  };
+  const pwStyle = { width: "100%", border: `1px solid ${LINE}`, borderRadius: 8, padding: "10px 12px", fontSize: 14, fontFamily: "inherit", background: PAPER, color: BODY, boxSizing: "border-box" };
+  if (mode === "setup") {
+    return (
+      <div style={{ maxWidth: 400, margin: "20px auto 0" }}>
+        <div style={{ textAlign: "center", marginBottom: 24 }}>
+          <div style={{ width: 46, height: 46, borderRadius: "50%", background: INK, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 12px" }}><LayoutDashboard size={22} color="#fff" /></div>
+          <div style={{ ...display, fontWeight: 700, fontSize: 26, color: INK, marginBottom: 6 }}>Create your admin account</div>
+          <div style={{ fontSize: 13.5, color: STONE, lineHeight: 1.5 }}>First-time setup for the shared Dot One login. Authorize it with the studio password you use now.</div>
+        </div>
+        <div style={{ background: PAPER, border: `1px solid ${LINE}`, borderRadius: 12, padding: "22px 24px" }}>
+          <FieldLabel>Studio email (@dot1.media)</FieldLabel>
+          <TextInput value={email} onChange={setEmail} placeholder="you@dot1.media" />
+          <FieldLabel>Your name</FieldLabel>
+          <TextInput value={name} onChange={setName} placeholder="Optional" />
+          <FieldLabel>New password</FieldLabel>
+          <input type="password" value={pw} onChange={(e) => setPw(e.target.value)} placeholder="At least 8 characters" style={pwStyle} />
+          <PasswordMeter value={pw} />
+          <FieldLabel>Current studio password</FieldLabel>
+          <input type="password" value={code} onChange={(e) => setCode(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") submitSetup(); }} placeholder="The password you sign in with today" style={pwStyle} />
+          {err && <div style={{ marginTop: 10, fontSize: 12.5, color: DANGER, display: "flex", alignItems: "center", gap: 7 }}><AlertTriangle size={13} /> {err}</div>}
+          <button onClick={submitSetup} disabled={busy} style={{ ...btnSolid, background: busy ? FAINT : INK, width: "100%", justifyContent: "center", marginTop: 14, padding: "11px" }}><LogIn size={15} /> {busy ? "Creating..." : "Create admin account"}</button>
+        </div>
+        <div style={{ textAlign: "center", marginTop: 16, fontSize: 13, color: STONE }}><span onClick={onBack} style={{ color: RED, cursor: "pointer" }}>← Back to portal home</span></div>
+      </div>
+    );
+  }
   return (
     <div style={{ maxWidth: 400, margin: "20px auto 0" }}>
       <div style={{ textAlign: "center", marginBottom: 24 }}>
@@ -97,9 +142,9 @@ export function StudioLogin({ onLogin, onBack }) {
         <FieldLabel>Studio email</FieldLabel>
         <TextInput value={email} onChange={setEmail} placeholder="you@dot1.media" />
         <FieldLabel>Password</FieldLabel>
-        <input type="password" value={pw} onChange={(e) => setPw(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") submit(); }} placeholder="Your password" style={{ width: "100%", border: `1px solid ${LINE}`, borderRadius: 8, padding: "10px 12px", fontSize: 14, fontFamily: "inherit", background: PAPER, color: BODY, boxSizing: "border-box" }} />
+        <input type="password" value={pw} onChange={(e) => setPw(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") submitLogin(); }} placeholder="Your password" style={pwStyle} />
         {err && <div style={{ marginTop: 10, fontSize: 12.5, color: DANGER, display: "flex", alignItems: "center", gap: 7 }}><AlertTriangle size={13} /> {err}</div>}
-        <button onClick={submit} disabled={busy} style={{ ...btnSolid, background: busy ? FAINT : INK, width: "100%", justifyContent: "center", marginTop: 14, padding: "11px" }}><LogIn size={15} /> {busy ? "Signing in..." : "Sign in to studio"}</button>
+        <button onClick={submitLogin} disabled={busy} style={{ ...btnSolid, background: busy ? FAINT : INK, width: "100%", justifyContent: "center", marginTop: 14, padding: "11px" }}><LogIn size={15} /> {busy ? "Signing in..." : "Sign in to studio"}</button>
       </div>
       <div style={{ textAlign: "center", marginTop: 16, fontSize: 13, color: STONE }}><span onClick={onBack} style={{ color: RED, cursor: "pointer" }}>← Back to portal home</span></div>
     </div>
