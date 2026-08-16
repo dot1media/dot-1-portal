@@ -64,6 +64,7 @@ const downloadIcs = (session) => { try { const blob = new Blob([icsContent(sessi
 
 export default function App() {
   const [view, setView] = useState("landing");   // landing | client | admin | book | login | studiologin
+  const [prevTab, setPrevTab] = useState("home");
   const [adminTab, setAdminTab] = useState("home"); // home | sessions | calendar | services | links
   const [state, setState] = useState(DEFAULT_STATE);
   const stateRef = useRef(state);
@@ -374,6 +375,7 @@ export default function App() {
               <>
                 <NotificationBell mode="studio" sessions={state.sessions} onOpenSession={(id) => { setAdminTab("sessions"); setAdminId(id); }} />
                 <button onClick={() => setPaletteOpen(true)} title="Quick search (Cmd/Ctrl + K)" style={{ display: "flex", alignItems: "center", gap: 7, ...mono, fontSize: 10.5, letterSpacing: "0.04em", color: STONE, background: "transparent", border: `1px solid ${LINE}`, borderRadius: 6, padding: "7px 10px", cursor: "pointer" }}><Search size={13} /><span>Search</span><kbd style={{ fontSize: 8.5, border: `1px solid ${LINE}`, borderRadius: 4, padding: "1px 5px", color: FAINT }}>⌘K</kbd></button>
+                <button onClick={() => { if (adminTab !== "guide") setPrevTab(adminTab); setAdminTab("guide"); }} title="Studio guide" style={{ display: "flex", alignItems: "center", gap: 7, ...mono, fontSize: 10.5, letterSpacing: "0.04em", color: adminTab === "guide" ? INK : STONE, background: "transparent", border: `1px solid ${adminTab === "guide" ? INK : LINE}`, borderRadius: 6, padding: "7px 10px", cursor: "pointer" }}><FileText size={13} /><span>Guide</span></button>
                 <span style={{ ...mono, fontSize: 10, letterSpacing: "0.16em", textTransform: "uppercase", color: STONE }}>Studio</span>
                 <button onClick={adminLogout} style={{ ...mono, fontSize: 10.5, letterSpacing: "0.08em", textTransform: "uppercase", color: STONE, background: "transparent", border: `1px solid ${LINE}`, borderRadius: 6, padding: "8px 12px", cursor: "pointer" }}>Sign out</button>
               </>
@@ -420,7 +422,6 @@ export default function App() {
               <SubTab active={adminTab === "services"} onClick={() => setAdminTab("services")} label="Services & Add-ons" />
               <SubTab active={adminTab === "business"} onClick={() => setAdminTab("business")} label="Business Settings" />
               <SubTab active={adminTab === "account"} onClick={() => setAdminTab("account")} label="Client Accounts" />
-              <SubTab active={adminTab === "guide"} onClick={() => setAdminTab("guide")} label="Guide" />
             </div>
             {adminTab === "home" && <StudioHome state={state} setAdminId={setAdminId} setAdminTab={setAdminTab} dark={themeKey === "midnight"} />}
             {adminTab === "sessions" && <AdminSessions state={state} adminId={adminId} setAdminId={setAdminId} requestSetStage={requestSetStage} addComment={addComment} patchSession={patchSession} onReschedule={adminReschedule} slotTaken={slotTaken} markMessagesRead={markMessagesRead} onCancelBooking={requestCancelBooking} onCloseBooking={requestCloseBooking} onReopenBooking={requestReopenBooking} onSendBalance={requestSendBalance} onSendCharge={requestSendCharge} onCheckPayment={checkChargePayment} onNewInternal={() => setInternalOpen(true)} onEmailDelivery={confirmSendDelivery} onRequestReview={requestReview} onSetGroup={setSessionGroup} onDeleteBooking={requestDeleteBooking} />}
@@ -430,7 +431,7 @@ export default function App() {
             {adminTab === "services" && <ServiceCatalog state={state} addService={addService} updateService={updateService} deleteService={deleteService} addAddon={addAddon} updateAddon={updateAddon} deleteAddon={deleteAddon} showToast={showToast} setConfirm={setConfirm} />}
             {adminTab === "business" && <BusinessSettings sessions={state.sessions} showToast={showToast} onImport={importSessions} />}
             {adminTab === "account" && <AccountManagement state={state} showToast={showToast} />}
-            {adminTab === "guide" && <GuidePage title="Studio Admin Guide" html={ADMIN_GUIDE_HTML} pdf="/guides/dot1-admin-guide.pdf" />}
+            {adminTab === "guide" && <GuidePage title="Studio Admin Guide" html={ADMIN_GUIDE_HTML} pdf="/guides/dot1-admin-guide.pdf" onBack={() => setAdminTab(prevTab)} />}
           </div>
         )}
       </main>
