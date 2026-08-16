@@ -21,6 +21,7 @@ import { BookingFlow } from "../lib/portal/BookingFlow";
 import { ClientView } from "../lib/portal/ClientView";
 import { GuidePage } from "../lib/portal/GuidePage";
 import { CLIENT_GUIDE_HTML, ADMIN_GUIDE_HTML } from "../lib/portal/guides";
+import { AccountManagement } from "../lib/portal/AccountManagement";
 import {
   CalendarCheck, FileCheck, Camera, Upload, Scissors, Eye, PackageCheck,
   CheckCircle2, User, LayoutDashboard, Send, Play, Image as ImageIcon,
@@ -418,6 +419,7 @@ export default function App() {
               <SubTab active={adminTab === "availability"} onClick={() => setAdminTab("availability")} label="Availability" />
               <SubTab active={adminTab === "services"} onClick={() => setAdminTab("services")} label="Services & Add-ons" />
               <SubTab active={adminTab === "business"} onClick={() => setAdminTab("business")} label="Business Settings" />
+              <SubTab active={adminTab === "account"} onClick={() => setAdminTab("account")} label="Client Accounts" />
               <SubTab active={adminTab === "guide"} onClick={() => setAdminTab("guide")} label="Guide" />
             </div>
             {adminTab === "home" && <StudioHome state={state} setAdminId={setAdminId} setAdminTab={setAdminTab} dark={themeKey === "midnight"} />}
@@ -427,6 +429,7 @@ export default function App() {
             {adminTab === "availability" && <><CalendarSync showToast={showToast} /><AvailabilityManager availability={state.availability} addAvailability={addAvailability} removeAvailability={removeAvailability} showToast={showToast} /></>}
             {adminTab === "services" && <ServiceCatalog state={state} addService={addService} updateService={updateService} deleteService={deleteService} addAddon={addAddon} updateAddon={updateAddon} deleteAddon={deleteAddon} showToast={showToast} setConfirm={setConfirm} />}
             {adminTab === "business" && <BusinessSettings sessions={state.sessions} showToast={showToast} onImport={importSessions} />}
+            {adminTab === "account" && <AccountManagement state={state} showToast={showToast} />}
             {adminTab === "guide" && <GuidePage title="Studio Admin Guide" html={ADMIN_GUIDE_HTML} pdf="/guides/dot1-admin-guide.pdf" />}
           </div>
         )}

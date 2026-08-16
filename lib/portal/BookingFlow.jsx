@@ -7,7 +7,7 @@ import { fmtDate, fmtTime, money } from "./format";
 import { PHOTO_CATEGORIES, CLIENT_SERVICES_VERSION, RELEASE_VERSION, PDF_CLIENT_SERVICES, PDF_RELEASE, PDF_MINOR, CLIENT_SERVICES_SUMMARY, RELEASE_SUMMARY, MINOR_SUMMARY } from "./constants";
 import { PAYMENT_RULES, STAGES } from "./stages";
 import { bookingTotal, optionAmount } from "./pricing";
-import { FieldLabel, TextInput, EmptyState, Skeleton, Row } from "./ui";
+import { FieldLabel, TextInput, EmptyState, Skeleton, Row, PasswordMeter } from "./ui";
 
 const USAGE_OPTIONS = [
   { key: "A", label: "Portfolio & Marketing (default)", desc: "Dot One Media may use the content to promote its own business, including its website, social media, portfolio, samples, competition entries, and its own advertising. It will not sell or license your images to unrelated third parties." },
@@ -49,7 +49,7 @@ export function BookingFlow({ state, direct, slotTaken, onCancel, onComplete, on
     setSubmitErr("");
     if (!authedClient) {
       if (!acct.name.trim() || !acct.email.trim()) { setSubmitErr("Please enter your name and email."); return; }
-      if (!acct.password || acct.password.length < 6) { setSubmitErr("Create a password of at least 6 characters."); return; }
+      if (!acct.password || acct.password.length < 8) { setSubmitErr("Create a password of at least 8 characters."); return; }
     }
     if (isMinor && (!child.name.trim() || !child.age.trim() || !child.relationship.trim())) { setSubmitErr("Please add the child's name, age, and your relationship to the child."); return; }
     if (!agree || !acct.signature.trim()) { setSubmitErr("Type your full legal name and check the box to sign."); return; }
@@ -272,7 +272,8 @@ export function BookingFlow({ state, direct, slotTaken, onCancel, onComplete, on
               <FieldLabel>Phone (optional)</FieldLabel>
               <TextInput value={acct.phone} onChange={(v) => setAcct({ ...acct, phone: v })} placeholder="(907) 555-0123" />
               <FieldLabel>Create a password</FieldLabel>
-              <input type="password" value={acct.password} onChange={(e) => setAcct({ ...acct, password: e.target.value })} placeholder="At least 6 characters" style={{ ...inputStyle, marginBottom: 2 }} />
+              <input type="password" value={acct.password} onChange={(e) => setAcct({ ...acct, password: e.target.value })} placeholder="At least 8 characters" style={{ ...inputStyle, marginBottom: 2 }} />
+              <PasswordMeter value={acct.password} />
               <div style={{ ...mono, fontSize: 10, color: FAINT, marginTop: 4, lineHeight: 1.4 }}>You'll use your email and this password to sign in later and check your session.</div>
             </>
           ) : (
@@ -387,4 +388,5 @@ export function BookingFlow({ state, direct, slotTaken, onCancel, onComplete, on
     </div>
   );
 }
+
 

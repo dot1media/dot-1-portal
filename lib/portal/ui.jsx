@@ -1,7 +1,7 @@
 // Dot One Media portal - reusable presentational UI components.
 // Depend only on theme/groups/format + React + lucide (no page state). Verified by render harness.
 import React, { useState, useEffect } from "react";
-import { RED, INK, BODY, STONE, FAINT, LINE, PAPER, CREAM, display, mono, cardDense } from "./theme";
+import { RED, INK, BODY, STONE, FAINT, LINE, PAPER, CREAM, OK, WARN, DANGER, display, mono, cardDense } from "./theme";
 import { GROUPS } from "./groups";
 import { fmtDate, fmtTime } from "./format";
 import { ChevronLeft, ChevronRight } from "lucide-react";
@@ -184,6 +184,32 @@ export function Row({ k, v, bold, sub, red }) {
     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", padding: sub ? "3px 0" : "5px 0" }}>
       <span style={{ fontSize: sub ? 12.5 : 13.5, color: sub ? STONE : BODY, fontWeight: bold ? 600 : 400 }}>{k}</span>
       <span style={{ ...mono, fontSize: sub ? 12 : 13.5, color: red ? RED : INK, fontWeight: bold ? 600 : 400 }}>{v}</span>
+    </div>
+  );
+}
+
+
+
+export function PasswordMeter({ value }) {
+  const pw = value || "";
+  if (!pw) return null;
+  let filled, label, color;
+  if (pw.length < 8) { filled = 1; label = "Too short"; color = DANGER; }
+  else {
+    let s = 1;
+    if (pw.length >= 12) s++;
+    if (/[a-z]/.test(pw) && /[A-Z]/.test(pw)) s++;
+    if (/\d/.test(pw) && /[^A-Za-z0-9]/.test(pw)) s++;
+    filled = Math.min(s, 4);
+    label = ["", "Weak", "Fair", "Good", "Strong"][filled];
+    color = filled >= 3 ? OK : WARN;
+  }
+  return (
+    <div style={{ marginTop: 6 }}>
+      <div style={{ display: "flex", gap: 4 }}>
+        {[0, 1, 2, 3].map((i) => <div key={i} style={{ flex: 1, height: 4, borderRadius: 2, background: i < filled ? color : LINE }} />)}
+      </div>
+      <div style={{ ...mono, fontSize: 10, color: color, marginTop: 4, letterSpacing: "0.06em", textTransform: "uppercase" }}>{label}</div>
     </div>
   );
 }

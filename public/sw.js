@@ -1,4 +1,4 @@
-const CACHE = "dot1-portal-v2";
+const CACHE = "dot1-portal-v3";
 self.addEventListener("install", (e) => {
   e.waitUntil(caches.open(CACHE).then((c) => c.add("/")).catch(() => {}));
   self.skipWaiting();

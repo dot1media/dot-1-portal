@@ -2,7 +2,7 @@
 import React, { useState } from "react";
 import { AlertTriangle, ArrowRight, Check, LayoutDashboard, LogIn, Send, Sparkles, User } from "lucide-react";
 import { RED, INK, BODY, STONE, FAINT, LINE, PAPER, CREAM, OK, DANGER, display, mono, inputStyle, btnSolid } from "./theme";
-import { FieldLabel, TextInput } from "./ui";
+import { FieldLabel, TextInput, PasswordMeter } from "./ui";
 import { useIsMobile } from "./hooks";
 
 export function ResetPassword({ token, onDone, showToast }) {
@@ -10,7 +10,7 @@ export function ResetPassword({ token, onDone, showToast }) {
   const [pw2, setPw2] = useState("");
   const [busy, setBusy] = useState(false);
   const submit = async () => {
-    if (pw.length < 6) { showToast("Password must be at least 6 characters."); return; }
+    if (pw.length < 8) { showToast("Password must be at least 8 characters."); return; }
     if (pw !== pw2) { showToast("Those passwords don't match."); return; }
     setBusy(true);
     try {
@@ -29,7 +29,8 @@ export function ResetPassword({ token, onDone, showToast }) {
       </div>
       <div style={{ background: PAPER, border: `1px solid ${LINE}`, borderRadius: 12, padding: "22px 24px" }}>
         <FieldLabel>New password</FieldLabel>
-        <input type="password" value={pw} onChange={(e) => setPw(e.target.value)} placeholder="At least 6 characters" style={inputStyle} />
+        <input type="password" value={pw} onChange={(e) => setPw(e.target.value)} placeholder="At least 8 characters" style={inputStyle} />
+        <PasswordMeter value={pw} />
         <FieldLabel>Confirm password</FieldLabel>
         <input type="password" value={pw2} onChange={(e) => setPw2(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") submit(); }} placeholder="Re-enter your password" style={inputStyle} />
         <button onClick={submit} disabled={busy} style={{ ...btnSolid, background: busy ? FAINT : RED, width: "100%", justifyContent: "center", marginTop: 14, padding: "11px" }}>{busy ? "Saving..." : "Update password"}</button>
@@ -157,4 +158,5 @@ export function LoginView({ onLogin, onBook, onStudio, onForgot }) {
     </div>
   );
 }
+
 

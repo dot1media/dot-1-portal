@@ -14,6 +14,7 @@ export async function POST(request: Request) {
   if (!name || !email) return NextResponse.json({ error: "Name and email are required." }, { status: 400 });
   if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return NextResponse.json({ error: "Please enter a valid email address." }, { status: 400 });
 
+  if (password && password.length < 8) return NextResponse.json({ error: "Password must be at least 8 characters." }, { status: 400 });
   const passwordHash = password ? hashPassword(password) : null;
   const rows = await sql`
     INSERT INTO users (name, email, phone, role, password_hash)
@@ -37,4 +38,5 @@ export async function GET(request: Request) {
   const agreements = await sql`SELECT agreement_type, version, signed_name, signed_at FROM agreements WHERE user_id = ${users[0].id} ORDER BY signed_at DESC`;
   return NextResponse.json({ user: users[0], agreements });
 }
+
 

@@ -10,8 +10,9 @@ export async function POST(request: Request) {
   const password = String(b.password || "");
   const v = verifyResetToken(token);
   if (!v || !v.email) return NextResponse.json({ error: "This reset link is invalid or has expired. Please request a new one." }, { status: 400 });
-  if (password.length < 6) return NextResponse.json({ error: "Password must be at least 6 characters." }, { status: 400 });
+  if (password.length < 8) return NextResponse.json({ error: "Password must be at least 8 characters." }, { status: 400 });
   await sql`UPDATE users SET password_hash = ${hashPassword(password)} WHERE email = ${v.email.toLowerCase()}`;
   return NextResponse.json({ ok: true });
 }
+
 
