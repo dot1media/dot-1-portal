@@ -106,7 +106,7 @@ export default function App() {
   const [catalogError, setCatalogError] = useState(false);
   useEffect(() => { if (!loaded) return; (async () => { try { const { services, addons, availability, sessions, takenSlots, ...rest } = state; await storage.set(STORAGE_KEY, JSON.stringify(rest)); } catch (e) {} })(); }, [state, loaded]);
   useEffect(() => { (async () => { try { const res = await fetch("/api/services"); const data = await res.json(); if (!res.ok) throw new Error(); setState((s) => ({ ...s, services: data.services || [], addons: data.addons || [] })); setCatalogError(false); } catch (e) { setCatalogError(true); } finally { setCatalogLoaded(true); } })(); }, []);
-  useEffect(() => { (async () => { try { const a = await fetch("/api/auth/me").then((r) => r.json()).catch(() => null); if (a && a.admin) { setView("admin"); const sd = await fetch("/api/sessions").then((r) => r.json()).catch(() => ({})); if (sd && sd.sessions) setState((s) => ({ ...s, sessions: sd.sessions })); return; } const c = await fetch("/api/client-me").then((r) => r.json()).catch(() => null); if (c && c.client && c.email) { setClientAuth({ name: "", email: c.email }); const sd = await fetch("/api/sessions").then((r) => r.json()).catch(() => ({})); const sess = (sd && sd.sessions) || []; if (sess.length) { setClientAuth({ name: sess[0].clientName || "", email: c.email }); setState((s) => ({ ...s, sessions: sess })); setClientId(sess[0].id); setView("client"); } } } catch (e) {} finally { setAuthChecked(true); } })(); }, []);
+  useEffect(() => { (async () => { try { const a = await fetch("/api/auth/me").then((r) => r.json()).catch(() => null); if (a && a.admin) { setView("admin"); const sd = await fetch("/api/sessions").then((r) => r.json()).catch(() => ({})); if (sd && sd.sessions) setState((s) => ({ ...s, sessions: sd.sessions })); return; } const c = await fetch("/api/client-me").then((r) => r.json()).catch(() => null); if (c && c.client && c.email) { setClientAuth({ name: "", email: c.email }); const sd = await fetch("/api/sessions").then((r) => r.json()).catch(() => ({})); const myCEmail = (c.email || "").toLowerCase(); const sess = ((sd && sd.sessions) || []).filter((x) => (x.clientEmail || "").toLowerCase() === myCEmail); if (sess.length) { setClientAuth({ name: sess[0].clientName || "", email: c.email }); setState((s) => ({ ...s, sessions: sess })); setClientId(sess[0].id); setView("client"); } } } catch (e) {} finally { setAuthChecked(true); } })(); }, []);
   useEffect(() => { (async () => { try { const res = await fetch("/api/availability"); const data = await res.json(); if (res.ok) setState((s) => ({ ...s, availability: data.availability || [] })); } catch (e) {} })(); }, []);
   useEffect(() => {
     if (typeof navigator !== "undefined" && "serviceWorker" in navigator) { navigator.serviceWorker.register("/sw.js").catch(() => {}); }
@@ -140,7 +140,7 @@ export default function App() {
       const payKind = new URLSearchParams(window.location.search).get("kind") || "";
       const payCharge = new URLSearchParams(window.location.search).get("charge") || "";
       try { res = await fetch("/api/pay/verify?sid=" + encodeURIComponent(paidSid) + (payKind ? "&kind=" + encodeURIComponent(payKind) : "") + (payCharge ? "&charge=" + encodeURIComponent(payCharge) : "")).then((r) => r.json()).catch(() => ({})); } catch (e) {}
-      try { const sd = await fetch("/api/sessions").then((r) => r.json()).catch(() => ({})); const sess = (sd && sd.sessions) || []; if (sess.length) { setState((s) => ({ ...s, sessions: sess })); const mine = sess.find((x) => x.id === paidSid) || sess[0]; setClientId(mine.id); setClientAuth({ name: mine.clientName || "", email: mine.clientEmail || "" }); setView("thankyou"); } } catch (e) {}
+      try { const sd = await fetch("/api/sessions").then((r) => r.json()).catch(() => ({})); const all = (sd && sd.sessions) || []; const paid0 = all.find((x) => x.id === paidSid); const myTEmail = ((paid0 && paid0.clientEmail) || "").toLowerCase(); const sess = myTEmail ? all.filter((x) => (x.clientEmail || "").toLowerCase() === myTEmail) : all; if (sess.length) { setState((s) => ({ ...s, sessions: sess })); const mine = sess.find((x) => x.id === paidSid) || sess[0]; setClientId(mine.id); setClientAuth({ name: mine.clientName || "", email: mine.clientEmail || "" }); setView("thankyou"); } } catch (e) {}
       showToast(res && res.paid ? "Payment received. Thank you!" : "Thanks! If your payment is still processing, your status will update shortly.");
     })();
   }, []);
@@ -294,9 +294,10 @@ export default function App() {
     const data = res ? await res.json().catch(() => ({})) : {};
     if (!res || !res.ok) { showToast(data.error || "Incorrect email or password."); return; }
     const sd = await fetch("/api/sessions").then((r) => r.json()).catch(() => ({}));
-    const sess = (sd && sd.sessions) || [];
+    const myEmail = (email || "").trim().toLowerCase();
+    const sess = ((sd && sd.sessions) || []).filter((x) => (x.clientEmail || "").toLowerCase() === myEmail);
     setState((s) => ({ ...s, sessions: sess }));
-    setClientAuth({ name: (data.name) || (sess[0] && sess[0].clientName) || "", email: (email || "").trim().toLowerCase() });
+    setClientAuth({ name: (data.name) || (sess[0] && sess[0].clientName) || "", email: myEmail });
     if (sess.length) { setClientId(sess[0].id); setView("client"); showToast("Welcome back, " + sess[0].clientName + "!"); }
     else { setClientId(""); setView("client"); showToast("Signed in. You don't have any sessions yet."); }
     applyServerTheme();
