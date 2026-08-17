@@ -16,6 +16,7 @@ import { InternalBookingModal } from "../lib/portal/InternalBookingModal";
 import { ServiceForm } from "../lib/portal/ServiceForm";
 import { DirectLinks } from "../lib/portal/DirectLinks";
 import { AdminSessions } from "../lib/portal/AdminSessions";
+import Inbox from "../lib/portal/Inbox";
 import { BusinessSettings } from "../lib/portal/BusinessSettings";
 import { AdminAccounts } from "../lib/portal/AdminAccounts";
 import { BookingFlow } from "../lib/portal/BookingFlow";
@@ -92,6 +93,7 @@ export default function App() {
   const [directContext, setDirectContext] = useState(null);
   const [toast, setToast] = useState(null);
   const [confirm, setConfirm] = useState(null);
+  const [inquiries, setInquiries] = useState([]);
   const toastTimer = useRef(null);
 
   useEffect(() => {
@@ -121,6 +123,14 @@ export default function App() {
   }, [view]);
   useEffect(() => { (async () => { try { const res = await fetch("/api/sessions?slots=1"); const data = await res.json(); if (res.ok) setState((s) => ({ ...s, takenSlots: data.takenSlots || [] })); } catch (e) {} })(); }, []);
   const refreshSlots = async () => { try { const res = await fetch("/api/sessions?slots=1"); const data = await res.json(); if (res.ok) setState((s) => ({ ...s, takenSlots: data.takenSlots || [] })); } catch (e) {} };
+  useEffect(() => {
+    if (view !== "admin") return;
+    let stop = false;
+    const load = async () => { try { const res = await fetch("/api/inquiries"); const d = await res.json(); if (res.ok && !stop) setInquiries(d.inquiries || []); } catch (e) {} };
+    load();
+    const t = setInterval(load, 45000);
+    return () => { stop = true; clearInterval(t); };
+  }, [view]);
   const reconciledRef = useRef({});
   useEffect(() => {
     const paidSid = new URLSearchParams(window.location.search).get("paid");
@@ -426,6 +436,7 @@ export default function App() {
           <div>
             <div style={{ display: "flex", gap: 6, marginBottom: 24, borderBottom: `1px solid ${LINE}`, flexWrap: "wrap" }}>
               <SubTab active={adminTab === "home"} onClick={() => setAdminTab("home")} label="Home" />
+              <SubTab active={adminTab === "inbox"} onClick={() => setAdminTab("inbox")} label="Inbox" badge={inquiries.filter((i) => !i.handled).length} />
               <SubTab active={adminTab === "sessions"} onClick={() => setAdminTab("sessions")} label="Sessions" badge={unreadClientTotal} />
               <SubTab active={adminTab === "calendar"} onClick={() => setAdminTab("calendar")} label="Calendar" />
               <SubTab active={adminTab === "links"} onClick={() => setAdminTab("links")} label="Direct Booking Link" />
@@ -436,6 +447,7 @@ export default function App() {
               <SubTab active={adminTab === "admins"} onClick={() => setAdminTab("admins")} label="Admins" />
             </div>
             {adminTab === "home" && <StudioHome state={state} setAdminId={setAdminId} setAdminTab={setAdminTab} dark={themeKey === "midnight"} />}
+            {adminTab === "inbox" && <Inbox inquiries={inquiries} setInquiries={setInquiries} showToast={showToast} />}
             {adminTab === "sessions" && <AdminSessions state={state} adminId={adminId} setAdminId={setAdminId} requestSetStage={requestSetStage} addComment={addComment} patchSession={patchSession} onReschedule={adminReschedule} slotTaken={slotTaken} markMessagesRead={markMessagesRead} onCancelBooking={requestCancelBooking} onCloseBooking={requestCloseBooking} onReopenBooking={requestReopenBooking} onSendBalance={requestSendBalance} onSendCharge={requestSendCharge} onCheckPayment={checkChargePayment} onNewInternal={() => setInternalOpen(true)} onEmailDelivery={confirmSendDelivery} onRequestReview={requestReview} onSendInvite={requestInvite} onSetGroup={setSessionGroup} onDeleteBooking={requestDeleteBooking} />}
             {adminTab === "calendar" && <AdminCalendar state={state} onSelectSession={(id) => { setAdminId(id); setAdminTab("sessions"); }} />}
             {adminTab === "links" && <DirectLinks state={state} createDirectLink={createDirectLink} revokeDirectLink={revokeDirectLink} openDirectLink={openDirectLink} showToast={showToast} />}
