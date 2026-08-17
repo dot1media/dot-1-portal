@@ -439,23 +439,19 @@ export default function App() {
               <SubTab active={adminTab === "inbox"} onClick={() => setAdminTab("inbox")} label="Inbox" badge={inquiries.filter((i) => !i.handled).length} />
               <SubTab active={adminTab === "sessions"} onClick={() => setAdminTab("sessions")} label="Sessions" badge={unreadClientTotal} />
               <SubTab active={adminTab === "calendar"} onClick={() => setAdminTab("calendar")} label="Calendar" />
-              <SubTab active={adminTab === "links"} onClick={() => setAdminTab("links")} label="Direct Booking Link" />
               <SubTab active={adminTab === "availability"} onClick={() => setAdminTab("availability")} label="Availability" />
               <SubTab active={adminTab === "services"} onClick={() => setAdminTab("services")} label="Services & Add-ons" />
               <SubTab active={adminTab === "business"} onClick={() => setAdminTab("business")} label="Business Settings" />
-              <SubTab active={adminTab === "account"} onClick={() => setAdminTab("account")} label="Client Accounts" />
-              <SubTab active={adminTab === "admins"} onClick={() => setAdminTab("admins")} label="Admins" />
+              <SubTab active={adminTab === "account"} onClick={() => setAdminTab("account")} label="Account Management" />
             </div>
             {adminTab === "home" && <StudioHome state={state} setAdminId={setAdminId} setAdminTab={setAdminTab} dark={themeKey === "midnight"} />}
             {adminTab === "inbox" && <Inbox inquiries={inquiries} setInquiries={setInquiries} showToast={showToast} />}
             {adminTab === "sessions" && <AdminSessions state={state} adminId={adminId} setAdminId={setAdminId} requestSetStage={requestSetStage} addComment={addComment} patchSession={patchSession} onReschedule={adminReschedule} slotTaken={slotTaken} markMessagesRead={markMessagesRead} onCancelBooking={requestCancelBooking} onCloseBooking={requestCloseBooking} onReopenBooking={requestReopenBooking} onSendBalance={requestSendBalance} onSendCharge={requestSendCharge} onCheckPayment={checkChargePayment} onNewInternal={() => setInternalOpen(true)} onEmailDelivery={confirmSendDelivery} onRequestReview={requestReview} onSendInvite={requestInvite} onSetGroup={setSessionGroup} onDeleteBooking={requestDeleteBooking} />}
             {adminTab === "calendar" && <AdminCalendar state={state} onSelectSession={(id) => { setAdminId(id); setAdminTab("sessions"); }} />}
-            {adminTab === "links" && <DirectLinks state={state} createDirectLink={createDirectLink} revokeDirectLink={revokeDirectLink} openDirectLink={openDirectLink} showToast={showToast} />}
-            {adminTab === "availability" && <><CalendarSync showToast={showToast} /><AvailabilityManager availability={state.availability} addAvailability={addAvailability} removeAvailability={removeAvailability} showToast={showToast} /></>}
+            {adminTab === "availability" && <><CalendarSync showToast={showToast} /><AvailabilityManager availability={state.availability} addAvailability={addAvailability} removeAvailability={removeAvailability} showToast={showToast} /><div style={{ marginTop: 44, paddingTop: 40, borderTop: `1px solid ${LINE}` }}><DirectLinks state={state} createDirectLink={createDirectLink} revokeDirectLink={revokeDirectLink} openDirectLink={openDirectLink} showToast={showToast} /></div></>}
             {adminTab === "services" && <ServiceCatalog state={state} addService={addService} updateService={updateService} deleteService={deleteService} addAddon={addAddon} updateAddon={updateAddon} deleteAddon={deleteAddon} showToast={showToast} setConfirm={setConfirm} />}
             {adminTab === "business" && <BusinessSettings sessions={state.sessions} showToast={showToast} onImport={importSessions} />}
-            {adminTab === "account" && <AccountManagement state={state} showToast={showToast} />}
-            {adminTab === "admins" && <AdminAccounts showToast={showToast} />}
+            {adminTab === "account" && <><AccountManagement state={state} showToast={showToast} /><div style={{ marginTop: 44, paddingTop: 40, borderTop: `1px solid ${LINE}` }}><AdminAccounts showToast={showToast} /></div></>}
             {adminTab === "guide" && <GuidePage title="Studio Admin Guide" html={ADMIN_GUIDE_HTML} pdf="/guides/dot1-admin-guide.pdf" onBack={() => setAdminTab(prevTab)} />}
           </div>
         )}
@@ -911,7 +907,7 @@ function CommandPalette({ state, setAdminTab, setAdminId, onClose, onSignOut, on
     { icon: LayoutDashboard, label: "Home", sub: "Dashboard and overview", kws: "home dashboard overview metrics", run: () => go("home") },
     { icon: CalendarDays, label: "Sessions", sub: "Manage every booking", kws: "sessions bookings clients projects", run: () => go("sessions") },
     { icon: CalendarClock, label: "Calendar", sub: "Month view by service line", kws: "calendar schedule month", run: () => go("calendar") },
-    { icon: Link2, label: "Direct Booking Link", sub: "Reserve a slot for a client", kws: "direct booking link reserve hold", run: () => go("links") },
+    { icon: Link2, label: "Direct Booking Link", sub: "Reserve a slot for a client", kws: "direct booking link reserve hold", run: () => go("availability") },
     { icon: Clock, label: "Availability", sub: "Open days and hours", kws: "availability hours open days bookable", run: () => go("availability") },
     { icon: Package, label: "Services and Add-ons", sub: "Your catalog", kws: "services addons catalog pricing appointment types", run: () => go("services") },
     { icon: Settings, label: "Business Settings", sub: "Revenue, receipts, exports", kws: "business settings revenue receipts export payments", run: () => go("business") },
