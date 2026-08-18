@@ -101,7 +101,7 @@ export async function GET(request: Request) {
             receipt = "recorded";
             try { await sendEmail({ to: data.notifyEmail || "contact@dot1.media", subject: "Payment received \u00b7 $" + (amountCents / 100).toFixed(2) + " from " + (data.clientName || "a client"), html: paymentStudioEmail(data, { amountCents, kind: rcptKind, cardBrand: cd.card_brand, cardLast4: cd.last_4 }), replyTo: data.clientEmail }); } catch (e3) {}
             if (data.clientEmail) {
-              const rec: any = { id: rid, client_email: data.clientEmail, client_name: data.clientName, service: rcptService, kind: rcptKind, amount_cents: amountCents, card_brand: cd.card_brand, card_last4: cd.last_4, paid_at: paidAt };
+              const rec: any = { id: rid, client_email: data.clientEmail, client_name: data.clientName, service: rcptService, kind: rcptKind, amount_cents: amountCents, total_cents: Math.round((Number(data.total) || 0) * 100), card_brand: cd.card_brand, card_last4: cd.last_4, paid_at: paidAt };
               let attachments: any = undefined;
               try { attachments = [{ filename: "Dot-One-Media-Receipt.pdf", content: await receiptPdf(rec) }]; } catch (e2) {}
               try { await sendToClient(data.clientEmail, "payments", { subject: "Your Dot One Media receipt", html: receiptEmail(rec), attachments }); }

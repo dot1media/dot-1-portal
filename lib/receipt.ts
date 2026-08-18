@@ -47,7 +47,14 @@ export async function receiptPdf(p: any): Promise<string> {
   const amt = receiptMoneyCents(p.amount_cents);
   t((p.service || "Session") + "  \u2014  " + kindLabel(p.kind), M, 12, helv, INK); tr(amt, 12, helv, INK); y -= 20;
   rule(); y -= 22;
-  t("Amount paid", R - 210, 12, bold, INK); tr(amt, 14, bold, RED); y -= 32;
+  t("Amount paid", R - 210, 12, bold, INK); tr(amt, 14, bold, RED); y -= 20;
+  const totalC = Number(p.total_cents) || 0;
+  const remainC = totalC - (Number(p.amount_cents) || 0);
+  const partial = ["retainer", "deposit", "half"].indexOf(String(p.kind || "").toLowerCase()) !== -1;
+  if (partial && totalC > 0 && remainC > 0) {
+    t("Session total " + receiptMoneyCents(totalC) + "  \u00b7  balance remaining " + receiptMoneyCents(remainC) + ", due per your service agreement.", M, 8.5, helv, GRAY);
+  }
+  y -= 24;
 
   t("PAYMENT METHOD", M, 8, bold, GRAY); y -= 14;
   t(cardLabel(p), M, 11, helv, INK); y -= 42;

@@ -92,7 +92,7 @@ export async function POST(request: Request) {
     durationMin: svc.duration_min || 60, apptMin: svc.duration_min || 60, padBefore: 0, padAfter: 0,
     currentStage: 0, stageTimes: { 0: "just now" }, comments: [],
     selectedAddons: addons.map((a) => ({ id: a.id, name: a.name + (a.qty > 1 ? " x" + a.qty : ""), price: ((a.price_cents || 0) * (a.qty || 1)) / 100, qty: a.qty || 1, unitPrice: (a.price_cents || 0) / 100 })),
-    total: totalCents / 100, payChoice: "deposit", paymentStatus: "pending", payAmount: retainerCents / 100,
+    total: totalCents / 100, payChoice: "retainer", paymentStatus: "pending", payAmount: retainerCents / 100,
     reviewLink: "", deliveryVideo: "", deliveryPhoto: "", deliveryMusic: "", deliveryGov: "",
     invoiceNo: "", invoiceToken: token, source: "invoice",
   };

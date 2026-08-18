@@ -220,13 +220,20 @@ export function receiptEmail(p: any): string {
   let dt = "";
   try { dt = new Date(p.paid_at).toLocaleString("en-US", { year: "numeric", month: "long", day: "numeric", hour: "numeric", minute: "2-digit", timeZone: "America/Anchorage" }); } catch (e) {}
   const card = p.card_brand ? (esc(String(p.card_brand).replace(/_/g, " ").replace(/\b\w/g, (c: string) => c.toUpperCase())) + (p.card_last4 ? " \u00b7\u00b7\u00b7\u00b7 " + esc(p.card_last4) : "")) : "Card";
+  const totalC = Number(p.total_cents) || 0;
+  const remainC = totalC - (Number(p.amount_cents) || 0);
+  const partial = ["retainer", "deposit", "half"].indexOf(String(p.kind || "").toLowerCase()) !== -1;
+  const rows2: string[][] = [
+    ["Amount paid", amt],
+    ["For", esc(p.service || "Session") + " \u00b7 " + kindLabel],
+    ["Date", esc(dt)],
+    ["Payment method", card],
+  ];
+  if (partial && totalC > 0 && remainC > 0) {
+    rows2.push(["Balance remaining", "$" + (remainC / 100).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })]);
+  }
   const body = para("Thank you, " + esc(p.client_name || "there") + ". We\u2019ve received your payment. Your receipt is below, and a PDF copy is attached for your records.")
-    + detailRows([
-        ["Amount paid", amt],
-        ["For", esc(p.service || "Session") + " \u00b7 " + kindLabel],
-        ["Date", esc(dt)],
-        ["Payment method", card],
-      ]);
+    + detailRows(rows2);
   return shell(BRAND_MAIN, "Payment Receipt", "Payment received", body);
 }
 
