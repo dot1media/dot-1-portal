@@ -4,7 +4,7 @@ import { AlertTriangle, ArrowLeft, ArrowRight, CalendarClock, Check, ChevronDown
 import { RED, INK, BODY, STONE, FAINT, LINE, PAPER, CREAM, DANGER, display, mono, card, inputStyle, btnGhost, btnSolid } from "./theme";
 import { GROUPS, GROUP_KEYS } from "./groups";
 import { fmtDate, fmtTime, money } from "./format";
-import { PHOTO_CATEGORIES, CLIENT_SERVICES_VERSION, RELEASE_VERSION, PDF_CLIENT_SERVICES, PDF_RELEASE, PDF_MINOR, CLIENT_SERVICES_SUMMARY, RELEASE_SUMMARY, MINOR_SUMMARY } from "./constants";
+import { PHOTO_CATEGORIES, CLIENT_SERVICES_VERSION, RELEASE_VERSION, PDF_CLIENT_SERVICES, PDF_RELEASE, PDF_MINOR, CLIENT_SERVICES_SUMMARY, clientServicesSummary, RELEASE_SUMMARY, MINOR_SUMMARY } from "./constants";
 import { PAYMENT_RULES, STAGES } from "./stages";
 import { bookingTotal, optionAmount } from "./pricing";
 import { FieldLabel, TextInput, EmptyState, Skeleton, Row, PasswordMeter } from "./ui";
@@ -285,7 +285,7 @@ export function BookingFlow({ state, direct, slotTaken, onCancel, onComplete, on
             <span style={{ fontSize: 12.5, color: BODY, lineHeight: 1.5 }}>This session is for a child under 18. I am the parent or legal guardian and will sign on their behalf.</span>
           </label>
 
-          {!authedClient && <AgreementBox title="1 - Client Services Agreement" text={CLIENT_SERVICES_SUMMARY} pdf={PDF_CLIENT_SERVICES} A={A} />}
+          {!authedClient && <AgreementBox title="1 - Client Services Agreement" text={clientServicesSummary(group)} pdf={PDF_CLIENT_SERVICES} A={A} />}
           <AgreementBox title={authedClient ? (isMinor ? "Minor Release & Liability Waiver" : "Release & Liability Waiver") : (isMinor ? "2 - Minor Release & Liability Waiver" : "2 - Release & Liability Waiver")} text={isMinor ? MINOR_SUMMARY : RELEASE_SUMMARY} pdf={isMinor ? PDF_MINOR : PDF_RELEASE} A={A} />
 
           {isMinor && (
