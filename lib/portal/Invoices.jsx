@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { X, FileText, Plus, Trash2, Send, Eye, RefreshCw, Copy, ChevronLeft, Download } from "lucide-react";
+import { X, FileText, Plus, Trash2, Send, Eye, RefreshCw, Copy, ChevronLeft, Download, Link2 } from "lucide-react";
 import { INK, BODY, STONE, FAINT, LINE, PAPER, CREAM, RED, OK, mono, display, card, inputStyle, btnSolid } from "./theme";
 import { GROUPS } from "./groups";
 
@@ -63,6 +63,15 @@ export function InvoiceArchive({ showToast }) {
   };
   const copyLink = async (inv) => { try { await navigator.clipboard.writeText(inv.payUrl || ""); showToast("Payment link copied."); } catch (e) { showToast("Could not copy the link."); } };
   const download = (inv) => { try { window.open("/api/invoices/" + encodeURIComponent(inv.token) + "/pdf", "_blank"); } catch (e) {} };
+  const makeLink = async (inv) => {
+    try {
+      const r = await fetch("/api/invoices/" + inv.token, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ action: "createlink" }) });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok || !d.payUrl) { showToast(d.error || "Could not create the payment link."); return; }
+      setList((p) => (p || []).map((x) => (x.token === inv.token ? { ...x, payUrl: d.payUrl } : x)));
+      showToast("Payment link created for " + inv.no + ". Resend the email so " + ((inv.client && inv.client.name) || "the client") + " receives it.");
+    } catch (e) { showToast("Could not create the payment link."); }
+  };
   return (
     <div>
       {list === null && <div style={{ ...mono, fontSize: 11, color: FAINT, padding: 20, textAlign: "center" }}>Loading&hellip;</div>}
@@ -81,7 +90,7 @@ export function InvoiceArchive({ showToast }) {
           <div style={{ display: "flex", gap: 8, marginTop: 9, flexWrap: "wrap" }}>
             <button onClick={() => download(inv)} style={miniBtn}><Download size={12} /> Download PDF</button>
             <button onClick={() => resend(inv)} style={miniBtn}><RefreshCw size={12} /> Resend email</button>
-            {inv.payUrl ? <button onClick={() => copyLink(inv)} style={miniBtn}><Copy size={12} /> Payment link</button> : null}
+            {inv.payUrl ? <button onClick={() => copyLink(inv)} style={miniBtn}><Copy size={12} /> Payment link</button> : <button onClick={() => makeLink(inv)} style={{ ...miniBtn, color: "#a16207", borderColor: "#eadfc0", background: "#fdf9ee" }}><Link2 size={12} /> Create payment link</button>}
             <button onClick={() => removeInv(inv)} style={{ ...miniBtn, color: RED, borderColor: "#f0d4cf" }}><Trash2 size={12} /> Delete</button>
           </div>
         </div>

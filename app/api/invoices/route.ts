@@ -5,6 +5,7 @@ import { sql } from "@/lib/db";
 import { verifyToken, ADMIN_COOKIE } from "@/lib/auth";
 import { sendEmail } from "@/lib/email";
 import { buildInvoicePdf, invoiceEmailHtml } from "@/lib/invoice-pdf";
+import { createRetainerLink } from "@/lib/square-link";
 
 export const runtime = "nodejs";
 
@@ -22,10 +23,6 @@ async function ensureTable() {
     created_at TIMESTAMPTZ NOT NULL DEFAULT now()
   )`;
   ensured = true;
-}
-
-function squareBase() {
-  return (process.env.SQUARE_ENV || "").trim() === "sandbox" ? "https://connect.squareupsandbox.com" : "https://connect.squareup.com";
 }
 
 const money = (cents: number) => "$" + (cents / 100).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -99,27 +96,20 @@ export async function POST(request: Request) {
     invoiceNo: "", invoiceToken: token, source: "invoice",
   };
 
-  // Square payment link for the retainer (same flow as portal checkout)
-  let payUrl = "", squareOrderId = "";
-  const sqToken = (process.env.SQUARE_ACCESS_TOKEN || "").trim();
-  const locationId = (process.env.SQUARE_LOCATION_ID || "").trim();
-  if (sqToken && locationId) {
-    try {
-      const res = await fetch(squareBase() + "/v2/online-checkout/payment-links", {
-        method: "POST",
-        headers: { "Square-Version": "2026-07-15", Authorization: "Bearer " + sqToken, "Content-Type": "application/json" },
-        body: JSON.stringify({
-          idempotency_key: crypto.randomUUID(),
-          quick_pay: { name: (svc.name + " retainer").slice(0, 60), price_money: { amount: retainerCents, currency: "USD" }, location_id: locationId },
-          checkout_options: { redirect_url: "https://portal.dot1.media/?paid=" + sessionId },
-          payment_note: "Dot One Media invoice for " + name,
-          pre_populated_data: { buyer_email: email },
-        }),
-      });
-      const data: any = await res.json().catch(() => ({}));
-      if (res.ok && data.payment_link && data.payment_link.url) { payUrl = data.payment_link.url; squareOrderId = data.payment_link.order_id || ""; }
-    } catch (e) {}
+  // Square payment link for the retainer. If this fails, nothing is created
+  // or emailed: the exact reason is returned so it can be fixed and retried.
+  const link = await createRetainerLink({
+    name: svc.name + " retainer",
+    amountCents: retainerCents,
+    redirectUrl: "https://portal.dot1.media/?paid=" + sessionId,
+    note: "Dot One Media invoice for " + name,
+    buyerEmail: email,
+  });
+  if (!link.url) {
+    return NextResponse.json({ error: (link.error || "Square could not create the payment link.") + " The invoice was not sent." }, { status: link.configured ? 502 : 400 });
   }
+  const payUrl = link.url;
+  const squareOrderId = link.orderId || "";
 
   // persist the reserved session
   session.squareOrderId = squareOrderId;
@@ -152,7 +142,7 @@ export async function POST(request: Request) {
   await sendEmail({
     to: "contact@dot1.media",
     subject: "Invoice " + no + " sent to " + name + " (" + money(retainerCents) + " retainer)",
-    html: `<p style="font-family:Arial,sans-serif;font-size:14px;color:#33322d">Invoice <b>${no}</b> for <b>${inv.service.name}</b> on <b>${date} at ${time}</b> was sent to ${name} (${email}). Total ${money(totalCents)}, retainer ${money(retainerCents)}.${payUrl ? ' Payment link: <a href="' + payUrl + '">' + payUrl + "</a>" : " Square is not configured, so no payment link was included."}</p>`,
+    html: `<p style="font-family:Arial,sans-serif;font-size:14px;color:#33322d">Invoice <b>${no}</b> for <b>${inv.service.name}</b> on <b>${date} at ${time}</b> was sent to ${name} (${email}). Total ${money(totalCents)}, retainer ${money(retainerCents)}. Payment link: <a href="${payUrl}">${payUrl}</a></p>`,
   });
 
   return NextResponse.json({ ok: true, invoice: { token, sessionId, status: "sent", createdAt: Date.now(), ...inv } });
