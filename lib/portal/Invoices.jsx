@@ -215,6 +215,7 @@ export function InvoiceModal({ state, showToast, onClose, onSessionsRefresh }) {
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", flexWrap: "wrap", gap: 6 }}>
                   <div>
                     <span style={{ fontWeight: 600, color: INK, fontSize: 14 }}>{inv.no}</span>
+                    <span style={{ ...mono, fontSize: 8.5, letterSpacing: "0.08em", textTransform: "uppercase", padding: "3px 7px", borderRadius: 5, marginLeft: 8, background: inv.status === "paid" ? "#eaf5ec" : CREAM, color: inv.status === "paid" ? OK : STONE, border: `1px solid ${inv.status === "paid" ? "#cfe6d4" : LINE}` }}>{inv.status === "paid" ? "Paid" : "Sent"}</span>
                     <span style={{ ...mono, fontSize: 10.5, color: STONE, marginLeft: 9 }}>{inv.client && inv.client.name}</span>
                   </div>
                   <span style={{ ...mono, fontSize: 10, color: STONE }}>{fmt((inv.totalCents || 0) / 100)} · retainer {fmt((inv.retainerCents || 0) / 100)}</span>

@@ -74,6 +74,11 @@ export async function GET(request: Request) {
       await sql`UPDATE portal_sessions SET data = ${JSON.stringify(merged)}::jsonb, updated_at = now() WHERE id = ${sid}`;
     }
 
+    // If this session was reserved by an invoice, mark that invoice paid too.
+    if (!isCharge && !isBalance && data.invoiceToken) {
+      try { await sql`UPDATE invoices SET status = 'paid' WHERE token = ${String(data.invoiceToken)}`; } catch (e) {}
+    }
+
     // Record + email the receipt unless one already exists. Backfills payments that were marked
     // paid before the ledger was usable. Isolated so it can never break verification; the outcome
     // is returned in `receipt` so the studio can see exactly what happened.

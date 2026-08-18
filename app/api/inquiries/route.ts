@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { sql } from "@/lib/db";
 import { verifyToken, ADMIN_COOKIE } from "@/lib/auth";
+import { sendEmail } from "@/lib/email";
 
 export const runtime = "nodejs";
 
@@ -44,6 +45,16 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Please add your name, a valid email, and a message." }, { status: 400, headers: CORS });
   }
   await sql`INSERT INTO site_inquiries (name, email, message) VALUES (${name}, ${email}, ${message})`;
+  // Let the studio know right away; reply-to goes straight back to the sender.
+  try {
+    const esc = (t: string) => t.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    await sendEmail({
+      to: "contact@dot1.media",
+      subject: "New website message from " + name,
+      replyTo: email,
+      html: '<div style="font-family:Arial,sans-serif;font-size:14px;color:#33322d;line-height:1.6"><p><b>' + esc(name) + '</b> (' + esc(email) + ') sent a message through dot1.media:</p><blockquote style="margin:10px 0;padding:10px 14px;border-left:3px solid #e23b2e;background:#fbf8f2;white-space:pre-wrap">' + esc(message) + '</blockquote><p style="font-size:12px;color:#6f6d65">It is also waiting in the portal Inbox: <a href="https://portal.dot1.media">portal.dot1.media</a>. Replying to this email replies to ' + esc(name.split(" ")[0]) + ' directly.</p></div>',
+    });
+  } catch (e) {}
   return NextResponse.json({ ok: true }, { headers: CORS });
 }
 
