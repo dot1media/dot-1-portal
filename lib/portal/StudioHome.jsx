@@ -1,6 +1,6 @@
 // Dot One Media portal - studio dashboard home (stats, upcoming list, calendar).
 import React from "react";
-import { CalendarClock, ChevronRight } from "lucide-react";
+import { CalendarClock, ChevronRight, Wallet } from "lucide-react";
 import { RED, INK, STONE, FAINT, LINE, CREAM, OK, WARN, display, mono, card, cardDense } from "./theme";
 import { GROUPS } from "./groups";
 import { fmtDate, fmtTime, money, timeGreeting } from "./format";
@@ -17,6 +17,18 @@ export function StudioHome({ state, setAdminId, setAdminTab, dark }) {
   const collected = sessions.reduce((sum, s) => sum + (s.paymentStatus === "paid" ? (Number(s.payAmount) || 0) : 0), 0);
   const outstanding = sessions.reduce((sum, s) => { if ((s.status || "active") === "cancelled") return sum; const paid = s.paymentStatus === "paid" ? (Number(s.payAmount) || 0) : 0; return sum + Math.max(0, (Number(s.total) || 0) - paid); }, 0);
   const activeCount = sessions.filter((s) => (s.status || "active") !== "cancelled").length;
+  // Sessions with money still owed: a requested deposit/retainer not yet paid
+  // (full amount due), or a partial payment with a balance remaining that
+  // hasn't been settled. Cancelled sessions are excluded.
+  const pendingPay = live.map((sq) => {
+    const total = Number(sq.total) || 0;
+    const paid = sq.paymentStatus === "paid" ? (Number(sq.payAmount) || 0) : 0;
+    let due = 0, kind = "";
+    if (sq.paymentStatus === "pending") { due = total > 0 ? total : (Number(sq.payAmount) || 0); kind = "Awaiting payment"; }
+    else if (sq.paymentStatus === "paid" && total - paid > 0 && sq.balanceStatus !== "paid") { due = total - paid; kind = sq.balanceStatus === "sent" ? "Balance link sent" : "Balance due"; }
+    return { sq, due, kind };
+  }).filter((x) => x.due > 0).sort((a, b) => ((a.sq.date || "9999") + (a.sq.time || "")).localeCompare((b.sq.date || "9999") + (b.sq.time || "")));
+  const pendingTotal = pendingPay.reduce((n, x) => n + x.due, 0);
   const next = upcoming[0];
   const goTo = (id) => { setAdminId(id); setAdminTab("sessions"); };
   const stat = (val, label, color) => (
@@ -64,6 +76,32 @@ export function StudioHome({ state, setAdminId, setAdminTab, dark }) {
           </div>
         )}
       </div>
+      {pendingPay.length > 0 && (
+        <div style={{ ...cardDense, padding: "18px 20px", marginBottom: 18 }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14, flexWrap: "wrap", gap: 8 }}>
+            <div style={{ ...mono, fontSize: 10.5, letterSpacing: "0.16em", textTransform: "uppercase", color: STONE, display: "inline-flex", alignItems: "center", gap: 8 }}><Wallet size={13} color={WARN} /> Pending payment</div>
+            <div style={{ ...mono, fontSize: 10.5, letterSpacing: "0.04em", color: WARN }}>{pendingPay.length} {pendingPay.length === 1 ? "session" : "sessions"} {"\u00b7"} {money(Math.round(pendingTotal))} owed</div>
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {pendingPay.slice(0, 6).map(({ sq, due, kind }) => { const grp = GROUPS[sq.serviceLine] || GROUPS.video; return (
+              <button key={sq.id} className="d1-lift" onClick={() => goTo(sq.id)} style={{ display: "flex", alignItems: "center", gap: 14, textAlign: "left", cursor: "pointer", background: CREAM, border: `1px solid ${LINE}`, borderRadius: 10, padding: "12px 14px", width: "100%" }}>
+                <div style={{ width: 38, height: 38, borderRadius: 9, background: grp.bg, border: `1px solid ${grp.border}`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}><grp.Icon size={17} color={grp.color} /></div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ ...display, fontWeight: 600, fontSize: 15.5, color: INK }}>{sq.clientName}</div>
+                  <div style={{ ...mono, fontSize: 10, color: STONE, marginTop: 2, letterSpacing: "0.04em" }}>{sq.type}{sq.date ? " " + "\u00b7" + " " + fmtDate(sq.date) : ""}</div>
+                </div>
+                <div style={{ textAlign: "right", flexShrink: 0 }}>
+                  <div style={{ ...mono, fontSize: 12, color: WARN, letterSpacing: "0.04em" }}>{money(Math.round(due))}</div>
+                  <div style={{ ...mono, fontSize: 9, color: FAINT, marginTop: 2, textTransform: "uppercase", letterSpacing: "0.06em" }}>{kind}</div>
+                </div>
+                <ChevronRight size={16} color={FAINT} />
+              </button>
+            ); })}
+          </div>
+          {pendingPay.length > 6 && <div style={{ ...mono, fontSize: 10, color: FAINT, marginTop: 10, textAlign: "center", letterSpacing: "0.04em" }}>+{pendingPay.length - 6} more in Sessions</div>}
+        </div>
+      )}
+
       <AdminCalendar state={state} onSelectSession={(id) => { setAdminId(id); setAdminTab("sessions"); }} />
     </div>
   );
