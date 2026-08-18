@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { X, FileText, Plus, Trash2, Send, Eye, RefreshCw, Copy, ChevronLeft } from "lucide-react";
+import { X, FileText, Plus, Trash2, Send, Eye, RefreshCw, Copy, ChevronLeft, Download } from "lucide-react";
 import { INK, BODY, STONE, FAINT, LINE, PAPER, CREAM, RED, OK, mono, display, card, inputStyle, btnSolid } from "./theme";
 import { GROUPS } from "./groups";
 
@@ -50,11 +50,50 @@ function InvoicePreview({ inv }) {
   );
 }
 
+export function InvoiceArchive({ showToast }) {
+  const [list, setList] = useState(null);
+  const load = async () => { try { const d = await fetch("/api/invoices").then((r) => r.json()); setList(d.invoices || []); } catch (e) { setList([]); } };
+  useEffect(() => { load(); }, []);
+  const resend = async (inv) => {
+    try { const r = await fetch("/api/invoices/" + inv.token, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ action: "resend" }) }); if (!r.ok) throw new Error(); showToast("Invoice " + inv.no + " re-sent to " + (inv.client && inv.client.email) + "."); } catch (e) { showToast("Could not resend."); }
+  };
+  const removeInv = async (inv) => {
+    if (!window.confirm("Delete invoice " + inv.no + " from the archive? The booked session is kept.")) return;
+    try { const r = await fetch("/api/invoices/" + inv.token, { method: "DELETE" }); if (!r.ok) throw new Error(); setList((p) => (p || []).filter((x) => x.token !== inv.token)); } catch (e) { showToast("Could not delete."); }
+  };
+  const copyLink = async (inv) => { try { await navigator.clipboard.writeText(inv.payUrl || ""); showToast("Payment link copied."); } catch (e) { showToast("Could not copy the link."); } };
+  const download = (inv) => { try { window.open("/api/invoices/" + encodeURIComponent(inv.token) + "/pdf", "_blank"); } catch (e) {} };
+  return (
+    <div>
+      {list === null && <div style={{ ...mono, fontSize: 11, color: FAINT, padding: 20, textAlign: "center" }}>Loading&hellip;</div>}
+      {list && list.length === 0 && <div style={{ ...mono, fontSize: 11, color: FAINT, padding: 20, textAlign: "center" }}>No invoices sent yet. Create one from the Sessions tab.</div>}
+      {(list || []).map((inv) => (
+        <div key={inv.token} style={{ border: `1px solid ${LINE}`, borderRadius: 9, padding: "12px 14px", marginBottom: 10, background: "#fff" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", flexWrap: "wrap", gap: 6 }}>
+            <div>
+              <span style={{ fontWeight: 600, color: INK, fontSize: 14 }}>{inv.no}</span>
+              <span style={{ ...mono, fontSize: 8.5, letterSpacing: "0.08em", textTransform: "uppercase", padding: "3px 7px", borderRadius: 5, marginLeft: 8, background: inv.status === "paid" ? "#eaf5ec" : CREAM, color: inv.status === "paid" ? OK : STONE, border: `1px solid ${inv.status === "paid" ? "#cfe6d4" : LINE}` }}>{inv.status === "paid" ? "Paid" : "Sent"}</span>
+              <span style={{ ...mono, fontSize: 10.5, color: STONE, marginLeft: 9 }}>{inv.client && inv.client.name}</span>
+            </div>
+            <span style={{ ...mono, fontSize: 10, color: STONE }}>{fmt((inv.totalCents || 0) / 100)} · retainer {fmt((inv.retainerCents || 0) / 100)}</span>
+          </div>
+          <div style={{ ...mono, fontSize: 10, color: FAINT, marginTop: 3 }}>{inv.service && inv.service.name} · {inv.service && inv.service.date} at {inv.service && inv.service.time}</div>
+          <div style={{ display: "flex", gap: 8, marginTop: 9, flexWrap: "wrap" }}>
+            <button onClick={() => download(inv)} style={miniBtn}><Download size={12} /> Download PDF</button>
+            <button onClick={() => resend(inv)} style={miniBtn}><RefreshCw size={12} /> Resend email</button>
+            {inv.payUrl ? <button onClick={() => copyLink(inv)} style={miniBtn}><Copy size={12} /> Payment link</button> : null}
+            <button onClick={() => removeInv(inv)} style={{ ...miniBtn, color: RED, borderColor: "#f0d4cf" }}><Trash2 size={12} /> Delete</button>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export function InvoiceModal({ state, showToast, onClose, onSessionsRefresh }) {
   const [tab, setTab] = useState("new"); // new | saved
   const [preview, setPreview] = useState(false);
   const [sending, setSending] = useState(false);
-  const [saved, setSaved] = useState(null);
 
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -85,10 +124,6 @@ export function InvoiceModal({ state, showToast, onClose, onSessionsRefresh }) {
   const total = items.reduce((s, it) => s + it.price, 0);
   const retainer = Math.round(total * 50) / 100;
 
-  const loadSaved = async () => {
-    try { const d = await fetch("/api/invoices").then((r) => r.json()); setSaved(d.invoices || []); } catch (e) { setSaved([]); }
-  };
-  useEffect(() => { if (tab === "saved" && saved === null) loadSaved(); }, [tab]);
 
   const send = async () => {
     if (!name.trim() || !email.trim() || !svc || !date || !time) { showToast("Name, email, service, date, and time are required."); return; }
@@ -99,20 +134,11 @@ export function InvoiceModal({ state, showToast, onClose, onSessionsRefresh }) {
       if (!res.ok) { showToast(d.error || "Could not send the invoice."); setSending(false); return; }
       showToast("Invoice " + (d.invoice && d.invoice.no ? d.invoice.no : "") + " sent to " + name + " with the payment link and PDF.");
       onSessionsRefresh && onSessionsRefresh();
-      setSaved(null); setTab("saved"); loadSaved();
+      setTab("saved");
       setName(""); setEmail(""); setPhone(""); setAddonQty({}); setCustom([]); setNotes(""); setDate(""); setTime(""); setPreview(false);
     } catch (e) { showToast("Could not send the invoice."); }
     setSending(false);
   };
-
-  const resend = async (inv) => {
-    try { const r = await fetch("/api/invoices/" + inv.token, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ action: "resend" }) }); if (!r.ok) throw new Error(); showToast("Invoice " + inv.no + " re-sent to " + (inv.client && inv.client.email) + "."); } catch (e) { showToast("Could not resend."); }
-  };
-  const removeInv = async (inv) => {
-    if (!window.confirm("Delete invoice " + inv.no + " from the saved list? The booked session is kept.")) return;
-    try { const r = await fetch("/api/invoices/" + inv.token, { method: "DELETE" }); if (!r.ok) throw new Error(); setSaved((p) => p.filter((x) => x.token !== inv.token)); } catch (e) { showToast("Could not delete."); }
-  };
-  const copyLink = async (inv) => { try { await navigator.clipboard.writeText(inv.payUrl || ""); showToast("Payment link copied."); } catch (e) { showToast("Could not copy the link."); } };
 
   const invDraft = { no: "", name, email, phone, serviceName: svc ? svc.name : "", date, time, items, notes };
   const lbl = { ...mono, fontSize: 10, letterSpacing: "0.1em", textTransform: "uppercase", color: STONE, display: "block", margin: "12px 0 6px" };
@@ -217,30 +243,7 @@ export function InvoiceModal({ state, showToast, onClose, onSessionsRefresh }) {
           </div>
         )}
 
-        {tab === "saved" && (
-          <div>
-            {saved === null && <div style={{ ...mono, fontSize: 11, color: FAINT, padding: 20, textAlign: "center" }}>Loading&hellip;</div>}
-            {saved && saved.length === 0 && <div style={{ ...mono, fontSize: 11, color: FAINT, padding: 20, textAlign: "center" }}>No invoices sent yet.</div>}
-            {(saved || []).map((inv) => (
-              <div key={inv.token} style={{ border: `1px solid ${LINE}`, borderRadius: 9, padding: "12px 14px", marginBottom: 10, background: "#fff" }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", flexWrap: "wrap", gap: 6 }}>
-                  <div>
-                    <span style={{ fontWeight: 600, color: INK, fontSize: 14 }}>{inv.no}</span>
-                    <span style={{ ...mono, fontSize: 8.5, letterSpacing: "0.08em", textTransform: "uppercase", padding: "3px 7px", borderRadius: 5, marginLeft: 8, background: inv.status === "paid" ? "#eaf5ec" : CREAM, color: inv.status === "paid" ? OK : STONE, border: `1px solid ${inv.status === "paid" ? "#cfe6d4" : LINE}` }}>{inv.status === "paid" ? "Paid" : "Sent"}</span>
-                    <span style={{ ...mono, fontSize: 10.5, color: STONE, marginLeft: 9 }}>{inv.client && inv.client.name}</span>
-                  </div>
-                  <span style={{ ...mono, fontSize: 10, color: STONE }}>{fmt((inv.totalCents || 0) / 100)} · retainer {fmt((inv.retainerCents || 0) / 100)}</span>
-                </div>
-                <div style={{ ...mono, fontSize: 10, color: FAINT, marginTop: 3 }}>{inv.service && inv.service.name} · {inv.service && inv.service.date} at {inv.service && inv.service.time}</div>
-                <div style={{ display: "flex", gap: 8, marginTop: 9, flexWrap: "wrap" }}>
-                  {inv.payUrl ? <button onClick={() => copyLink(inv)} style={miniBtn}><Copy size={12} /> Payment link</button> : null}
-                  <button onClick={() => resend(inv)} style={miniBtn}><RefreshCw size={12} /> Resend email</button>
-                  <button onClick={() => removeInv(inv)} style={{ ...miniBtn, color: RED, borderColor: "#f0d4cf" }}><Trash2 size={12} /> Delete</button>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
+        {tab === "saved" && <InvoiceArchive showToast={showToast} />}
       </div>
     </div>
   );

@@ -9,6 +9,7 @@ import { NOTIFY_EMAILS } from "./constants";
 import { STAGES, curStage } from "./stages";
 import { DonutChart, HBars, MiniColumns, FieldLabel, EmptyHint, EmptyState, Skeleton } from "./ui";
 import { useIsMobile } from "./hooks";
+import { InvoiceArchive } from "./Invoices";
 
 function ImportSessions({ existing, onImport, showToast }) {
   const [drafts, setDrafts] = useState(null);
@@ -269,6 +270,10 @@ export function BusinessSettings({ sessions, showToast, onImport }) {
           )}
         </div>
       )}
+
+      <div style={{ ...mono, fontSize: 10.5, letterSpacing: "0.16em", textTransform: "uppercase", color: STONE, marginBottom: 10 }}>Invoice archive</div>
+      <div style={{ fontSize: 12.5, color: STONE, lineHeight: 1.55, marginBottom: 12, maxWidth: 600 }}>Every invoice you have sent, newest first. Download the PDF, resend the email with its payment link, or delete a record. Deleting an invoice never touches the booked session.</div>
+      <div style={{ marginBottom: 30, maxWidth: 680 }}><InvoiceArchive showToast={showToast} /></div>
 
       <ImportSessions existing={sessions} onImport={onImport} showToast={showToast} />
 
