@@ -49,13 +49,14 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   }
   let pdfB64 = "";
   try { const bytes = await buildInvoicePdf(inv); pdfB64 = Buffer.from(bytes).toString("base64"); } catch (e) {}
-  await sendEmail({
+  const sent = await sendEmail({
     to: inv.client && inv.client.email,
     subject: "Your Dot One Media invoice " + inv.no + (inv.service && inv.service.date ? " for " + inv.service.date : ""),
     html: invoiceEmailHtml(inv),
     replyTo: "contact@dot1.media",
     attachments: pdfB64 ? [{ filename: inv.no + ".pdf", content: pdfB64 }] : undefined,
   });
+  if (!sent.ok) return NextResponse.json({ error: "Could not deliver the email: " + (sent.error || "unknown reason") }, { status: 502 });
   return NextResponse.json({ ok: true });
 }
 

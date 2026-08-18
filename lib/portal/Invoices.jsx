@@ -55,7 +55,12 @@ export function InvoiceArchive({ showToast }) {
   const load = async () => { try { const d = await fetch("/api/invoices").then((r) => r.json()); setList(d.invoices || []); } catch (e) { setList([]); } };
   useEffect(() => { load(); }, []);
   const resend = async (inv) => {
-    try { const r = await fetch("/api/invoices/" + inv.token, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ action: "resend" }) }); if (!r.ok) throw new Error(); showToast("Invoice " + inv.no + " re-sent to " + (inv.client && inv.client.email) + "."); } catch (e) { showToast("Could not resend."); }
+    try {
+      const r = await fetch("/api/invoices/" + inv.token, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ action: "resend" }) });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) { showToast(d.error || "Could not resend."); return; }
+      showToast("Invoice " + inv.no + " re-sent to " + (inv.client && inv.client.email) + ".");
+    } catch (e) { showToast("Could not resend."); }
   };
   const removeInv = async (inv) => {
     if (!window.confirm("Delete invoice " + inv.no + " from the archive? The booked session is kept.")) return;
@@ -141,7 +146,11 @@ export function InvoiceModal({ state, showToast, onClose, onSessionsRefresh }) {
       const res = await fetch("/api/invoices", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ name, email, phone, serviceId: svc.id, date, time, addons: Object.entries(addonQty).filter(([, q]) => q > 0).map(([id, q]) => ({ id, qty: q })), custom, notes }) });
       const d = await res.json().catch(() => ({}));
       if (!res.ok) { showToast(d.error || "Could not send the invoice."); setSending(false); return; }
-      showToast("Invoice " + (d.invoice && d.invoice.no ? d.invoice.no : "") + " sent to " + name + " with the payment link and PDF.");
+      if (d.emailDelivered === false) {
+        showToast("Invoice " + (d.invoice && d.invoice.no ? d.invoice.no : "") + " created, but the email could not be delivered (" + (d.emailError || "unknown reason") + "). Copy the payment link from Sent invoices and send it another way.");
+      } else {
+        showToast("Invoice " + (d.invoice && d.invoice.no ? d.invoice.no : "") + " sent to " + name + " with the payment link and PDF.");
+      }
       onSessionsRefresh && onSessionsRefresh();
       setTab("saved");
       setName(""); setEmail(""); setPhone(""); setAddonQty({}); setCustom([]); setNotes(""); setDate(""); setTime(""); setPreview(false);

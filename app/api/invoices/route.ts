@@ -133,7 +133,7 @@ export async function POST(request: Request) {
   // email the client with the PDF attached
   let pdfB64 = "";
   try { const bytes = await buildInvoicePdf(inv); pdfB64 = Buffer.from(bytes).toString("base64"); } catch (e) {}
-  await sendEmail({
+  const clientSend = await sendEmail({
     to: email,
     subject: "Your Dot One Media invoice " + no + (date ? " for " + date : ""),
     html: invoiceEmailHtml(inv),
@@ -146,5 +146,5 @@ export async function POST(request: Request) {
     html: `<p style="font-family:Arial,sans-serif;font-size:14px;color:#33322d">Invoice <b>${no}</b> for <b>${inv.service.name}</b> on <b>${date} at ${time}</b> was sent to ${name} (${email}). Total ${money(totalCents)}, retainer ${money(retainerCents)}. Payment link: <a href="${payUrl}">${payUrl}</a></p>`,
   });
 
-  return NextResponse.json({ ok: true, invoice: { token, sessionId, status: "sent", createdAt: Date.now(), ...inv } });
+  return NextResponse.json({ ok: true, emailDelivered: clientSend.ok, emailError: clientSend.ok ? undefined : clientSend.error, invoice: { token, sessionId, status: "sent", createdAt: Date.now(), ...inv } });
 }
