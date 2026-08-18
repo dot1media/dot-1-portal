@@ -5,6 +5,20 @@ import crypto from "crypto";
 // deployment is missing credentials (configured: false) or Square rejected
 // the request (configured: true, error tells you exactly why).
 
+// Square validates buyer_email strictly. Only pass it when it cleanly passes a
+// conservative check; a malformed address must never block the payment link,
+// since pre-filling the email is only a convenience.
+function validBuyerEmail(raw?: string): string | undefined {
+  const e = String(raw || "").trim().toLowerCase();
+  if (e.length < 6 || e.length > 254) return undefined;
+  if (/\s/.test(e) || e.indexOf("..") !== -1) return undefined;
+  if (!/^[a-z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-z0-9-]+(\.[a-z0-9-]+)+$/.test(e)) return undefined;
+  const [local, domain] = e.split("@");
+  if (!local || local[0] === "." || local[local.length - 1] === ".") return undefined;
+  if (!domain || /(^|\.)-|-(\.|$)/.test(domain)) return undefined;
+  return e;
+}
+
 export function squareBase(): string {
   return (process.env.SQUARE_ENV || "").trim() === "sandbox" ? "https://connect.squareupsandbox.com" : "https://connect.squareup.com";
 }
@@ -34,7 +48,7 @@ export async function createRetainerLink(opts: {
         quick_pay: { name: opts.name.slice(0, 60), price_money: { amount, currency: "USD" }, location_id: locationId },
         checkout_options: { redirect_url: opts.redirectUrl },
         payment_note: opts.note.slice(0, 200),
-        ...(opts.buyerEmail ? { pre_populated_data: { buyer_email: opts.buyerEmail } } : {}),
+        ...(validBuyerEmail(opts.buyerEmail) ? { pre_populated_data: { buyer_email: validBuyerEmail(opts.buyerEmail) } } : {}),
       }),
     });
     const data: any = await res.json().catch(() => ({}));

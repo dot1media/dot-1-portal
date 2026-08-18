@@ -45,7 +45,8 @@ export async function POST(request: Request) {
   const date = String(b.date || "");
   const time = String(b.time || "");
   const notes = String(b.notes || "").trim().slice(0, 1200);
-  if (!name || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email) || !serviceId || !date || !time) {
+  const emailOk = /^[a-z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-z0-9-]+(\.[a-z0-9-]+)+$/.test(email) && email.indexOf("..") === -1 && email.length <= 254;
+  if (!name || !emailOk || !serviceId || !date || !time) {
     return NextResponse.json({ error: "Name, a valid email, service, date, and time are required." }, { status: 400 });
   }
 
