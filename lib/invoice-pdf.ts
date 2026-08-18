@@ -152,7 +152,7 @@ export function invoiceEmailHtml(inv: any): string {
       </table>
       <p style="margin:4px 0 22px;font-size:12px;color:#9a988f">Paying the retainer reserves your date. The remaining ${money(inv.totalCents - inv.retainerCents)} is due per your service agreement.</p>
       <div style="text-align:center;margin:0 0 8px">${payBtn}</div>
-      <p style="margin:14px 0 0;font-size:12px;line-height:1.6;color:#6f6d65;text-align:center">After payment you will land in your Dot One client portal, where your session is booked and you can create your account to track everything to final delivery.</p>
+      <p style="margin:14px 0 0;font-size:12px;line-height:1.6;color:#6f6d65;text-align:center">After payment you'll sign your agreements and set a password, then land in your Dot One client portal where your session is booked and tracked to final delivery.</p>
     </div>
     <div style="padding:16px 30px;border-top:1px solid #ece8e0;text-align:center">
       <p style="margin:0;font-size:11px;color:#9a988f">Dot One Media &middot; Create with purpose &middot; Wasilla, Alaska &middot; contact@dot1.media</p>

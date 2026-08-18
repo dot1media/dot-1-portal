@@ -9,13 +9,13 @@ import { PAYMENT_RULES, STAGES } from "./stages";
 import { bookingTotal, optionAmount } from "./pricing";
 import { FieldLabel, TextInput, EmptyState, Skeleton, Row, PasswordMeter } from "./ui";
 
-const USAGE_OPTIONS = [
+export const USAGE_OPTIONS = [
   { key: "A", label: "Portfolio & Marketing (default)", desc: "Dot One Media may use the content to promote its own business, including its website, social media, portfolio, samples, competition entries, and its own advertising. It will not sell or license your images to unrelated third parties." },
   { key: "B", label: "Full Commercial Use", desc: "In addition to Option A, Dot One Media may license, sell, or assign the content to third parties for commercial purposes, without further compensation." },
   { key: "C", label: "Private / Limited Use", desc: "Dot One Media may use the content only to deliver your finished project, and may not publish your images publicly, except as you note below." },
 ];
 
-function AgreementBox({ title, text, pdf, A }) {
+export function AgreementBox({ title, text, pdf, A }) {
   return (
     <div style={{ marginTop: 18 }}>
       <div style={{ ...mono, fontSize: 10.5, letterSpacing: "0.16em", textTransform: "uppercase", color: STONE, marginBottom: 6 }}>{title}</div>

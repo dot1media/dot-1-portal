@@ -14,6 +14,7 @@ import { AdminCalendar } from "../lib/portal/AdminCalendar";
 import { StudioHome } from "../lib/portal/StudioHome";
 import { InternalBookingModal } from "../lib/portal/InternalBookingModal";
 import { InvoiceModal } from "../lib/portal/Invoices";
+import { InvoiceOnboarding } from "../lib/portal/InvoiceOnboarding";
 import { ServiceForm } from "../lib/portal/ServiceForm";
 import { DirectLinks } from "../lib/portal/DirectLinks";
 import { AdminSessions } from "../lib/portal/AdminSessions";
@@ -158,7 +159,12 @@ export default function App() {
       const payKind = new URLSearchParams(window.location.search).get("kind") || "";
       const payCharge = new URLSearchParams(window.location.search).get("charge") || "";
       try { res = await fetch("/api/pay/verify?sid=" + encodeURIComponent(paidSid) + (payKind ? "&kind=" + encodeURIComponent(payKind) : "") + (payCharge ? "&charge=" + encodeURIComponent(payCharge) : "")).then((r) => r.json()).catch(() => ({})); } catch (e) {}
-      try { const sd = await fetch("/api/sessions").then((r) => r.json()).catch(() => ({})); const all = (sd && sd.sessions) || []; const paid0 = all.find((x) => x.id === paidSid); const myTEmail = ((paid0 && paid0.clientEmail) || "").toLowerCase(); const sess = myTEmail ? all.filter((x) => (x.clientEmail || "").toLowerCase() === myTEmail) : all; if (sess.length) { setState((s) => ({ ...s, sessions: sess })); const mine = sess.find((x) => x.id === paidSid) || sess[0]; setClientId(mine.id); setClientAuth({ name: mine.clientName || "", email: mine.clientEmail || "" }); setView("thankyou"); } } catch (e) {}
+      try { const sd = await fetch("/api/sessions").then((r) => r.json()).catch(() => ({})); const all = (sd && sd.sessions) || []; const paid0 = all.find((x) => x.id === paidSid); const myTEmail = ((paid0 && paid0.clientEmail) || "").toLowerCase(); const sess = myTEmail ? all.filter((x) => (x.clientEmail || "").toLowerCase() === myTEmail) : all; if (sess.length) { setState((s) => ({ ...s, sessions: sess })); const mine = sess.find((x) => x.id === paidSid) || sess[0]; setClientId(mine.id); setClientAuth({ name: mine.clientName || "", email: mine.clientEmail || "" });
+        let needsOnboard = false;
+        if (mine.source === "invoice" && mine.clientEmail) {
+          try { const st = await fetch("/api/client-onboard-status?email=" + encodeURIComponent(mine.clientEmail)).then((r) => r.json()).catch(() => null); if (st && (!st.hasPassword || !st.signedServices)) needsOnboard = true; } catch (e) {}
+        }
+        setView(needsOnboard ? "onboard" : "thankyou"); } } catch (e) {}
       showToast(res && res.paid ? "Payment received. Thank you!" : "Thanks! If your payment is still processing, your status will update shortly.");
     })();
   }, []);
@@ -450,7 +456,7 @@ export default function App() {
             <span style={{ ...mono, fontSize: 10, letterSpacing: "0.22em", textTransform: "uppercase", color: FAINT }}>Client Portal</span>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-            {(view === "admin" || view === "client" || view === "thankyou") && <button onClick={() => setThemeOpen(true)} title="Appearance" aria-label="Appearance" style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 34, height: 34, borderRadius: 7, cursor: "pointer", color: STONE, background: "transparent", border: `1px solid ${LINE}`, padding: 0 }}><Palette size={15} /></button>}
+            {(view === "admin" || view === "client" || view === "thankyou" || view === "onboard") && <button onClick={() => setThemeOpen(true)} title="Appearance" aria-label="Appearance" style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 34, height: 34, borderRadius: 7, cursor: "pointer", color: STONE, background: "transparent", border: `1px solid ${LINE}`, padding: 0 }}><Palette size={15} /></button>}
             {view === "admin" ? (
               <>
                 <NotificationBell mode="studio" sessions={state.sessions} onOpenSession={(id) => { setAdminTab("sessions"); setAdminId(id); }} />
@@ -459,7 +465,7 @@ export default function App() {
                 <span style={{ ...mono, fontSize: 10, letterSpacing: "0.16em", textTransform: "uppercase", color: STONE }}>Studio</span>
                 <button onClick={adminLogout} style={{ ...mono, fontSize: 10.5, letterSpacing: "0.08em", textTransform: "uppercase", color: STONE, background: "transparent", border: `1px solid ${LINE}`, borderRadius: 6, padding: "8px 12px", cursor: "pointer" }}>Sign out</button>
               </>
-            ) : (view === "client" || view === "thankyou") ? (
+            ) : (view === "client" || view === "thankyou" || view === "onboard") ? (
               <>
                 <span style={{ ...mono, fontSize: 10, letterSpacing: "0.08em", color: STONE }}>{(clientSession && clientSession.clientName) || "Signed in"}</span>
                 <NotificationBell mode="client" sessions={state.sessions} clientId={clientId} onMarkRead={() => markMessagesRead(clientId, "studio")} />
@@ -489,6 +495,7 @@ export default function App() {
         {view === "client" && clientGuideOpen && <GuidePage title="Client Guide" html={CLIENT_GUIDE_HTML} pdf="/guides/dot1-client-guide.pdf" onBack={() => setClientGuideOpen(false)} />}
         {view === "client" && !clientGuideOpen && <ClientView session={clientSession} sessions={state.sessions} clientId={clientId} setClientId={setClientId} addComment={addComment} onRescheduleRequest={clientRescheduleRequest} markMessagesRead={markMessagesRead} patchSession={patchSession} resizeImage={resizeImage} uploadMessageImage={uploadMessageImage} showToast={showToast} />}
         {view === "thankyou" && <ThankYou session={clientSession} onPortal={() => setView("client")} />}
+        {view === "onboard" && <InvoiceOnboarding session={clientSession} onDone={() => { try { localStorage.setItem("dot1_view_pref", "client"); } catch (e) {} setView("client"); showToast("You're all set. Welcome to your portal!"); }} />}
         {view === "client" && !guideSeen && clientSession && <ClientGuide onClose={() => { setGuideSeen(true); try { localStorage.setItem("dot1_guide_seen", "1"); } catch (e) {} }} />}
         {themeOpen && <ThemePicker themeKey={themeKey} customAccent={customAccent} onPick={(k, a) => setTheme(k, a)} onClose={() => setThemeOpen(false)} />}
         {internalOpen && <InternalBookingModal state={state} showToast={showToast} onClose={() => setInternalOpen(false)} onCreate={createInternalBooking} />}
