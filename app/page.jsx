@@ -106,7 +106,23 @@ export default function App() {
   const [catalogError, setCatalogError] = useState(false);
   useEffect(() => { if (!loaded) return; (async () => { try { const { services, addons, availability, sessions, takenSlots, ...rest } = state; await storage.set(STORAGE_KEY, JSON.stringify(rest)); } catch (e) {} })(); }, [state, loaded]);
   useEffect(() => { (async () => { try { const res = await fetch("/api/services"); const data = await res.json(); if (!res.ok) throw new Error(); setState((s) => ({ ...s, services: data.services || [], addons: data.addons || [] })); setCatalogError(false); } catch (e) { setCatalogError(true); } finally { setCatalogLoaded(true); } })(); }, []);
-  useEffect(() => { (async () => { try { const a = await fetch("/api/auth/me").then((r) => r.json()).catch(() => null); if (a && a.admin) { setView("admin"); const sd = await fetch("/api/sessions").then((r) => r.json()).catch(() => ({})); if (sd && sd.sessions) setState((s) => ({ ...s, sessions: sd.sessions })); return; } const c = await fetch("/api/client-me").then((r) => r.json()).catch(() => null); if (c && c.client && c.email) { setClientAuth({ name: "", email: c.email }); const sd = await fetch("/api/sessions").then((r) => r.json()).catch(() => ({})); const myCEmail = (c.email || "").toLowerCase(); const sess = ((sd && sd.sessions) || []).filter((x) => (x.clientEmail || "").toLowerCase() === myCEmail); if (sess.length) { setClientAuth({ name: sess[0].clientName || "", email: c.email }); setState((s) => ({ ...s, sessions: sess })); setClientId(sess[0].id); setView("client"); } } } catch (e) {} finally { setAuthChecked(true); } })(); }, []);
+  useEffect(() => { (async () => { try {
+    const q = new URLSearchParams(window.location.search);
+    const path = window.location.pathname || "";
+    const directTok = q.get("b") || (path.indexOf("/book/") === 0 ? path.slice(6).split("/")[0] : "");
+    // Special links (direct booking, password reset, invites, payment returns) own the view.
+    if (directTok || q.get("reset") || q.get("invite") || q.get("paid")) { setAuthChecked(true); return; }
+    let pref = ""; try { pref = localStorage.getItem("dot1_view_pref") || ""; } catch (e) {}
+    const a = await fetch("/api/auth/me").then((r) => r.json()).catch(() => null);
+    const c = await fetch("/api/client-me").then((r) => r.json()).catch(() => null);
+    const adminOk = !!(a && a.admin);
+    const clientOk = !!(c && c.client && c.email);
+    // The shared studio cookie signs staff in across every Dot One app. When this
+    // browser is ALSO signed in as a client and last chose the client portal,
+    // honor that choice instead of bouncing to the studio on every refresh.
+    if (adminOk && !(clientOk && pref === "client")) { setView("admin"); const sd = await fetch("/api/sessions").then((r) => r.json()).catch(() => ({})); if (sd && sd.sessions) setState((s) => ({ ...s, sessions: sd.sessions })); return; }
+    if (clientOk) { setClientAuth({ name: "", email: c.email }); const sd = await fetch("/api/sessions").then((r) => r.json()).catch(() => ({})); const myCEmail = (c.email || "").toLowerCase(); const sess = ((sd && sd.sessions) || []).filter((x) => (x.clientEmail || "").toLowerCase() === myCEmail); if (sess.length) { setClientAuth({ name: sess[0].clientName || "", email: c.email }); setState((s) => ({ ...s, sessions: sess })); setClientId(sess[0].id); setView("client"); } }
+  } catch (e) {} finally { setAuthChecked(true); } })(); }, []);
   useEffect(() => { (async () => { try { const res = await fetch("/api/availability"); const data = await res.json(); if (res.ok) setState((s) => ({ ...s, availability: data.availability || [] })); } catch (e) {} })(); }, []);
   useEffect(() => {
     if (typeof navigator !== "undefined" && "serviceWorker" in navigator) { navigator.serviceWorker.register("/sw.js").catch(() => {}); }
@@ -167,6 +183,18 @@ export default function App() {
     if (rt) { setResetToken(rt); setView("resetpw"); }
     const it = params.get("invite");
     if (it) { setInviteToken(it); setView("invite"); }
+    const path = window.location.pathname || "";
+    const tok = params.get("b") || (path.indexOf("/book/") === 0 ? decodeURIComponent(path.slice(6).split("/")[0]) : "");
+    if (tok) {
+      (async () => {
+        try {
+          const d = await fetch("/api/direct-link?token=" + encodeURIComponent(tok)).then((r) => r.json()).catch(() => null);
+          if (d && d.link) { setDirectContext(d.link); }
+          else { showToast(d && d.reason === "used" ? "That booking link was already used, but you can pick any open time below." : "That booking link is no longer active, but you can pick any open time below."); }
+        } catch (e) {}
+        setView("book");
+      })();
+    }
   }, []);
   useEffect(() => { try { setGuideSeen(localStorage.getItem("dot1_guide_seen") === "1"); } catch (e) {} }, []);
   useEffect(() => { try { const k = localStorage.getItem("dot1_theme_key") || "default"; const a = localStorage.getItem("dot1_theme_accent") || ""; setThemeKey(k); setCustomAccent(a); applyTheme(k, a); } catch (e) {} }, []);
@@ -274,8 +302,8 @@ export default function App() {
     const newSession = { id, clientName: booking.name, clientEmail: booking.email, clientImage: "", notifyEmail, type: booking.serviceName, serviceLine: grp, photographer: grp === "photo" ? "Brittany Matthews" : "Dennis Matthews", date: booking.date, time: booking.time, location: "", status: "active", durationMin: booking.duration || 60, apptMin: booking.apptMin || booking.duration || 60, padBefore: booking.padBefore || 0, padAfter: booking.padAfter || 0, currentStage: 0, stageTimes: { 0: "just now" }, comments: [], selectedAddons: booking.addons, total: booking.total, payChoice: booking.payChoice, paymentStatus: (booking.payAmount || 0) > 0 ? "pending" : "none", payAmount: booking.payAmount || 0, reviewLink: "", deliveryVideo: "", deliveryPhoto: "", deliveryMusic: "", deliveryGov: "" };
     setState((s) => ({ ...s, sessions: [...s.sessions, newSession] }));
     fetch("/api/sessions", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ session: newSession }) }).catch(() => {});
-    if (booking.linkId) consumeDirectLink(booking.linkId);
-    setDirectContext(null); setClientId(id); setClientAuth({ name: booking.name, email: (booking.email || "").toLowerCase() });
+    if (booking.linkId) { consumeDirectLink(booking.linkId); fetch("/api/direct-link", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ token: booking.linkId }) }).catch(() => {}); }
+    setDirectContext(null); setClientId(id); setClientAuth({ name: booking.name, email: (booking.email || "").toLowerCase() }); try { localStorage.setItem("dot1_view_pref", "client"); } catch (e) {}
     if ((booking.payAmount || 0) > 0) { payForBooking(id, booking.payAmount, booking.serviceName || GROUPS[grp].label, booking.payChoice); }
     else { setView("thankyou"); }
   };
@@ -297,6 +325,7 @@ export default function App() {
     const myEmail = (email || "").trim().toLowerCase();
     const sess = ((sd && sd.sessions) || []).filter((x) => (x.clientEmail || "").toLowerCase() === myEmail);
     setState((s) => ({ ...s, sessions: sess }));
+    try { localStorage.setItem("dot1_view_pref", "client"); } catch (e) {}
     setClientAuth({ name: (data.name) || (sess[0] && sess[0].clientName) || "", email: myEmail });
     if (sess.length) { setClientId(sess[0].id); setView("client"); showToast("Welcome back, " + sess[0].clientName + "!"); }
     else { setClientId(""); setView("client"); showToast("Signed in. You don't have any sessions yet."); }
@@ -306,14 +335,14 @@ export default function App() {
     try {
       const res = await fetch("/api/auth/login", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ email: (email || "").trim(), password: password || "" }) });
       const data = await res.json().catch(() => ({}));
-      if (res.ok && data.ok) { setView("admin"); const sd = await fetch("/api/sessions").then((r) => r.json()).catch(() => ({})); if (sd && sd.sessions) setState((s) => ({ ...s, sessions: sd.sessions })); applyServerTheme(); showToast("Signed in to the studio dashboard."); return { ok: true }; }
+      if (res.ok && data.ok) { try { localStorage.setItem("dot1_view_pref", "admin"); } catch (e) {} setView("admin"); const sd = await fetch("/api/sessions").then((r) => r.json()).catch(() => ({})); if (sd && sd.sessions) setState((s) => ({ ...s, sessions: sd.sessions })); applyServerTheme(); showToast("Signed in to the studio dashboard."); return { ok: true }; }
       return { ok: false, error: data.error || "Incorrect email or password." };
     } catch (e) {
       return { ok: false, error: "Could not reach the server. Please try again." };
     }
   };
-  const adminLogout = async () => { try { await fetch("/api/auth/logout", { method: "POST" }); } catch (e) {} setState((s) => ({ ...s, sessions: [] })); setAdminId(""); setView("landing"); resetThemeLocal(); showToast("Signed out of the studio."); };
-  const clientLogout = async () => { try { await fetch("/api/client-logout", { method: "POST" }); } catch (e) {} setState((s) => ({ ...s, sessions: [] })); setClientId(""); setClientAuth(null); resetThemeLocal(); setView("landing"); showToast("Signed out."); };
+  const adminLogout = async () => { try { await fetch("/api/auth/logout", { method: "POST" }); } catch (e) {} try { localStorage.removeItem("dot1_view_pref"); } catch (e) {} setState((s) => ({ ...s, sessions: [] })); setAdminId(""); setView("landing"); resetThemeLocal(); showToast("Signed out of the studio."); };
+  const clientLogout = async () => { try { await fetch("/api/client-logout", { method: "POST" }); } catch (e) {} try { localStorage.removeItem("dot1_view_pref"); } catch (e) {} setState((s) => ({ ...s, sessions: [] })); setClientId(""); setClientAuth(null); resetThemeLocal(); setView("landing"); showToast("Signed out."); };
   const setTheme = (key, accent) => { setThemeKey(key); setCustomAccent(accent || ""); applyTheme(key, accent || ""); try { localStorage.setItem("dot1_theme_key", key); localStorage.setItem("dot1_theme_accent", accent || ""); } catch (e) {} try { fetch("/api/theme", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ key, accent: accent || "" }) }); } catch (e) {} };
   const applyServerTheme = async () => { try { const r = await fetch("/api/theme"); const d = await r.json().catch(() => ({})); if (r.ok && d && d.theme) { const k = d.theme.key || "default"; const a = d.theme.accent || ""; setThemeKey(k); setCustomAccent(a); applyTheme(k, a); try { localStorage.setItem("dot1_theme_key", k); localStorage.setItem("dot1_theme_accent", a); } catch (e) {} } } catch (e) {} };
   const resetThemeLocal = () => { applyTheme("default", ""); setThemeKey("default"); setCustomAccent(""); try { localStorage.removeItem("dot1_theme_key"); localStorage.removeItem("dot1_theme_accent"); } catch (e) {} };
