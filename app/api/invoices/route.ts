@@ -56,10 +56,15 @@ export async function POST(request: Request) {
   const svcRows = (await sql`SELECT id, grp, name, price_cents, duration_min FROM services WHERE id = ${serviceId} LIMIT 1`) as any[];
   if (!svcRows.length) return NextResponse.json({ error: "That service no longer exists." }, { status: 400 });
   const svc = svcRows[0];
-  const addonIds: string[] = Array.isArray(b.addonIds) ? b.addonIds.map(String).slice(0, 20) : [];
+  const addonReq: Array<{ id: string; qty: number }> = Array.isArray(b.addons)
+    ? b.addons.map((x: any) => ({ id: String(x.id || ""), qty: Math.max(1, Math.min(20, Math.round(Number(x.qty) || 1))) })).filter((x: any) => x.id).slice(0, 20)
+    : (Array.isArray(b.addonIds) ? b.addonIds.map((id: any) => ({ id: String(id), qty: 1 })).slice(0, 20) : []);
   let addons: any[] = [];
-  if (addonIds.length) {
-    addons = (await sql`SELECT id, name, price_cents FROM addons WHERE id = ANY(${addonIds})`) as any[];
+  if (addonReq.length) {
+    const rows = (await sql`SELECT id, name, price_cents FROM addons WHERE id = ANY(${addonReq.map((x) => x.id)})`) as any[];
+    const qtyOf: Record<string, number> = {};
+    addonReq.forEach((x) => { qtyOf[x.id] = x.qty; });
+    addons = rows.map((r: any) => ({ ...r, qty: qtyOf[r.id] || 1 }));
   }
   const custom = (Array.isArray(b.custom) ? b.custom : []).slice(0, 12)
     .map((x: any) => ({ label: String(x.label || "").trim().slice(0, 80), cents: Math.max(0, Math.round((Number(x.price) || 0) * 100)) }))
@@ -67,7 +72,7 @@ export async function POST(request: Request) {
 
   const items = [
     { label: svc.name + " (session)", cents: svc.price_cents || 0 },
-    ...addons.map((a) => ({ label: a.name + " (add-on)", cents: a.price_cents || 0 })),
+    ...addons.map((a) => ({ label: a.name + " (add-on" + (a.qty > 1 ? " x" + a.qty : "") + ")", cents: (a.price_cents || 0) * (a.qty || 1) })),
     ...custom,
   ];
   const totalCents = items.reduce((s, it) => s + (it.cents || 0), 0);
@@ -88,7 +93,7 @@ export async function POST(request: Request) {
     date, time, location: "", status: "active",
     durationMin: svc.duration_min || 60, apptMin: svc.duration_min || 60, padBefore: 0, padAfter: 0,
     currentStage: 0, stageTimes: { 0: "just now" }, comments: [],
-    selectedAddons: addons.map((a) => ({ id: a.id, name: a.name, price: (a.price_cents || 0) / 100 })),
+    selectedAddons: addons.map((a) => ({ id: a.id, name: a.name + (a.qty > 1 ? " x" + a.qty : ""), price: ((a.price_cents || 0) * (a.qty || 1)) / 100, qty: a.qty || 1, unitPrice: (a.price_cents || 0) / 100 })),
     total: totalCents / 100, payChoice: "deposit", paymentStatus: "pending", payAmount: retainerCents / 100,
     reviewLink: "", deliveryVideo: "", deliveryPhoto: "", deliveryMusic: "", deliveryGov: "",
     invoiceNo: "", invoiceToken: token, source: "invoice",

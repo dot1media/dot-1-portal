@@ -63,7 +63,7 @@ export function InvoiceModal({ state, showToast, onClose, onSessionsRefresh }) {
   const [serviceId, setServiceId] = useState("");
   const [date, setDate] = useState("");
   const [time, setTime] = useState("");
-  const [addonIds, setAddonIds] = useState([]);
+  const [addonQty, setAddonQty] = useState({});
   const [custom, setCustom] = useState([]);
   const [cLabel, setCLabel] = useState("");
   const [cPrice, setCPrice] = useState("");
@@ -78,10 +78,10 @@ export function InvoiceModal({ state, showToast, onClose, onSessionsRefresh }) {
   const items = useMemo(() => {
     const arr = [];
     if (svc) arr.push({ label: svc.name + " (session)", price: Number(svc.price) || 0 });
-    addonIds.forEach((id) => { const a = addons.find((x) => x.id === id); if (a) arr.push({ label: a.name + " (add-on)", price: Number(a.price) || 0 }); });
+    Object.keys(addonQty).forEach((id) => { const q = addonQty[id] || 0; if (!q) return; const a = addons.find((x) => x.id === id); if (a) arr.push({ label: a.name + " (add-on" + (q > 1 ? " x" + q : "") + ")", price: (Number(a.price) || 0) * q }); });
     custom.forEach((c) => arr.push({ label: c.label, price: Number(c.price) || 0 }));
     return arr;
-  }, [svc, addonIds, custom, addons]);
+  }, [svc, addonQty, custom, addons]);
   const total = items.reduce((s, it) => s + it.price, 0);
   const retainer = Math.round(total * 50) / 100;
 
@@ -94,13 +94,13 @@ export function InvoiceModal({ state, showToast, onClose, onSessionsRefresh }) {
     if (!name.trim() || !email.trim() || !svc || !date || !time) { showToast("Name, email, service, date, and time are required."); return; }
     setSending(true);
     try {
-      const res = await fetch("/api/invoices", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ name, email, phone, serviceId: svc.id, date, time, addonIds, custom, notes }) });
+      const res = await fetch("/api/invoices", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ name, email, phone, serviceId: svc.id, date, time, addons: Object.entries(addonQty).filter(([, q]) => q > 0).map(([id, q]) => ({ id, qty: q })), custom, notes }) });
       const d = await res.json().catch(() => ({}));
       if (!res.ok) { showToast(d.error || "Could not send the invoice."); setSending(false); return; }
       showToast("Invoice " + (d.invoice && d.invoice.no ? d.invoice.no : "") + " sent to " + name + " with the payment link and PDF.");
       onSessionsRefresh && onSessionsRefresh();
       setSaved(null); setTab("saved"); loadSaved();
-      setName(""); setEmail(""); setPhone(""); setAddonIds([]); setCustom([]); setNotes(""); setDate(""); setTime(""); setPreview(false);
+      setName(""); setEmail(""); setPhone(""); setAddonQty({}); setCustom([]); setNotes(""); setDate(""); setTime(""); setPreview(false);
     } catch (e) { showToast("Could not send the invoice."); }
     setSending(false);
   };
@@ -144,7 +144,7 @@ export function InvoiceModal({ state, showToast, onClose, onSessionsRefresh }) {
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
               <div>
                 <label style={lbl}>Service line</label>
-                <select value={group} onChange={(e) => { setGroup(e.target.value); setAddonIds([]); }} style={{ ...inputStyle, marginBottom: 0 }}>
+                <select value={group} onChange={(e) => { setGroup(e.target.value); setAddonQty({}); }} style={{ ...inputStyle, marginBottom: 0 }}>
                   {Object.keys(GROUPS).map((g) => <option key={g} value={g}>{GROUPS[g].label}</option>)}
                 </select>
               </div>
@@ -164,8 +164,19 @@ export function InvoiceModal({ state, showToast, onClose, onSessionsRefresh }) {
               <label style={lbl}>Add-ons</label>
               <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
                 {addons.map((a) => {
-                  const onSel = addonIds.includes(a.id);
-                  return <button key={a.id} onClick={() => setAddonIds((p) => onSel ? p.filter((x) => x !== a.id) : [...p, a.id])} style={{ ...mono, fontSize: 10, padding: "7px 11px", borderRadius: 7, cursor: "pointer", border: `1px solid ${onSel ? RED : LINE}`, background: onSel ? "#fdf1ee" : "#fff", color: onSel ? RED : STONE }}>{a.name} · {fmt(a.price)}</button>;
+                  const q = addonQty[a.id] || 0;
+                  const setQ = (n) => setAddonQty((p) => { const nx = { ...p }; if (n <= 0) delete nx[a.id]; else nx[a.id] = Math.min(20, n); return nx; });
+                  if (!q) return <button key={a.id} onClick={() => setQ(1)} style={{ ...mono, fontSize: 10, padding: "7px 11px", borderRadius: 7, cursor: "pointer", border: `1px solid ${LINE}`, background: "#fff", color: STONE }}>{a.name} · {fmt(a.price)}</button>;
+                  return (
+                    <div key={a.id} style={{ display: "inline-flex", alignItems: "center", gap: 7, ...mono, fontSize: 10, padding: "4px 7px 4px 11px", borderRadius: 7, border: `1px solid ${RED}`, background: "#fdf1ee", color: RED }}>
+                      <span>{a.name} · {fmt(a.price)}</span>
+                      <span style={{ display: "inline-flex", alignItems: "center", borderLeft: "1px solid #f0d4cf", paddingLeft: 6, gap: 2 }}>
+                        <button onClick={() => setQ(q - 1)} aria-label={"Fewer " + a.name} style={qtyBtn}>{"\u2212"}</button>
+                        <span style={{ minWidth: 24, textAlign: "center", color: INK, fontWeight: 600 }}>x{q}</span>
+                        <button onClick={() => setQ(q + 1)} aria-label={"More " + a.name} style={qtyBtn}>+</button>
+                      </span>
+                    </div>
+                  );
                 })}
               </div>
             </div>)}
@@ -235,4 +246,5 @@ export function InvoiceModal({ state, showToast, onClose, onSessionsRefresh }) {
   );
 }
 
+const qtyBtn = { width: 20, height: 20, borderRadius: 5, border: "1px solid #f0d4cf", background: "#fff", color: "#e23b2e", cursor: "pointer", fontSize: 12, lineHeight: 1, display: "inline-flex", alignItems: "center", justifyContent: "center", padding: 0 };
 const miniBtn = { display: "inline-flex", alignItems: "center", gap: 6, fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, letterSpacing: "0.04em", padding: "7px 10px", borderRadius: 7, border: "1px solid #e2ded4", background: "#fbf8f2", color: "#6f6d65", cursor: "pointer" };
