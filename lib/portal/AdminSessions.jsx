@@ -14,7 +14,7 @@ function ServicePill({ line }) {
   return <span style={{ ...mono, fontSize: 9.5, letterSpacing: "0.14em", textTransform: "uppercase", padding: "3px 9px", borderRadius: 20, background: g.color, color: "#fff", display: "inline-flex", alignItems: "center", gap: 5 }}><g.Icon size={11} /> {g.label}</span>;
 }
 
-export function AdminSessions({ state, adminId, setAdminId, requestSetStage, addComment, patchSession, onReschedule, slotTaken, markMessagesRead, onCancelBooking, onCloseBooking, onReopenBooking, onSendBalance, onSendCharge, onCheckPayment, onNewInternal, onNewInvoice, onEmailDelivery, onRequestReview, onSendInvite, onSetGroup, onDeleteBooking }) {
+export function AdminSessions({ state, adminId, setAdminId, requestSetStage, addComment, uploadMessageImage, patchSession, onReschedule, slotTaken, markMessagesRead, onCancelBooking, onCloseBooking, onReopenBooking, onSendBalance, onSendCharge, onCheckPayment, onNewInternal, onNewInvoice, onEmailDelivery, onRequestReview, onSendInvite, onSetGroup, onDeleteBooking }) {
   const [chgLabel, setChgLabel] = useState("");
   const [collapsed, setCollapsed] = useState({ completed: true });
   const [editType, setEditType] = useState(false);
@@ -23,6 +23,22 @@ export function AdminSessions({ state, adminId, setAdminId, requestSetStage, add
   const isMobile = useIsMobile();
   const session = state.sessions.find((s) => s.id === adminId) || state.sessions[0] || null;
   const [msg, setMsg] = useState("");
+  const [pendingImg, setPendingImg] = useState("");
+  const [uploadingImg, setUploadingImg] = useState(false);
+  const [lightbox, setLightbox] = useState("");
+  const onPickMsgImage = async (e, sessionId) => {
+    const file = e.target.files && e.target.files[0]; e.target.value = "";
+    if (!file) return;
+    setUploadingImg(true);
+    try { const url = await uploadMessageImage(file, sessionId); setPendingImg(url); }
+    catch (err) { showToast((err && err.message) || "Could not attach that image."); }
+    setUploadingImg(false);
+  };
+  const sendStudioMsg = (sessionId) => {
+    if (!msg.trim() && !pendingImg) return;
+    addComment(sessionId, "studio", msg, false, pendingImg || undefined);
+    setMsg(""); setPendingImg("");
+  };
   const [editLinks, setEditLinks] = useState(false);
   const [videoLink, setVideoLink] = useState("");
   const [photoLink, setPhotoLink] = useState("");
@@ -276,17 +292,37 @@ export function AdminSessions({ state, adminId, setAdminId, requestSetStage, add
         </div>
 
         <div style={{ ...mono, fontSize: 10.5, letterSpacing: "0.18em", textTransform: "uppercase", color: STONE, marginBottom: 12, display: "flex", alignItems: "center", gap: 8 }}><MessageSquare size={13} /> Client messages & requests</div>
-        {session.comments.filter((c) => c.author === "client").length === 0 ? <div style={{ marginBottom: 20 }}><EmptyState icon={MessageSquare} title="No messages yet" text="Client messages and requests will show up here." style={{ padding: "24px 14px" }} /></div> : session.comments.filter((c) => c.author === "client").map((c, i) => (
-          <div key={i} style={{ background: sg.bg, border: `1px solid ${sg.border}`, borderRadius: 8, padding: "10px 13px", marginBottom: 8 }}>
-            <div style={{ fontSize: 13.5, lineHeight: 1.5, color: BODY }}>{c.body}</div>
-            <div style={{ ...mono, fontSize: 9.5, color: sg.text, marginTop: 3, letterSpacing: "0.06em" }}>{session.clientName} · {c.time}</div>
+        {session.comments.length === 0 ? <div style={{ marginBottom: 20 }}><EmptyState icon={MessageSquare} title="No messages yet" text="Client messages and your replies will show up here." style={{ padding: "24px 14px" }} /></div> : session.comments.map((c, i) => {
+          const studio = c.author === "studio";
+          return (
+          <div key={i} style={{ background: studio ? CREAM : sg.bg, border: `1px solid ${studio ? LINE : sg.border}`, borderRadius: 8, padding: "10px 13px", marginBottom: 8, marginLeft: studio ? 24 : 0 }}>
+            {c.body ? <div style={{ fontSize: 13.5, lineHeight: 1.5, color: BODY }}>{c.body}</div> : null}
+            {c.image ? <img src={c.image} alt="Attached" onClick={() => setLightbox(c.image)} style={{ marginTop: c.body ? 8 : 0, maxWidth: "100%", width: 220, borderRadius: 8, border: `1px solid ${LINE}`, cursor: "zoom-in", display: "block" }} /> : null}
+            <div style={{ ...mono, fontSize: 9.5, color: studio ? FAINT : sg.text, marginTop: 3, letterSpacing: "0.06em" }}>{studio ? "You (studio)" : session.clientName} · {c.time}</div>
           </div>
-        ))}
-        <div style={{ marginTop: 18, display: "flex", gap: 8, alignItems: "flex-start" }}>
-          <input value={msg} onChange={(e) => setMsg(e.target.value)} placeholder="Send a note to the client…" style={{ flex: 1, border: `1px solid ${LINE}`, borderRadius: 8, padding: "10px 12px", fontSize: 13.5, fontFamily: "inherit", background: PAPER, color: BODY }} />
-          <button onClick={() => { addComment(session.id, "studio", msg); setMsg(""); }} style={{ ...btnSolid, background: INK, whiteSpace: "nowrap" }}><Send size={14} /> Send</button>
+          );
+        })}
+        {pendingImg ? (
+          <div style={{ marginTop: 14, display: "inline-flex", alignItems: "center", gap: 10, background: PAPER, border: `1px solid ${LINE}`, borderRadius: 8, padding: "8px 10px" }}>
+            <img src={pendingImg} alt="To send" style={{ width: 42, height: 42, objectFit: "cover", borderRadius: 6 }} />
+            <span style={{ ...mono, fontSize: 10.5, color: STONE }}>Image ready to send</span>
+            <button onClick={() => setPendingImg("")} aria-label="Remove image" style={{ background: "transparent", border: "none", cursor: "pointer", color: STONE, display: "flex" }}><XCircle size={15} /></button>
+          </div>
+        ) : null}
+        <div style={{ marginTop: 14, display: "flex", gap: 8, alignItems: "flex-start" }}>
+          <input value={msg} onChange={(e) => setMsg(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") sendStudioMsg(session.id); }} placeholder="Send a note to the client…" style={{ flex: 1, border: `1px solid ${LINE}`, borderRadius: 8, padding: "10px 12px", fontSize: 13.5, fontFamily: "inherit", background: PAPER, color: BODY }} />
+          <label title="Attach an image" style={{ ...btnSolid, background: PAPER, color: STONE, border: `1px solid ${LINE}`, cursor: uploadingImg ? "default" : "pointer", whiteSpace: "nowrap" }}>
+            <ImageIcon size={15} />
+            <input type="file" accept="image/*" disabled={uploadingImg} onChange={(e) => onPickMsgImage(e, session.id)} style={{ display: "none" }} />
+          </label>
+          <button onClick={() => sendStudioMsg(session.id)} disabled={uploadingImg} style={{ ...btnSolid, background: INK, whiteSpace: "nowrap" }}><Send size={14} /> {uploadingImg ? "Uploading\u2026" : "Send"}</button>
         </div>
       </div>
+      {lightbox ? (
+        <div onClick={() => setLightbox("")} style={{ position: "fixed", inset: 0, background: "rgba(20,20,26,0.82)", zIndex: 90, display: "flex", alignItems: "center", justifyContent: "center", padding: 24, cursor: "zoom-out" }}>
+          <img src={lightbox} alt="Attached" style={{ maxWidth: "100%", maxHeight: "100%", borderRadius: 8, boxShadow: "0 20px 60px rgba(0,0,0,0.5)" }} />
+        </div>
+      ) : null}
     </div>
   );
 }

@@ -1,6 +1,6 @@
 // Dot One Media portal - client project dashboard (timeline, payments, deliverables, messages, brief, usage rights) + private ProgressBar, SummaryCell, StatusBadge, Timeline, ClientActionPanel. resizeImage is an App-level prop.
 import React, { useState, useEffect, useRef } from "react";
-import { AlertTriangle, CalendarClock, CalendarPlus, Camera, CheckCircle2, ChevronDown, Clock, Download, FileCheck, FileText, Film, Image as ImageIcon, MessageSquare, Play, Send, Star, Upload, User } from "lucide-react";
+import { AlertTriangle, CalendarClock, CalendarPlus, Camera, CheckCircle2, ChevronDown, Clock, Download, FileCheck, FileText, Film, Image as ImageIcon, MessageSquare, Play, Send, Star, Upload, User, X, Paperclip} from "lucide-react";
 import { RED, INK, BODY, STONE, FAINT, LINE, PAPER, CREAM, OK, DANGER, display, mono, card, inputStyle, btnGhost, btnSolid } from "./theme";
 import { GROUPS } from "./groups";
 import { fmtDate, fmtTime, gcalLink, money, timeGreeting } from "./format";
@@ -126,14 +126,30 @@ function ClientActionPanel({ session, grp, draft, setDraft, onSubmit }) {
   return <div style={{ display: "flex", alignItems: "center", gap: 9, color: STONE, fontSize: 13, marginTop: 4, background: CREAM, border: `1px dashed ${LINE}`, borderRadius: 10, padding: "13px 16px" }}><Clock size={15} color="#9a988f" /> We'll email you the moment your next update is ready.</div>;
 }
 
-export function ClientView({ session, sessions, clientId, setClientId, addComment, onRescheduleRequest, markMessagesRead, patchSession, resizeImage, showToast }) {
+export function ClientView({ session, sessions, clientId, setClientId, addComment, onRescheduleRequest, markMessagesRead, patchSession, resizeImage, uploadMessageImage, showToast }) {
   const isMobile = useIsMobile();
   const [draft, setDraft] = useState("");
   const [msg, setMsg] = useState("");
+  const [pendingImg, setPendingImg] = useState("");
+  const [uploadingImg, setUploadingImg] = useState(false);
+  const [lightbox, setLightbox] = useState("");
+  const onPickMsgImage = async (e) => {
+    const file = e.target.files && e.target.files[0]; e.target.value = "";
+    if (!file) return;
+    setUploadingImg(true);
+    try { const url = await uploadMessageImage(file, session.id); setPendingImg(url); }
+    catch (err) { showToast((err && err.message) || "Could not attach that image."); }
+    setUploadingImg(false);
+  };
+  const sendMsg = () => {
+    if (!msg.trim() && !pendingImg) return;
+    addComment(session.id, "client", msg, false, pendingImg || undefined);
+    setMsg(""); setPendingImg("");
+  };
   const [reschedOpen, setReschedOpen] = useState(false);
   const [reschedDate, setReschedDate] = useState("");
   const fileRef = useRef(null);
-  useEffect(() => { if (!session) return; setReschedDate(session.date || ""); setReschedOpen(false); setMsg(""); setBrief(session.brief || {}); setBriefMsg(""); }, [clientId]);
+  useEffect(() => { if (!session) return; setReschedDate(session.date || ""); setReschedOpen(false); setMsg(""); setPendingImg(""); setBrief(session.brief || {}); setBriefMsg(""); }, [clientId]);
   const [docs, setDocs] = useState([]);
   const [emailPrefs, setEmailPrefs] = useState({ updates: true, messages: true, payments: true });
   const [payingBalance, setPayingBalance] = useState(false);
@@ -388,17 +404,35 @@ export function ClientView({ session, sessions, clientId, setClientId, addCommen
             <div key={i} style={{ display: "flex", gap: 10, marginBottom: 8 }}>
               <div style={{ width: 26, height: 26, borderRadius: "50%", flexShrink: 0, background: c.author === "client" ? grp.bg : CREAM, border: `1px solid ${LINE}`, display: "flex", alignItems: "center", justifyContent: "center" }}>{c.author === "client" ? <User size={12} color={grp.color} /> : <Camera size={12} color="#6f6d65" />}</div>
               <div style={{ background: isNew ? grp.bg : PAPER, border: `1px solid ${isNew ? grp.border : LINE}`, borderRadius: 8, padding: "8px 12px", flex: 1 }}>
-                <div style={{ fontSize: 13.5, lineHeight: 1.5 }}>{c.body}</div>
+                {c.body ? <div style={{ fontSize: 13.5, lineHeight: 1.5 }}>{c.body}</div> : null}
+                {c.image ? <img src={c.image} alt="Attached" onClick={() => setLightbox(c.image)} style={{ marginTop: c.body ? 8 : 0, maxWidth: "100%", width: 220, borderRadius: 8, border: `1px solid ${LINE}`, cursor: "zoom-in", display: "block" }} /> : null}
                 <div style={{ ...mono, fontSize: 9.5, color: isNew ? grp.text : FAINT, marginTop: 3, letterSpacing: "0.06em" }}>{c.author === "client" ? "You" : "Studio"} · {c.time}{isNew ? " · new" : ""}</div>
               </div>
             </div>
           );
         })}
+        {pendingImg ? (
+          <div style={{ marginTop: 12, display: "inline-flex", alignItems: "center", gap: 10, background: PAPER, border: `1px solid ${LINE}`, borderRadius: 8, padding: "8px 10px" }}>
+            <img src={pendingImg} alt="To send" style={{ width: 42, height: 42, objectFit: "cover", borderRadius: 6 }} />
+            <span style={{ ...mono, fontSize: 10.5, color: STONE }}>Image ready to send</span>
+            <button onClick={() => setPendingImg("")} aria-label="Remove image" style={{ background: "transparent", border: "none", cursor: "pointer", color: STONE, display: "flex" }}><X size={15} /></button>
+          </div>
+        ) : null}
         <div style={{ marginTop: 12, display: "flex", gap: 8, alignItems: "flex-start" }}>
-          <input value={msg} onChange={(e) => setMsg(e.target.value)} placeholder="Message the studio…" style={{ flex: 1, border: `1px solid ${LINE}`, borderRadius: 8, padding: "10px 12px", fontSize: 13.5, fontFamily: "inherit", background: PAPER, color: BODY }} />
-          <button onClick={() => { addComment(session.id, "client", msg); setMsg(""); }} style={{ ...btnSolid, background: grp.color, whiteSpace: "nowrap" }}><Send size={14} /> Send</button>
+          <input value={msg} onChange={(e) => setMsg(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") sendMsg(); }} placeholder="Message the studio…" style={{ flex: 1, border: `1px solid ${LINE}`, borderRadius: 8, padding: "10px 12px", fontSize: 13.5, fontFamily: "inherit", background: PAPER, color: BODY }} />
+          <label title="Attach an image" style={{ ...btnSolid, background: PAPER, color: STONE, border: `1px solid ${LINE}`, cursor: uploadingImg ? "default" : "pointer", whiteSpace: "nowrap" }}>
+            <ImageIcon size={15} />
+            <input type="file" accept="image/*" disabled={uploadingImg} onChange={onPickMsgImage} style={{ display: "none" }} />
+          </label>
+          <button onClick={sendMsg} disabled={uploadingImg} style={{ ...btnSolid, background: grp.color, whiteSpace: "nowrap" }}><Send size={14} /> {uploadingImg ? "Uploading\u2026" : "Send"}</button>
         </div>
       </div>
+
+      {lightbox ? (
+        <div onClick={() => setLightbox("")} style={{ position: "fixed", inset: 0, background: "rgba(20,20,26,0.82)", zIndex: 90, display: "flex", alignItems: "center", justifyContent: "center", padding: 24, cursor: "zoom-out" }}>
+          <img src={lightbox} alt="Attached" style={{ maxWidth: "100%", maxHeight: "100%", borderRadius: 8, boxShadow: "0 20px 60px rgba(0,0,0,0.5)" }} />
+        </div>
+      ) : null}
 
       {docs.length > 0 && (
         <div style={{ marginTop: 28 }}>

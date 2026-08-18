@@ -240,16 +240,44 @@ export default function App() {
     });
   };
 
-  const addComment = (id, author, body, silent) => {
-    if (!body.trim()) return;
+  const addComment = (id, author, body, silent, image) => {
+    const text = (body || "").trim();
+    if (!text && !image) return;
     const cur = stateRef.current.sessions.find((x) => x.id === id);
     if (!cur) return;
-    const comments = [...cur.comments, { author, body: body.trim(), time: "just now", read: false }];
+    const entry = { author, body: text, time: "just now", read: false };
+    if (image) entry.image = image;
+    const comments = [...cur.comments, entry];
     patchSession(id, { comments });
     if (!silent && author === "client") showToast("Message sent — the studio has been notified by email.");
     if (!silent && author === "studio") showToast("Reply sent — the client has been notified by email.");
   };
   const markMessagesRead = (id, who) => { const cur = stateRef.current.sessions.find((x) => x.id === id); if (!cur || !cur.comments.some((c) => c.author === who && !c.read)) return; const comments = cur.comments.map((c) => (c.author === who ? { ...c, read: true } : c)); patchSession(id, { comments }); };
+  const uploadMessageImage = (file, sessionId) => new Promise((resolve, reject) => {
+    if (!file || !/^image\//.test(file.type)) { reject(new Error("Please choose an image.")); return; }
+    const reader = new FileReader();
+    reader.onload = () => {
+      const img = new Image();
+      img.onload = async () => {
+        const max = 1280; let w = img.width, h = img.height;
+        if (w > h && w > max) { h = Math.round(h * max / w); w = max; }
+        else if (h > max) { w = Math.round(w * max / h); h = max; }
+        const canvas = document.createElement("canvas"); canvas.width = w; canvas.height = h;
+        canvas.getContext("2d").drawImage(img, 0, 0, w, h);
+        canvas.toBlob(async (blob) => {
+          if (!blob) { reject(new Error("Could not process that image.")); return; }
+          try {
+            const res = await fetch("/api/message-image?session=" + encodeURIComponent(sessionId), { method: "POST", headers: { "content-type": "image/jpeg" }, body: blob });
+            const d = await res.json().catch(() => ({}));
+            if (!res.ok || !d.url) { reject(new Error(d.error || "Upload failed.")); return; }
+            resolve(d.url);
+          } catch (e) { reject(e); }
+        }, "image/jpeg", 0.85);
+      };
+      img.onerror = () => reject(new Error("Could not read that image.")); img.src = reader.result;
+    };
+    reader.onerror = () => reject(new Error("Could not read that file.")); reader.readAsDataURL(file);
+  });
   const resizeImage = (file) => new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => {
@@ -459,7 +487,7 @@ export default function App() {
         {view === "invite" && <InviteAccept token={inviteToken} showToast={showToast} />}
         {(view === "terms" || view === "privacy") && <LegalPage kind={view} onBack={() => setView(legalReturn)} />}
         {view === "client" && clientGuideOpen && <GuidePage title="Client Guide" html={CLIENT_GUIDE_HTML} pdf="/guides/dot1-client-guide.pdf" onBack={() => setClientGuideOpen(false)} />}
-        {view === "client" && !clientGuideOpen && <ClientView session={clientSession} sessions={state.sessions} clientId={clientId} setClientId={setClientId} addComment={addComment} onRescheduleRequest={clientRescheduleRequest} markMessagesRead={markMessagesRead} patchSession={patchSession} resizeImage={resizeImage} showToast={showToast} />}
+        {view === "client" && !clientGuideOpen && <ClientView session={clientSession} sessions={state.sessions} clientId={clientId} setClientId={setClientId} addComment={addComment} onRescheduleRequest={clientRescheduleRequest} markMessagesRead={markMessagesRead} patchSession={patchSession} resizeImage={resizeImage} uploadMessageImage={uploadMessageImage} showToast={showToast} />}
         {view === "thankyou" && <ThankYou session={clientSession} onPortal={() => setView("client")} />}
         {view === "client" && !guideSeen && clientSession && <ClientGuide onClose={() => { setGuideSeen(true); try { localStorage.setItem("dot1_guide_seen", "1"); } catch (e) {} }} />}
         {themeOpen && <ThemePicker themeKey={themeKey} customAccent={customAccent} onPick={(k, a) => setTheme(k, a)} onClose={() => setThemeOpen(false)} />}
@@ -479,7 +507,7 @@ export default function App() {
             </div>
             {adminTab === "home" && <StudioHome state={state} setAdminId={setAdminId} setAdminTab={setAdminTab} dark={themeKey === "midnight"} />}
             {adminTab === "inbox" && <Inbox inquiries={inquiries} setInquiries={setInquiries} showToast={showToast} />}
-            {adminTab === "sessions" && <AdminSessions state={state} adminId={adminId} setAdminId={setAdminId} requestSetStage={requestSetStage} addComment={addComment} patchSession={patchSession} onReschedule={adminReschedule} slotTaken={slotTaken} markMessagesRead={markMessagesRead} onCancelBooking={requestCancelBooking} onCloseBooking={requestCloseBooking} onReopenBooking={requestReopenBooking} onSendBalance={requestSendBalance} onSendCharge={requestSendCharge} onCheckPayment={checkChargePayment} onNewInternal={() => setInternalOpen(true)} onNewInvoice={() => setInvoiceOpen(true)} onEmailDelivery={confirmSendDelivery} onRequestReview={requestReview} onSendInvite={requestInvite} onSetGroup={setSessionGroup} onDeleteBooking={requestDeleteBooking} />}
+            {adminTab === "sessions" && <AdminSessions state={state} adminId={adminId} setAdminId={setAdminId} requestSetStage={requestSetStage} addComment={addComment} uploadMessageImage={uploadMessageImage} patchSession={patchSession} onReschedule={adminReschedule} slotTaken={slotTaken} markMessagesRead={markMessagesRead} onCancelBooking={requestCancelBooking} onCloseBooking={requestCloseBooking} onReopenBooking={requestReopenBooking} onSendBalance={requestSendBalance} onSendCharge={requestSendCharge} onCheckPayment={checkChargePayment} onNewInternal={() => setInternalOpen(true)} onNewInvoice={() => setInvoiceOpen(true)} onEmailDelivery={confirmSendDelivery} onRequestReview={requestReview} onSendInvite={requestInvite} onSetGroup={setSessionGroup} onDeleteBooking={requestDeleteBooking} />}
             {adminTab === "calendar" && <AdminCalendar state={state} onSelectSession={(id) => { setAdminId(id); setAdminTab("sessions"); }} />}
             {adminTab === "availability" && <><CalendarSync showToast={showToast} /><AvailabilityManager availability={state.availability} addAvailability={addAvailability} removeAvailability={removeAvailability} showToast={showToast} /><div style={{ marginTop: 44, paddingTop: 40, borderTop: `1px solid ${LINE}` }}><DirectLinks state={state} createDirectLink={createDirectLink} revokeDirectLink={revokeDirectLink} openDirectLink={openDirectLink} showToast={showToast} /></div></>}
             {adminTab === "services" && <ServiceCatalog state={state} addService={addService} updateService={updateService} deleteService={deleteService} addAddon={addAddon} updateAddon={updateAddon} deleteAddon={deleteAddon} showToast={showToast} setConfirm={setConfirm} />}

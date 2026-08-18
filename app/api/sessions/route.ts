@@ -102,9 +102,11 @@ export async function PATCH(request: Request) {
   if (Array.isArray(allowed.comments) && allowed.comments.length > (old.comments || []).length) {
     const last = allowed.comments[allowed.comments.length - 1];
     if (last && last.author === "client") {
-      await sendEmail({ to: merged.notifyEmail || "contact@dot1.media", subject: "New message from " + (merged.clientName || "your client"), html: messageEmail(merged, true, last.body), replyTo: merged.clientEmail });
+      const subj = last.body ? "New message from " + (merged.clientName || "your client") : (merged.clientName || "Your client") + " sent an image";
+      await sendEmail({ to: merged.notifyEmail || "contact@dot1.media", subject: subj, html: messageEmail(merged, true, last.body, last.image), replyTo: merged.clientEmail });
     } else if (last && last.author === "studio") {
-      await sendToClient(merged.clientEmail, "messages", { subject: "New reply from Dot One Media", html: messageEmail(merged, false, last.body), replyTo: "contact@dot1.media" });
+      const subj = last.body ? "New reply from Dot One Media" : "Dot One Media sent you an image";
+      await sendToClient(merged.clientEmail, "messages", { subject: subj, html: messageEmail(merged, false, last.body, last.image), replyTo: "contact@dot1.media" });
     }
   }
   if (me.role === "admin") {

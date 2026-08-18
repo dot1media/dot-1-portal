@@ -159,11 +159,17 @@ export function reviewEmail(s: any, link: string): string {
     para("Thank you for trusting us with your story. With gratitude, the whole Dot One Media team.");
   return shell(brand, "Thank You", "We would love your feedback", body);
 }
-export function messageEmail(s: any, toStudio: boolean, msg: string): string {
+export function messageEmail(s: any, toStudio: boolean, msg: string, image?: string): string {
   const brand = brandFor(s, toStudio);
   const who = toStudio ? (esc(s.clientName) || "Your client") : "Dot One Media";
+  const quote = msg && msg.trim()
+    ? `<div style="background:${CREAM};border-left:3px solid ${brand.accent};padding:14px 18px;margin:6px 0 ${image ? "12" : "20"}px;font-family:${SANS};font-size:14px;line-height:1.65;color:#4a463f;">${esc(msg)}</div>`
+    : "";
+  const pic = image
+    ? `<div style="margin:6px 0 20px;"><a href="${esc(image)}" target="_blank" style="display:inline-block;"><img src="${esc(image)}" alt="Attached image" style="max-width:100%;width:420px;border:1px solid ${LINE};border-radius:8px;display:block;" /></a><div style="font-family:${SANS};font-size:12px;color:${STONE};margin-top:6px;">${toStudio ? "Your client attached an image." : "Dot One Media attached an image."} Tap it to view full size.</div></div>`
+    : "";
   const body = para(`New message from <strong style="color:${INK};">${who}</strong> about the ${esc(s.type) || "session"}:`) +
-    `<div style="background:${CREAM};border-left:3px solid ${brand.accent};padding:14px 18px;margin:6px 0 20px;font-family:${SANS};font-size:14px;line-height:1.65;color:#4a463f;">${esc(msg)}</div>` +
+    quote + pic +
     button(brand, PORTAL, "Reply in the portal");
   return shell(brand, "New Message", "You have a new message", body);
 }
