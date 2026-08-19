@@ -10,6 +10,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
+      - name: Install vitest
+        run: npm install --no-save --legacy-peer-deps vitest@4.1.10
       - name: Run unit tests (pure helpers)
-        run: npx --yes vitest@4.1.10 run
-
+        run: npx vitest run
