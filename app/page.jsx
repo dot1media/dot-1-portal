@@ -233,16 +233,18 @@ export default function App() {
     showToast(n > 1 ? ("Set " + n + " \u201c" + type + "\u201d sessions to " + g.label + ".") : ("Session type set to " + g.label + "."));
   };
 
-  const doSetStage = (id, idx) => { const cur = stateRef.current.sessions.find((x) => x.id === id); if (!cur) return; const times = { ...cur.stageTimes }; if (times[idx] === undefined) times[idx] = "just now"; patchSession(id, { currentStage: idx, stageTimes: times }); };
+  const doSetStage = (id, idx, notify) => { const cur = stateRef.current.sessions.find((x) => x.id === id); if (!cur) return; const times = { ...cur.stageTimes }; if (times[idx] === undefined) times[idx] = "just now"; patchSession(id, { currentStage: idx, stageTimes: times }, notify === false ? { notifyStage: false } : undefined); };
 
   const requestSetStage = (session, idx) => {
     if (idx === session.currentStage) return;
     const advancing = idx > session.currentStage;
+    const stageName = (stagesFor(session)[idx] || {}).label;
     setConfirm({
       title: advancing ? "Advance this session?" : "Move this session back?",
-      message: advancing ? `Advance ${session.clientName} to "${(stagesFor(session)[idx] || {}).label}"? This will send a status email to the client.` : `Move ${session.clientName} back to "${(stagesFor(session)[idx] || {}).label}"? No email is sent when moving backward.`,
-      confirmLabel: advancing ? "Advance & notify" : "Move back", danger: !advancing,
-      onYes: () => { doSetStage(session.id, idx); if (advancing) showToast(`Status email sent to ${session.clientName} — "${(stagesFor(session)[idx] || {}).label}"`); setConfirm(null); },
+      message: advancing ? `Advance ${session.clientName} to "${stageName}"? Choose whether to email the client about this update.` : `Move ${session.clientName} back to "${stageName}"? No email is sent when moving backward.`,
+      confirmLabel: advancing ? "Advance" : "Move back", danger: !advancing,
+      option: advancing ? { label: "Email the client about this update", default: true } : undefined,
+      onYes: (opt) => { const notify = advancing && opt !== false; doSetStage(session.id, idx, notify); if (notify) showToast(`Advanced & emailed ${session.clientName} — "${stageName}"`); else showToast(advancing ? `Advanced to "${stageName}" — no email sent` : `Moved back to "${stageName}"`); setConfirm(null); },
     });
   };
 
@@ -610,7 +612,8 @@ function PortalFooter() {
 /* ============================ DIRECT BOOKING LINKS ============================ */
 
 /* ============================ CONFIRM DIALOG ============================ */
-function ConfirmDialog({ title, message, confirmLabel = "Confirm", danger, onYes, onCancel }) {
+function ConfirmDialog({ title, message, confirmLabel = "Confirm", danger, onYes, onCancel, option }) {
+  const [opt, setOpt] = useState(option ? option.default !== false : false);
   return (
     <div className="d1-overlay" style={{ position: "fixed", inset: 0, background: "rgba(26,26,23,0.45)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 80, padding: 20 }} onClick={onCancel}>
       <div onClick={(e) => e.stopPropagation()} className="d1-modal" style={{ background: PAPER, borderRadius: 12, padding: "24px 26px", maxWidth: 420, width: "100%", boxShadow: "0 20px 60px rgba(0,0,0,0.3)" }}>
@@ -618,10 +621,16 @@ function ConfirmDialog({ title, message, confirmLabel = "Confirm", danger, onYes
           <div style={{ width: 34, height: 34, borderRadius: "50%", background: danger ? `color-mix(in srgb, ${DANGER} 15%, var(--d1-paper,#fff))` : `color-mix(in srgb, ${WARN} 16%, var(--d1-paper,#fff))`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}><AlertTriangle size={18} color={danger ? RED : WARN} /></div>
           <h3 style={{ ...display, fontWeight: 700, fontSize: 19, color: INK }}>{title}</h3>
         </div>
-        <p style={{ fontSize: 14, lineHeight: 1.55, color: BODY, marginBottom: 20 }}>{message}</p>
+        <p style={{ fontSize: 14, lineHeight: 1.55, color: BODY, marginBottom: option ? 14 : 20 }}>{message}</p>
+        {option && (
+          <label style={{ display: "flex", alignItems: "flex-start", gap: 10, cursor: "pointer", background: CREAM, border: `1px solid ${LINE}`, borderRadius: 9, padding: "11px 13px", marginBottom: 20 }}>
+            <input type="checkbox" checked={opt} onChange={(e) => setOpt(e.target.checked)} style={{ marginTop: 2, width: 16, height: 16, accentColor: RED, cursor: "pointer" }} />
+            <span style={{ fontSize: 13, color: BODY, lineHeight: 1.45 }}>{option.label}</span>
+          </label>
+        )}
         <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
           <button onClick={onCancel} style={btnGhost}>Cancel</button>
-          <button onClick={onYes} style={{ ...btnSolid, background: danger ? RED : INK }}><Check size={14} /> {confirmLabel}</button>
+          <button onClick={() => onYes(option ? opt : undefined)} style={{ ...btnSolid, background: danger ? RED : INK }}><Check size={14} /> {confirmLabel}</button>
         </div>
       </div>
     </div>

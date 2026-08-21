@@ -92,7 +92,7 @@ export async function PATCH(request: Request) {
   `;
 
   const old = (cur.data || {}) as any;
-  if (me.role === "admin" && typeof allowed.currentStage === "number" && allowed.currentStage > (old.currentStage || 0)) {
+  if (me.role === "admin" && body.notifyStage !== false && typeof allowed.currentStage === "number" && allowed.currentStage > (old.currentStage || 0)) {
     await sendToClient(merged.clientEmail, "updates", { subject: "Your " + (merged.type || "session") + " status: " + stageLabelFor(merged, allowed.currentStage), html: stageClientEmail(merged, allowed.currentStage), replyTo: "contact@dot1.media" });
     if (isFinalStage(merged, allowed.currentStage)) {
       const rl = (process.env.GOOGLE_REVIEW_LINK || GOOGLE_REVIEW_URL || "").trim();
