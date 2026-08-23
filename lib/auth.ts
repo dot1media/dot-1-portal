@@ -11,7 +11,7 @@ function sign(payloadObj: object): string {
   return body + "." + sig;
 }
 
-function verify(token: string | undefined | null, role: string): { email: string } | null {
+function verify(token: string | undefined | null, role: string): { email: string; tier?: string; grants?: any } | null {
   const secret = process.env.SESSION_SECRET || "";
   if (!token || !secret) return null;
   const [body, sig] = token.split(".");
@@ -23,14 +23,19 @@ function verify(token: string | undefined | null, role: string): { email: string
   try {
     const payload = JSON.parse(Buffer.from(body, "base64url").toString());
     if (payload.role !== role || typeof payload.exp !== "number" || Date.now() > payload.exp) return null;
-    return { email: String(payload.email || "") };
+    // tier and grants are optional extra claims (added with the suite hub). Older cookies and other
+    // apps that don't read them keep working; consumers that want them read them here.
+    return { email: String(payload.email || ""), tier: payload.tier, grants: payload.grants };
   } catch {
     return null;
   }
 }
 
-export function makeToken(email: string): string {
-  return sign({ role: "admin", email, exp: Date.now() + WEEK_MS });
+// makeToken optionally embeds the suite access claims (tier + per-app grants) so other apps can
+// read a person's baseline role without calling back to the portal. Identity still verifies the
+// same way for apps that ignore the extra claims.
+export function makeToken(email: string, claims?: { tier?: string; grants?: any }): string {
+  return sign({ role: "admin", email, tier: claims?.tier, grants: claims?.grants, exp: Date.now() + WEEK_MS });
 }
 export function verifyToken(token: string | undefined | null) {
   return verify(token, "admin");

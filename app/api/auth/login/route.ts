@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { makeToken, ADMIN_COOKIE, verifyPassword } from "@/lib/auth";
-import { ensureAdminTable, isDot1Email, getAdminHash, adminCookieOpts } from "@/lib/admins";
+import { ensureAdminTable, isDot1Email, getAdminHash, adminCookieOpts, getSuiteAccount } from "@/lib/admins";
 
 export const runtime = "nodejs";
 
@@ -21,7 +21,13 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Incorrect email or password." }, { status: 401 });
   }
 
+  // Bake the suite access claims into the cookie so every *.dot1.media app knows this person's
+  // tier and per-app baseline role without a callback. The hub still reads grants fresh from the
+  // DB, so a permission change is reflected there immediately; the cookie refreshes on next login.
+  const acct = await getSuiteAccount(email);
+  const claims = acct ? { tier: acct.tier, grants: acct.grants } : undefined;
+
   const res = NextResponse.json({ ok: true, email });
-  res.cookies.set(ADMIN_COOKIE, makeToken(email), adminCookieOpts(request.headers.get("host")));
+  res.cookies.set(ADMIN_COOKIE, makeToken(email, claims), adminCookieOpts(request.headers.get("host")));
   return res;
 }

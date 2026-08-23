@@ -26,6 +26,7 @@ import { ClientView } from "../lib/portal/ClientView";
 import { GuidePage } from "../lib/portal/GuidePage";
 import { CLIENT_GUIDE_HTML, ADMIN_GUIDE_HTML } from "../lib/portal/guides";
 import { AccountManagement } from "../lib/portal/AccountManagement";
+import { SuiteHub } from "../lib/portal/SuiteHub";
 import {
   CalendarCheck, FileCheck, Camera, Upload, Scissors, Eye, PackageCheck,
   CheckCircle2, User, LayoutDashboard, Send, Play, Image as ImageIcon,
@@ -34,7 +35,7 @@ import {
   Star, CreditCard, Wallet, CalendarDays, ChevronLeft, ChevronRight,
   ArrowRight, ArrowLeft,
   Bell, RefreshCw, CalendarClock, X, Copy, LogIn, Sparkles,
-  MessageCircle, Smartphone, Link as LinkIcon, Ban, EyeOff, XCircle, CalendarPlus, ChevronDown, Settings, Download, ListChecks, FileText, Palette, Mail, Search, LogOut,
+  MessageCircle, Smartphone, Link as LinkIcon, Ban, EyeOff, XCircle, CalendarPlus, ChevronDown, Settings, Download, ListChecks, FileText, Palette, Mail, Search, LogOut, LayoutGrid,
 } from "lucide-react";
 
 // Persist to the browser's localStorage (works in a real browser, unlike the
@@ -67,7 +68,7 @@ const downloadIcs = (session) => { try { const blob = new Blob([icsContent(sessi
 
 
 export default function App() {
-  const [view, setView] = useState("landing");   // landing | client | admin | book | login | studiologin
+  const [view, setView] = useState("landing");   // landing | hub | client | admin | book | login | studiologin
   const [prevTab, setPrevTab] = useState("home");
   const [adminTab, setAdminTab] = useState("home"); // home | sessions | calendar | services | links
   const [state, setState] = useState(DEFAULT_STATE);
@@ -123,7 +124,9 @@ export default function App() {
     // The shared studio cookie signs staff in across every Dot One app. When this
     // browser is ALSO signed in as a client and last chose the client portal,
     // honor that choice instead of bouncing to the studio on every refresh.
-    if (adminOk && !(clientOk && pref === "client")) { setView("admin"); const sd = await fetch("/api/sessions").then((r) => r.json()).catch(() => ({})); if (sd && sd.sessions) setState((s) => ({ ...s, sessions: sd.sessions })); return; }
+    // A domain account lands on the suite hub by default. If they were last inside the studio,
+    // honor that so a refresh keeps them there rather than bouncing back to the chooser.
+    if (adminOk && !(clientOk && pref === "client")) { setView(pref === "admin" ? "admin" : "hub"); const sd = await fetch("/api/sessions").then((r) => r.json()).catch(() => ({})); if (sd && sd.sessions) setState((s) => ({ ...s, sessions: sd.sessions })); return; }
     if (clientOk) { setClientAuth({ name: "", email: c.email }); const sd = await fetch("/api/sessions").then((r) => r.json()).catch(() => ({})); const myCEmail = (c.email || "").toLowerCase(); const sess = ((sd && sd.sessions) || []).filter((x) => (x.clientEmail || "").toLowerCase() === myCEmail); if (sess.length) { setClientAuth({ name: sess[0].clientName || "", email: c.email }); setState((s) => ({ ...s, sessions: sess })); setClientId(sess[0].id); setView("client"); } }
   } catch (e) {} finally { setAuthChecked(true); } })(); }, []);
   useEffect(() => { (async () => { try { const res = await fetch("/api/availability"); const data = await res.json(); if (res.ok) setState((s) => ({ ...s, availability: data.availability || [] })); } catch (e) {} })(); }, []);
@@ -373,7 +376,7 @@ export default function App() {
     try {
       const res = await fetch("/api/auth/login", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ email: (email || "").trim(), password: password || "" }) });
       const data = await res.json().catch(() => ({}));
-      if (res.ok && data.ok) { try { localStorage.setItem("dot1_view_pref", "admin"); } catch (e) {} setView("admin"); const sd = await fetch("/api/sessions").then((r) => r.json()).catch(() => ({})); if (sd && sd.sessions) setState((s) => ({ ...s, sessions: sd.sessions })); applyServerTheme(); showToast("Signed in to the studio dashboard."); return { ok: true }; }
+      if (res.ok && data.ok) { try { localStorage.setItem("dot1_view_pref", "hub"); } catch (e) {} setView("hub"); const sd = await fetch("/api/sessions").then((r) => r.json()).catch(() => ({})); if (sd && sd.sessions) setState((s) => ({ ...s, sessions: sd.sessions })); applyServerTheme(); return { ok: true }; }
       return { ok: false, error: data.error || "Incorrect email or password." };
     } catch (e) {
       return { ok: false, error: "Could not reach the server. Please try again." };
@@ -465,6 +468,7 @@ export default function App() {
                 <button onClick={() => setPaletteOpen(true)} title="Quick search (Cmd/Ctrl + K)" style={{ display: "flex", alignItems: "center", gap: 7, ...mono, fontSize: 10.5, letterSpacing: "0.04em", color: STONE, background: "transparent", border: `1px solid ${LINE}`, borderRadius: 6, padding: "7px 10px", cursor: "pointer" }}><Search size={13} /><span>Search</span><kbd style={{ fontSize: 8.5, border: `1px solid ${LINE}`, borderRadius: 4, padding: "1px 5px", color: FAINT }}>⌘K</kbd></button>
                 <button onClick={() => { if (adminTab !== "guide") setPrevTab(adminTab); setAdminTab("guide"); }} title="Studio guide" style={{ display: "flex", alignItems: "center", gap: 7, ...mono, fontSize: 10.5, letterSpacing: "0.04em", color: adminTab === "guide" ? INK : STONE, background: "transparent", border: `1px solid ${adminTab === "guide" ? INK : LINE}`, borderRadius: 6, padding: "7px 10px", cursor: "pointer" }}><FileText size={13} /><span>Guide</span></button>
                 <span style={{ ...mono, fontSize: 10, letterSpacing: "0.16em", textTransform: "uppercase", color: STONE }}>Studio</span>
+                <button onClick={() => { try { localStorage.setItem("dot1_view_pref", "hub"); } catch (e) {} setView("hub"); }} title="Suite hub" style={{ display: "flex", alignItems: "center", gap: 7, ...mono, fontSize: 10.5, letterSpacing: "0.04em", color: STONE, background: "transparent", border: `1px solid ${LINE}`, borderRadius: 6, padding: "7px 10px", cursor: "pointer" }}><LayoutGrid size={13} /><span>Hub</span></button>
                 <button onClick={adminLogout} style={{ ...mono, fontSize: 10.5, letterSpacing: "0.08em", textTransform: "uppercase", color: STONE, background: "transparent", border: `1px solid ${LINE}`, borderRadius: 6, padding: "8px 12px", cursor: "pointer" }}>Sign out</button>
               </>
             ) : (view === "client" || view === "thankyou" || view === "onboard") ? (
@@ -488,6 +492,11 @@ export default function App() {
 
       <main style={{ maxWidth: 1120, margin: "0 auto", padding: "28px 22px 60px" }}>
         {view === "landing" && <LandingPage onBook={() => { setDirectContext(null); setView("book"); }} onClientLogin={() => setView("login")} onStudioLogin={() => setView("studiologin")} />}
+        {view === "hub" && <SuiteHub
+          onEnterStudio={() => { try { localStorage.setItem("dot1_view_pref", "admin"); } catch (e) {} setAdminTab("home"); setView("admin"); }}
+          onManageAccounts={() => { try { localStorage.setItem("dot1_view_pref", "admin"); } catch (e) {} setAdminTab("account"); setView("admin"); }}
+          onLogout={adminLogout}
+        />}
         {view === "studiologin" && <StudioLogin onLogin={loginAsStudio} onBack={() => setView("landing")} />}
         {view === "book" && <BookingFlow state={state} direct={directContext} slotTaken={slotTaken} onCancel={() => { setDirectContext(null); setView("landing"); }} onComplete={createBooking} onLogin={() => setView("login")} catalogLoaded={catalogLoaded} catalogError={catalogError} availability={state.availability} authedClient={clientAuth} refreshSlots={refreshSlots} />}
         {view === "login" && <LoginView onLogin={loginAs} onBook={() => { setDirectContext(null); setView("book"); }} onStudio={() => setView("studiologin")} onForgot={requestReset} />}
