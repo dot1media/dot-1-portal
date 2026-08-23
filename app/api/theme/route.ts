@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { sql } from "@/lib/db";
 import { verifyToken, verifyClientToken, ADMIN_COOKIE, CLIENT_COOKIE } from "@/lib/auth";
+import { hasStudio } from "@/lib/studioGuard";
 
 export const runtime = "nodejs";
 
@@ -10,7 +11,7 @@ const DEFAULT_THEME = { key: "default", accent: "" };
 async function ownerFor(): Promise<string | null> {
   const store = await cookies();
   const admin = verifyToken(store.get(ADMIN_COOKIE)?.value);
-  if (admin) return "__admin__";
+  if (admin && (await hasStudio())) return "__admin__";
   const client: any = verifyClientToken(store.get(CLIENT_COOKIE)?.value);
   if (client && client.email) return String(client.email).toLowerCase();
   return null;

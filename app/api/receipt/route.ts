@@ -2,13 +2,14 @@ import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { sql } from "@/lib/db";
 import { verifyToken, ADMIN_COOKIE } from "@/lib/auth";
+import { hasStudio } from "@/lib/studioGuard";
 import { receiptPdf } from "@/lib/receipt";
 
 export const runtime = "nodejs";
 
 export async function GET(request: Request) {
   const store = await cookies();
-  if (!verifyToken(store.get(ADMIN_COOKIE)?.value)) return new NextResponse("Unauthorized", { status: 401 });
+  if (!(await hasStudio())) return new NextResponse("Unauthorized", { status: 401 });
   const id = String(new URL(request.url).searchParams.get("id") || "");
   if (!id) return new NextResponse("Missing id.", { status: 400 });
   let rows: any[];

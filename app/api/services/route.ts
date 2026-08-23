@@ -2,12 +2,13 @@ import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { sql } from "@/lib/db";
 import { verifyToken, ADMIN_COOKIE } from "@/lib/auth";
+import { hasStudio } from "@/lib/studioGuard";
 
 export const runtime = "nodejs";
 
 async function isAdmin() {
   const store = await cookies();
-  return !!verifyToken(store.get(ADMIN_COOKIE)?.value);
+  return await hasStudio();
 }
 
 let extrasEnsured = false;

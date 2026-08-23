@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { sql } from "@/lib/db";
 import { verifyToken, ADMIN_COOKIE } from "@/lib/auth";
+import { hasStudio } from "@/lib/studioGuard";
 import { buildInvoicePdf } from "@/lib/invoice-pdf";
 
 export const runtime = "nodejs";
@@ -10,7 +11,7 @@ export const runtime = "nodejs";
 // file always matches what was sent.
 export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const store = await cookies();
-  if (!verifyToken(store.get(ADMIN_COOKIE)?.value)) return NextResponse.json({ error: "Not authorized." }, { status: 401 });
+  if (!(await hasStudio())) return NextResponse.json({ error: "Not authorized." }, { status: 401 });
   const { id } = await params;
   const rows = (await sql`SELECT data FROM invoices WHERE token = ${id} LIMIT 1`) as any[];
   if (!rows.length) return NextResponse.json({ error: "Not found." }, { status: 404 });

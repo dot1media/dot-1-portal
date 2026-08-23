@@ -3,13 +3,14 @@ import { cookies } from "next/headers";
 import crypto from "crypto";
 import { sql } from "@/lib/db";
 import { verifyToken, ADMIN_COOKIE } from "@/lib/auth";
+import { hasStudio } from "@/lib/studioGuard";
 import { sendEmail } from "@/lib/email";
 import { buildInvoicePdf, invoiceEmailHtml } from "@/lib/invoice-pdf";
 import { createRetainerLink } from "@/lib/square-link";
 
 export const runtime = "nodejs";
 
-async function isAdmin() { const store = await cookies(); return !!verifyToken(store.get(ADMIN_COOKIE)?.value); }
+async function isAdmin() { const store = await cookies(); return await hasStudio(); }
 
 let ensured = false;
 async function ensureTable() {

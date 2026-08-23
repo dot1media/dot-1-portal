@@ -3,13 +3,14 @@ import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { sql } from "@/lib/db";
 import { verifyToken, verifyClientToken, ADMIN_COOKIE, CLIENT_COOKIE } from "@/lib/auth";
+import { hasStudio } from "@/lib/studioGuard";
 
 export const runtime = "nodejs";
 
 async function whoami() {
   const store = await cookies();
   const admin = verifyToken(store.get(ADMIN_COOKIE)?.value);
-  if (admin) return { role: "admin", email: admin.email };
+  if (admin && (await hasStudio())) return { role: "admin", email: admin.email };
   const client = verifyClientToken(store.get(CLIENT_COOKIE)?.value);
   if (client) return { role: "client", email: client.email };
   return null;

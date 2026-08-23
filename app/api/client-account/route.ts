@@ -2,13 +2,14 @@ import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { sql } from "@/lib/db";
 import { verifyToken, ADMIN_COOKIE, hashPassword } from "@/lib/auth";
+import { hasStudio } from "@/lib/studioGuard";
 
 export const runtime = "nodejs";
 
 // Studio-only: manage a client's account (reset password, change login email).
 async function isAdmin() {
   const store = await cookies();
-  return !!verifyToken(store.get(ADMIN_COOKIE)?.value);
+  return await hasStudio();
 }
 
 export async function POST(request: Request) {

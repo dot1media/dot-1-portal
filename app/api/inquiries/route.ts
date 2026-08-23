@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { sql } from "@/lib/db";
 import { verifyToken, ADMIN_COOKIE } from "@/lib/auth";
+import { hasStudio } from "@/lib/studioGuard";
 import { sendEmail } from "@/lib/email";
 
 export const runtime = "nodejs";
@@ -62,7 +63,7 @@ export async function POST(request: Request) {
 export async function GET() {
   await ensureTable();
   const store = await cookies();
-  if (!verifyToken(store.get(ADMIN_COOKIE)?.value)) return NextResponse.json({ error: "Not authorized." }, { status: 401 });
+  if (!(await hasStudio())) return NextResponse.json({ error: "Not authorized." }, { status: 401 });
   const rows = await sql`SELECT id, name, email, message, handled, created_at FROM site_inquiries ORDER BY created_at DESC LIMIT 300`;
   return NextResponse.json({ inquiries: rows });
 }

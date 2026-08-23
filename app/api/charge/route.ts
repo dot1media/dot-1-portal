@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { sql } from "@/lib/db";
 import { verifyToken, ADMIN_COOKIE } from "@/lib/auth";
+import { hasStudio } from "@/lib/studioGuard";
 import { chargeRequestEmail, sendToClient } from "@/lib/email";
 import crypto from "crypto";
 
@@ -15,7 +16,7 @@ function squareBase() {
 // generates a Square checkout link, stores the charge on the session, emails the client.
 export async function POST(request: Request) {
   const store = await cookies();
-  if (!verifyToken(store.get(ADMIN_COOKIE)?.value)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!(await hasStudio())) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const token = (process.env.SQUARE_ACCESS_TOKEN || "").trim();
   const locationId = (process.env.SQUARE_LOCATION_ID || "").trim();
   if (!token || !locationId) return NextResponse.json({ error: "Payments are not configured." }, { status: 400 });
