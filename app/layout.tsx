@@ -5,7 +5,13 @@ export const metadata: Metadata = {
   title: "Dot One Portal",
   description:
     "Your studio's home for the work we make together — book sessions, follow your project from start to finish, and receive your finished work.",
-  icons: { icon: "/dot1-icon.png?v=1", apple: "/dot1-icon.png?v=1" },
+  icons: {
+    icon: [
+      { url: "/favicon.ico?v=2", sizes: "any" },
+      { url: "/dot1-icon.png?v=2", type: "image/png" },
+    ],
+    apple: "/dot1-icon.png?v=2",
+  },
   manifest: "/manifest.webmanifest",
   appleWebApp: { capable: true, title: "Dot One", statusBarStyle: "default" },
   openGraph: {
