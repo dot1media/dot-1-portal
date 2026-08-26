@@ -66,26 +66,27 @@ footer .t{font-family:'Bodoni Moda',serif;font-style:italic;color:var(--gold);ma
           <div class="foot"><span class="price">from $450</span>
           <a class="buy" href="/api/shop/checkout?product=portrait" data-sq="/api/shop/checkout?product=portrait">Buy securely &rarr;</a></div>
         </div></div></div><div class="cat"><div class="cat-label">Software, powered by the Dot One suite</div><div class="grid"><div class="card">
-          <div class="badge">Monthly, cancel anytime</div>
-          <h3>Studio Portal</h3>
-          <p>Your own client portal: booking, service menu, payments, and project tracking. The system that runs Dot One, set up for you.</p>
-          <div class="foot"><span class="price">$39 / mo</span>
-          <a class="buy" href="mailto:contact@dot1.media?subject=Studio%20Portal%20access" data-sq="mailto:contact@dot1.media?subject=Studio%20Portal%20access">Buy securely &rarr;</a></div>
+          <div class="badge">Verified install + guides</div>
+          <h3>Studio & Newsroom, self-install</h3>
+          <p>Download the full studio and newsroom, install it yourself with a guided, verified setup, and run it under your own brand. Guides and branding import included.</p>
+          <div class="foot"><span class="price">$299</span>
+          <a class="buy" href="/api/shop/checkout?product=studiokit" data-sq="/api/shop/checkout?product=studiokit">Buy securely &rarr;</a></div>
         </div><div class="card">
-          <div class="badge">Early access</div>
-          <h3>Branded Newsroom</h3>
-          <p>A complete news and media platform under your own brand, with the editorial desk and reader app. Early access.</p>
-          <div class="foot"><span class="price">Request access</span>
-          <a class="buy" href="mailto:contact@dot1.media?subject=Branded%20Newsroom%20early%20access" data-sq="mailto:contact@dot1.media?subject=Branded%20Newsroom%20early%20access">Request access &rarr;</a></div>
+          <div class="badge">By request</div>
+          <h3>Done-for-you setup</h3>
+          <p>Prefer that we host it and set it up in your brand? Request access and we will get you running.</p>
+          <div class="foot"><span class="price">By request</span>
+          <a class="buy" href="mailto:contact@dot1.media?subject=Done-for-you%20setup" data-sq="mailto:contact@dot1.media?subject=Done-for-you%20setup">Request access &rarr;</a></div>
         </div></div></div>
     <div class="trust">Payments are handled securely by <b>Square</b>. You will receive a receipt by email. Digital products deliver instantly after checkout.</div>
   </div>
 
   <div id="thanks">
     <h2>Thank you</h2>
-    <p>Your purchase is complete and a receipt is on its way. If you bought a digital product, your download link is below.</p>
-    <p style="margin-top:18px"><a id="dl" href="/downloads/studio-business-kit.zip">Download your files &rarr;</a></p>
-    <p style="margin-top:24px"><a href="./">Back to the shop</a></p>
+    <p>Your purchase is complete and a receipt is on its way.</p>
+    <p id="dlstatus" style="margin-top:14px;color:var(--muted)"></p>
+    <p style="margin-top:12px"><a id="dl" class="buy" style="display:none" href="#">Download your files &rarr;</a></p>
+    <p style="margin-top:26px"><a href="/shop">Back to the shop</a></p>
   </div>
 </main>
 
@@ -94,6 +95,22 @@ footer .t{font-family:'Bodoni Moda',serif;font-style:italic;color:var(--gold);ma
 <script>
 // Square hosted checkout can redirect back with ?success=1 (and optionally &type=digital).
 var q=new URLSearchParams(location.search);
-if(q.get('success')){document.getElementById('store').style.display='none';document.getElementById('thanks').style.display='block';}
+if(q.get('success')){
+  document.getElementById('store').style.display='none';
+  document.getElementById('thanks').style.display='block';
+  var t=q.get('t'), st=document.getElementById('dlstatus'), dl=document.getElementById('dl'), n=0;
+  if(t){
+    st.textContent='Confirming your payment...';
+    (function poll(){
+      fetch('/api/shop/verify?t='+encodeURIComponent(t)).then(function(r){return r.json();}).then(function(d){
+        if(d.paid){
+          if(d.download){ st.textContent=''; dl.href=d.download; dl.style.display='inline-block'; }
+          else { st.textContent='Your booking is secured. We will be in touch shortly.'; }
+        } else if(n++<10){ setTimeout(poll,2000); }
+        else { st.textContent='Your payment is still processing. Your emailed receipt has your link, or write contact@dot1.media.'; }
+      }).catch(function(){ if(n++<10) setTimeout(poll,2000); });
+    })();
+  }
+}
 </script>
 </body></html>
