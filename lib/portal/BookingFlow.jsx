@@ -209,6 +209,13 @@ export function BookingFlow({ state, direct, slotTaken, onCancel, onComplete, on
               <button key={k} onClick={() => { setGroup(k); setServiceId(null); setAddonIds([]); }} style={{ display: "flex", alignItems: "center", gap: 8, padding: "9px 15px", borderRadius: 8, cursor: "pointer", fontSize: 13, border: `1px solid ${active ? gg.color : LINE}`, background: active ? gg.color : PAPER, color: active ? "#fff" : STONE }}><gg.Icon size={14} /> {gg.label}</button>
             ); })}
           </div>
+          {group === "photo" && (
+            <div style={{ textAlign: "center", margin: "2px auto 24px", maxWidth: 470 }}>
+              <img src="/dot1-photo-logo.png" alt="Dot One Photography" style={{ height: 54, width: "auto", display: "block", margin: "0 auto 11px" }} />
+              <div style={{ ...display, fontStyle: "italic", fontSize: 17, color: GROUPS.photo.color }}>Timeless portraits, Alaska</div>
+              <div style={{ ...mono, fontSize: 8.5, letterSpacing: "0.28em", textTransform: "uppercase", color: FAINT, marginTop: 8 }}>Choose your session below</div>
+            </div>
+          )}
           {!catalogLoaded ? (
             <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>{[0, 1, 2].map((i) => (<div key={i} style={{ ...card, padding: "18px 20px" }}><Skeleton w="42%" h={16} style={{ marginBottom: 11 }} /><Skeleton w="72%" h={11} style={{ marginBottom: 8 }} /><Skeleton w="28%" h={11} /></div>))}</div>
           ) : catalogError ? (

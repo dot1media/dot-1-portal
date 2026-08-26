@@ -208,7 +208,7 @@ export function ClientView({ session, sessions, clientId, setClientId, addCommen
 
   return (
     <div className="d1-stagger">
-      {session.serviceLine === "photo" && <div style={{ textAlign: "center", marginBottom: 22 }}><img src="/dot1-photo-logo.png" alt="Dot One Photography" style={{ height: 52, width: "auto", display: "block", margin: "2px auto 6px" }} /><div style={{ ...mono, fontSize: 9, letterSpacing: "0.28em", textTransform: "uppercase", color: "#2f74c0" }}>Timeless Portraits</div></div>}
+      {session.serviceLine === "photo" && <div style={{ textAlign: "center", margin: "8px auto 34px", maxWidth: 460 }}><img src="/dot1-photo-logo.png" alt="Dot One Photography" style={{ height: 62, width: "auto", display: "block", margin: "0 auto 14px" }} /><div style={{ ...display, fontStyle: "italic", fontSize: 18, color: GROUPS.photo.color, letterSpacing: "0.01em" }}>Timeless portraits</div><div style={{ ...mono, fontSize: 8.5, letterSpacing: "0.3em", textTransform: "uppercase", color: FAINT, marginTop: 9 }}>Every stage of life, every season of light</div></div>}
       {sortedSessions.length > 1 && (
         <div style={{ marginBottom: 24 }}>
           <div style={{ ...mono, fontSize: 10, letterSpacing: "0.16em", textTransform: "uppercase", color: STONE, marginBottom: 10 }}>Your bookings · {sortedSessions.length}</div>
