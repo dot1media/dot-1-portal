@@ -30,6 +30,12 @@ export async function createRetainerLink(opts: {
   note: string;
   buyerEmail?: string;
 }): Promise<{ configured: boolean; url?: string; orderId?: string; error?: string }> {
+  // Route to the chosen processor. Square is the default, so unset behaves
+  // exactly as before; stripe and paypal load only when selected.
+  const provider = (process.env.PAYMENT_PROVIDER || "square").trim().toLowerCase();
+  if (provider === "stripe") { const { stripeCheckout } = await import("./payments/stripe"); return stripeCheckout(opts); }
+  if (provider === "paypal") { const { paypalCheckout } = await import("./payments/paypal"); return paypalCheckout(opts); }
+
   const token = (process.env.SQUARE_ACCESS_TOKEN || "").trim();
   const locationId = (process.env.SQUARE_LOCATION_ID || "").trim();
   if (!token || !locationId) {
