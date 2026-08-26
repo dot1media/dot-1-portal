@@ -2,9 +2,9 @@ import { sql } from "@/lib/db";
 import crypto from "crypto";
 
 // Storefront catalog. Prices in cents. `file` names the gated download in /private-downloads.
-export const SHOP_CATALOG: Record<string, { name: string; amountCents: number; file?: string; digital: boolean }> = {
+export const SHOP_CATALOG: Record<string, { name: string; amountCents: number; file?: string; digital: boolean; licensed?: boolean }> = {
   kit:       { name: "Studio Business Kit", amountCents: 4900, file: "studio-kit-deliverables.zip", digital: true },
-  studiokit: { name: "Dot One Studio and Newsroom (self-install)", amountCents: 29900, file: "dot-one-studio-kit.zip", digital: true },
+  studiokit: { name: "Dot One Studio and Newsroom (self-install)", amountCents: 29900, file: "dot-one-studio-kit.zip", digital: true, licensed: true },
   film:      { name: "Brand Story Film deposit", amountCents: 50000, digital: false },
   portrait:  { name: "Timeless Portrait Session deposit", amountCents: 15000, digital: false },
 };
@@ -15,8 +15,10 @@ export async function ensureShopSchema() {
     product TEXT NOT NULL,
     square_order_id TEXT,
     status TEXT NOT NULL DEFAULT 'pending',
+    license TEXT,
     created_at TIMESTAMPTZ DEFAULT now()
   )`;
+  await sql`ALTER TABLE shop_orders ADD COLUMN IF NOT EXISTS license TEXT`;
 }
 
 export function newToken() { return crypto.randomBytes(24).toString("hex"); }
