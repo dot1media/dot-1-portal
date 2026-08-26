@@ -30,6 +30,14 @@ export function StudioHome({ state, setAdminId, setAdminTab, dark }) {
   }).filter((x) => x.due > 0).sort((a, b) => ((a.sq.date || "9999") + (a.sq.time || "")).localeCompare((b.sq.date || "9999") + (b.sq.time || "")));
   const pendingTotal = pendingPay.reduce((n, x) => n + x.due, 0);
   const next = upcoming[0];
+  // Business insights: average booking value and volume per service line, plus recent pace.
+  // These are exactly the inputs the financial model needs.
+  const byLine = {};
+  live.forEach((s) => { const k = s.serviceLine || "other"; if (!byLine[k]) byLine[k] = { count: 0, total: 0 }; byLine[k].count += 1; byLine[k].total += Number(s.total) || 0; });
+  const lineRows = Object.keys(byLine).map((k) => ({ k, count: byLine[k].count, total: byLine[k].total, avg: byLine[k].count ? byLine[k].total / byLine[k].count : 0 })).sort((a, b) => b.total - a.total);
+  const d90 = new Date(now.getTime() - 90 * 86400000).toISOString().slice(0, 10);
+  const recent = live.filter((s) => s.date && s.date >= d90 && s.date <= todayStr).length;
+  const perMonth = recent / 3;
   const goTo = (id) => { setAdminId(id); setAdminTab("sessions"); };
   const stat = (val, label, color) => (
     <div style={{ ...cardDense, padding: "16px 18px" }}>
@@ -52,6 +60,27 @@ export function StudioHome({ state, setAdminId, setAdminTab, dark }) {
         {stat(activeCount, "Active bookings")}
         {stat(money(Math.round(collected)), "Collected", OK)}
         {stat(money(Math.round(outstanding)), "Outstanding", outstanding > 0 ? WARN : INK)}
+      </div>
+      <div style={{ ...cardDense, padding: "18px 20px", marginBottom: 18 }}>
+        <div style={{ ...mono, fontSize: 10.5, letterSpacing: "0.16em", textTransform: "uppercase", color: STONE, marginBottom: 4 }}>Business insights</div>
+        <div style={{ fontSize: 12, color: FAINT, marginBottom: 14 }}>Your real numbers, ready for planning. Recent pace: about {perMonth < 10 ? perMonth.toFixed(1) : Math.round(perMonth)} {perMonth === 1 ? "session" : "sessions"} per month (last 90 days).</div>
+        {lineRows.length === 0 ? (
+          <div style={{ fontSize: 13, color: STONE }}>No bookings yet. Insights appear here as clients book.</div>
+        ) : (
+          <div>
+            <div style={{ display: "grid", gridTemplateColumns: "1.5fr 0.8fr 1fr 1fr", ...mono, fontSize: 9, letterSpacing: "0.1em", textTransform: "uppercase", color: FAINT, padding: "0 4px 7px" }}>
+              <span>Service line</span><span style={{ textAlign: "right" }}>Bookings</span><span style={{ textAlign: "right" }}>Avg value</span><span style={{ textAlign: "right" }}>Booked</span>
+            </div>
+            {lineRows.map((r) => { const g = GROUPS[r.k] || GROUPS.video; return (
+              <div key={r.k} style={{ display: "grid", gridTemplateColumns: "1.5fr 0.8fr 1fr 1fr", alignItems: "center", padding: "9px 4px", borderTop: `1px solid ${LINE}` }}>
+                <span style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: INK }}><span style={{ width: 8, height: 8, borderRadius: 2, background: g.color, flexShrink: 0 }} />{g.label}</span>
+                <span style={{ ...mono, fontSize: 12, color: STONE, textAlign: "right" }}>{r.count}</span>
+                <span style={{ ...mono, fontSize: 12.5, color: INK, textAlign: "right" }}>{money(Math.round(r.avg))}</span>
+                <span style={{ ...mono, fontSize: 12, color: STONE, textAlign: "right" }}>{money(Math.round(r.total))}</span>
+              </div>
+            ); })}
+          </div>
+        )}
       </div>
       <div style={{ ...cardDense, padding: "18px 20px", marginBottom: 18 }}>
         <div style={{ ...mono, fontSize: 10.5, letterSpacing: "0.16em", textTransform: "uppercase", color: STONE, marginBottom: 14 }}>Upcoming sessions</div>
