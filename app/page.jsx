@@ -35,7 +35,7 @@ import {
   Star, CreditCard, Wallet, CalendarDays, ChevronLeft, ChevronRight,
   ArrowRight, ArrowLeft,
   Bell, RefreshCw, CalendarClock, X, Copy, LogIn, Sparkles,
-  MessageCircle, Smartphone, Link as LinkIcon, Ban, EyeOff, XCircle, CalendarPlus, ChevronDown, Settings, Download, ListChecks, FileText, Palette, Mail, Search, LogOut, LayoutGrid,
+  MessageCircle, Smartphone, Link as LinkIcon, Ban, EyeOff, XCircle, CalendarPlus, ChevronDown, Settings, Download, ListChecks, FileText, Palette, Mail, Search, LogOut, LayoutGrid, MoreHorizontal,
 } from "lucide-react";
 
 // Persist to the browser's localStorage (works in a real browser, unlike the
@@ -90,6 +90,7 @@ export default function App() {
   const [themeKey, setThemeKey] = useState("default");
   const [customAccent, setCustomAccent] = useState("");
   const [themeOpen, setThemeOpen] = useState(false);
+  const [adminMenu, setAdminMenu] = useState(false);
   const [legalReturn, setLegalReturn] = useState("landing");
   const [adminId, setAdminId] = useState("");
   const [internalOpen, setInternalOpen] = useState(false);
@@ -461,15 +462,30 @@ export default function App() {
             <span style={{ ...mono, fontSize: 10, letterSpacing: "0.22em", textTransform: "uppercase", color: FAINT }}>Client Portal</span>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-            {(view === "admin" || view === "client" || view === "thankyou" || view === "onboard") && <button onClick={() => setThemeOpen(true)} title="Appearance" aria-label="Appearance" style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 34, height: 34, borderRadius: 7, cursor: "pointer", color: STONE, background: "transparent", border: `1px solid ${LINE}`, padding: 0 }}><Palette size={15} /></button>}
+            {(view === "client" || view === "thankyou" || view === "onboard") && <button onClick={() => setThemeOpen(true)} title="Appearance" aria-label="Appearance" style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 34, height: 34, borderRadius: 7, cursor: "pointer", color: STONE, background: "transparent", border: `1px solid ${LINE}`, padding: 0 }}><Palette size={15} /></button>}
             {view === "admin" ? (
               <>
                 <NotificationBell mode="studio" sessions={state.sessions} onOpenSession={(id) => { setAdminTab("sessions"); setAdminId(id); }} />
-                <button onClick={() => setPaletteOpen(true)} title="Quick search (Cmd/Ctrl + K)" style={{ display: "flex", alignItems: "center", gap: 7, ...mono, fontSize: 10.5, letterSpacing: "0.04em", color: STONE, background: "transparent", border: `1px solid ${LINE}`, borderRadius: 6, padding: "7px 10px", cursor: "pointer" }}><Search size={13} /><span>Search</span><kbd style={{ fontSize: 8.5, border: `1px solid ${LINE}`, borderRadius: 4, padding: "1px 5px", color: FAINT }}>⌘K</kbd></button>
-                <button onClick={() => { if (adminTab !== "guide") setPrevTab(adminTab); setAdminTab("guide"); }} title="Studio guide" style={{ display: "flex", alignItems: "center", gap: 7, ...mono, fontSize: 10.5, letterSpacing: "0.04em", color: adminTab === "guide" ? INK : STONE, background: "transparent", border: `1px solid ${adminTab === "guide" ? INK : LINE}`, borderRadius: 6, padding: "7px 10px", cursor: "pointer" }}><FileText size={13} /><span>Guide</span></button>
-                <span style={{ ...mono, fontSize: 10, letterSpacing: "0.16em", textTransform: "uppercase", color: STONE }}>Studio</span>
-                <button onClick={() => { try { localStorage.setItem("dot1_view_pref", "hub"); } catch (e) {} setView("hub"); }} title="Suite hub" style={{ display: "flex", alignItems: "center", gap: 7, ...mono, fontSize: 10.5, letterSpacing: "0.04em", color: STONE, background: "transparent", border: `1px solid ${LINE}`, borderRadius: 6, padding: "7px 10px", cursor: "pointer" }}><LayoutGrid size={13} /><span>Hub</span></button>
-                <button onClick={adminLogout} style={{ ...mono, fontSize: 10.5, letterSpacing: "0.08em", textTransform: "uppercase", color: STONE, background: "transparent", border: `1px solid ${LINE}`, borderRadius: 6, padding: "8px 12px", cursor: "pointer" }}>Sign out</button>
+                <button onClick={() => setPaletteOpen(true)} title="Quick search (Cmd/Ctrl + K)" style={{ display: "flex", alignItems: "center", gap: 7, ...mono, fontSize: 10.5, letterSpacing: "0.04em", color: STONE, background: "transparent", border: `1px solid ${LINE}`, borderRadius: 8, padding: "7px 10px", cursor: "pointer" }}><Search size={13} /><span>Search</span><kbd style={{ fontSize: 8.5, border: `1px solid ${LINE}`, borderRadius: 4, padding: "1px 5px", color: FAINT }}>⌘K</kbd></button>
+                <div style={{ position: "relative" }}>
+                  <button onClick={() => setAdminMenu((v) => !v)} title="Menu" aria-label="Menu" aria-expanded={adminMenu} style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 34, height: 34, borderRadius: 8, cursor: "pointer", color: adminMenu ? INK : STONE, background: adminMenu ? CREAM : "transparent", border: `1px solid ${adminMenu ? INK : LINE}`, padding: 0 }}><MoreHorizontal size={16} /></button>
+                  {adminMenu && (
+                    <>
+                      <div onClick={() => setAdminMenu(false)} style={{ position: "fixed", inset: 0, zIndex: 59 }} />
+                      <div className="d1-modal" style={{ position: "absolute", top: 42, right: 0, background: PAPER, border: `1px solid ${LINE}`, borderRadius: 12, boxShadow: "0 12px 34px rgba(26,26,23,0.16)", minWidth: 198, padding: 6, zIndex: 60 }}>
+                        {[
+                          { icon: Palette, label: "Appearance", on: () => { setThemeOpen(true); setAdminMenu(false); } },
+                          { icon: FileText, label: "Studio guide", on: () => { if (adminTab !== "guide") setPrevTab(adminTab); setAdminTab("guide"); setAdminMenu(false); } },
+                          { icon: LayoutGrid, label: "Suite hub", on: () => { try { localStorage.setItem("dot1_view_pref", "hub"); } catch (e) {} setView("hub"); setAdminMenu(false); } },
+                        ].map((m) => (
+                          <button key={m.label} onClick={m.on} style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", textAlign: "left", background: "transparent", border: "none", borderRadius: 8, padding: "9px 10px", cursor: "pointer", fontSize: 13, color: INK }}><m.icon size={15} color={STONE} /> {m.label}</button>
+                        ))}
+                        <div style={{ borderTop: `1px solid ${LINE}`, margin: "5px 4px" }} />
+                        <button onClick={() => { setAdminMenu(false); adminLogout(); }} style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", textAlign: "left", background: "transparent", border: "none", borderRadius: 8, padding: "9px 10px", cursor: "pointer", fontSize: 13, color: INK }}><LogOut size={15} color={STONE} /> Sign out</button>
+                      </div>
+                    </>
+                  )}
+                </div>
               </>
             ) : (view === "client" || view === "thankyou" || view === "onboard") ? (
               <>
