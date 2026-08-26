@@ -3,10 +3,11 @@ import crypto from "crypto";
 
 // Storefront catalog. Prices in cents. `file` names the gated download in /private-downloads.
 export const SHOP_CATALOG: Record<string, { name: string; amountCents: number; file?: string; digital: boolean; licensed?: boolean }> = {
-  kit:       { name: "Studio Business Kit", amountCents: 4900, file: "studio-kit-deliverables.zip", digital: true },
-  studiokit: { name: "Dot One Studio and Newsroom (self-install)", amountCents: 29900, file: "dot-one-studio-kit.zip", digital: true, licensed: true },
-  film:      { name: "Brand Story Film deposit", amountCents: 50000, digital: false },
-  portrait:  { name: "Timeless Portrait Session deposit", amountCents: 15000, digital: false },
+  kit:      { name: "Studio Business Kit", amountCents: 4900, file: "studio-kit-deliverables.zip", digital: true },
+  studio:   { name: "Dot One Studio (self-install)", amountCents: 49900, file: "dot-one-studio.zip", digital: true, licensed: true },
+  newsroom: { name: "Dot One Newsroom (self-install)", amountCents: 49900, file: "dot-one-newsroom.zip", digital: true, licensed: true },
+  film:     { name: "Brand Story Film deposit", amountCents: 50000, digital: false },
+  portrait: { name: "Timeless Portrait Session deposit", amountCents: 15000, digital: false },
 };
 
 export async function ensureShopSchema() {

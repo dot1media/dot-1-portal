@@ -67,18 +67,30 @@ footer .t{font-family:'Bodoni Moda',serif;font-style:italic;color:var(--gold);ma
           <a class="buy" href="/api/shop/checkout?product=portrait" data-sq="/api/shop/checkout?product=portrait">Buy securely &rarr;</a></div>
         </div></div></div><div class="cat"><div class="cat-label">Software, powered by the Dot One suite</div><div class="grid"><div class="card">
           <div class="badge">Verified install + guides</div>
-          <h3>Studio & Newsroom, self-install</h3>
-          <p>Download the full studio and newsroom, install it yourself with a guided, verified setup, and run it under your own brand. Guides and branding import included.</p>
-          <div class="foot"><span class="price">$299</span>
-          <a class="buy" href="/api/shop/checkout?product=studiokit" data-sq="/api/shop/checkout?product=studiokit">Buy securely &rarr;</a></div>
+          <h3>Dot One Studio, self-install</h3>
+          <p>Your own client portal: booking, service menu, payments, and project tracking. Download, install with the guided setup, and run it under your brand. You own it.</p>
+          <div class="foot"><span class="price">$499 once</span>
+          <a class="buy" href="/api/shop/checkout?product=studio" data-sq="/api/shop/checkout?product=studio">Buy securely &rarr;</a></div>
         </div><div class="card">
-          <div class="badge">By request</div>
-          <h3>Done-for-you setup</h3>
-          <p>Prefer that we host it and set it up in your brand? Request access and we will get you running.</p>
-          <div class="foot"><span class="price">By request</span>
-          <a class="buy" href="mailto:contact@dot1.media?subject=Done-for-you%20setup" data-sq="mailto:contact@dot1.media?subject=Done-for-you%20setup">Request access &rarr;</a></div>
+          <div class="badge">Monthly, cancel anytime</div>
+          <h3>Dot One Studio, hosted</h3>
+          <p>Prefer that we host, maintain, and update it in your brand? Monthly, cancel anytime.</p>
+          <div class="foot"><span class="price">$49 / mo</span>
+          <a class="buy" href="/api/shop/checkout?product=studio&plan=sub" data-sq="/api/shop/checkout?product=studio&plan=sub">Buy securely &rarr;</a></div>
+        </div><div class="card">
+          <div class="badge">Verified install + guides</div>
+          <h3>Dot One Newsroom, self-install</h3>
+          <p>Your own editorial and publishing platform. Download, install with the guided setup, and run it under your brand. You own it.</p>
+          <div class="foot"><span class="price">$499 once</span>
+          <a class="buy" href="/api/shop/checkout?product=newsroom" data-sq="/api/shop/checkout?product=newsroom">Buy securely &rarr;</a></div>
+        </div><div class="card">
+          <div class="badge">Monthly, cancel anytime</div>
+          <h3>Dot One Newsroom, hosted</h3>
+          <p>Prefer that we host, maintain, and update it in your brand? Monthly, cancel anytime.</p>
+          <div class="foot"><span class="price">$49 / mo</span>
+          <a class="buy" href="/api/shop/checkout?product=newsroom&plan=sub" data-sq="/api/shop/checkout?product=newsroom&plan=sub">Buy securely &rarr;</a></div>
         </div></div></div>
-    <div class="trust">Payments are handled securely by <b>Square</b>. You will receive a receipt by email. Digital products deliver instantly after checkout.</div>
+    <div class="trust">Payments are handled securely by <b>Square</b>. You will receive a receipt by email. Digital products deliver instantly after checkout. Questions or issues, email <a href="mailto:support@dot1.media" style="color:var(--crimson)">support@dot1.media</a>.</div>
   </div>
 
   <div id="thanks">
@@ -95,11 +107,16 @@ footer .t{font-family:'Bodoni Moda',serif;font-style:italic;color:var(--gold);ma
   </div>
 </main>
 
-<footer><div class="wrap"><div class="b">DOT ONE LLC &middot; Wasilla, Alaska &middot; contact@dot1.media</div><div class="t">Create with purpose.</div></div></footer>
+<footer><div class="wrap"><div class="b">DOT ONE LLC &middot; Wasilla, Alaska &middot; support@dot1.media</div><div class="t">Create with purpose.</div></div></footer>
 
 <script>
 // Square hosted checkout can redirect back with ?success=1 (and optionally &type=digital).
 var q=new URLSearchParams(location.search);
+var sub=q.get('subscribe');
+if(sub){ var m=document.createElement('div'); var nm=sub.charAt(0).toUpperCase()+sub.slice(1);
+  m.style.cssText='max-width:1000px;margin:18px auto 0;padding:14px 18px;background:#faf7f1;border:1px solid #ece6da;border-radius:12px;text-align:center';
+  m.innerHTML='To start a hosted '+nm+' subscription, email <a href="mailto:support@dot1.media?subject=Hosted%20'+nm+'%20subscription" style="color:#b81616">support@dot1.media</a> and we will set you up in your brand.';
+  document.querySelector('main').prepend(m); }
 if(q.get('success')){
   document.getElementById('store').style.display='none';
   document.getElementById('thanks').style.display='block';
