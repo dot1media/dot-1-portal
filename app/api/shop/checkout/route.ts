@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createRetainerLink } from "@/lib/square-link";
-import { SHOP_CATALOG, ensureShopSchema, newToken } from "@/lib/shop";
+import { SHOP_CATALOG, ensureShopSchema, newToken, getShopConfig } from "@/lib/shop";
 import { sql } from "@/lib/db";
 
 export const runtime = "nodejs";
@@ -14,8 +14,10 @@ export async function GET(req: Request) {
   // Subscription path: use a configured Square subscription checkout link if set,
   // otherwise fall back to starting it with our team.
   if (url.searchParams.get("plan") === "sub") {
-    const subUrl = process.env["SUBSCRIBE_URL_" + id.toUpperCase()];
-    if (subUrl) return NextResponse.redirect(subUrl, 303);
+    const envUrl = process.env["SUBSCRIBE_URL_" + id.toUpperCase()];
+    if (envUrl) return NextResponse.redirect(envUrl, 303);
+    const cfg = await getShopConfig("sub:" + id);
+    if (cfg && cfg.url) return NextResponse.redirect(cfg.url, 303);
     return NextResponse.redirect(new URL(`/shop.html?subscribe=${encodeURIComponent(id)}`, url.origin), 303);
   }
   await ensureShopSchema();

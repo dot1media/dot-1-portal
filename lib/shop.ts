@@ -2,10 +2,10 @@ import { sql } from "@/lib/db";
 import crypto from "crypto";
 
 // Storefront catalog. Prices in cents. `file` names the gated download in /private-downloads.
-export const SHOP_CATALOG: Record<string, { name: string; amountCents: number; file?: string; digital: boolean; licensed?: boolean }> = {
+export const SHOP_CATALOG: Record<string, { name: string; amountCents: number; file?: string; digital: boolean; licensed?: boolean; subCents?: number }> = {
   kit:      { name: "Studio Business Kit", amountCents: 4900, file: "studio-kit-deliverables.zip", digital: true },
-  studio:   { name: "Dot One Studio (self-install)", amountCents: 49900, file: "dot-one-studio.zip", digital: true, licensed: true },
-  newsroom: { name: "Dot One Newsroom (self-install)", amountCents: 49900, file: "dot-one-newsroom.zip", digital: true, licensed: true },
+  studio:   { name: "Dot One Studio (self-install)", amountCents: 49900, file: "dot-one-studio.zip", digital: true, licensed: true, subCents: 4900 },
+  newsroom: { name: "Dot One Newsroom (self-install)", amountCents: 49900, file: "dot-one-newsroom.zip", digital: true, licensed: true, subCents: 4900 },
   film:     { name: "Brand Story Film deposit", amountCents: 50000, digital: false },
   portrait: { name: "Timeless Portrait Session deposit", amountCents: 15000, digital: false },
 };
@@ -42,4 +42,20 @@ export async function isOrderPaid(orderId: string): Promise<boolean> {
       (Array.isArray(o.tenders) && o.tenders.length > 0) ||
       (o.net_amount_due_money && Number(o.net_amount_due_money.amount) === 0 && o.total_money && Number(o.total_money.amount) > 0);
   } catch { return false; }
+}
+
+
+export async function ensureShopConfig() {
+  await sql`CREATE TABLE IF NOT EXISTS shop_config (key TEXT PRIMARY KEY, value TEXT, updated_at TIMESTAMPTZ DEFAULT now())`;
+}
+export async function getShopConfig(key: string): Promise<any | null> {
+  await ensureShopConfig();
+  const r = (await sql`SELECT value FROM shop_config WHERE key = ${key} LIMIT 1`) as any[];
+  if (!r.length) return null;
+  try { return JSON.parse(r[0].value); } catch { return null; }
+}
+export async function setShopConfig(key: string, value: any) {
+  await ensureShopConfig();
+  const v = JSON.stringify(value);
+  await sql`INSERT INTO shop_config (key, value) VALUES (${key}, ${v}) ON CONFLICT (key) DO UPDATE SET value = ${v}, updated_at = now()`;
 }
