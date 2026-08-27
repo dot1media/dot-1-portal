@@ -79,6 +79,14 @@ export default function App() {
   const [loaded, setLoaded] = useState(false);
   const [authChecked, setAuthChecked] = useState(false);
   const [installEvt, setInstallEvt] = useState(null);
+  const [brand, setBrand] = useState({ orgName: "Dot One Media", tagline: "Create with purpose." });
+  useEffect(() => {
+    fetch("/api/brand").then((r) => r.json()).then((b) => {
+      if (!b) return;
+      if (b.needsSetup) { window.location.href = "/setup"; return; }
+      setBrand({ orgName: b.orgName || "Dot One Media", tagline: b.tagline || "Create with purpose." });
+    }).catch(() => {});
+  }, []);
   const [installDismissed, setInstallDismissed] = useState(false);
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [clientId, setClientId] = useState("");
@@ -521,7 +529,7 @@ export default function App() {
         {(view === "terms" || view === "privacy") && <LegalPage kind={view} onBack={() => setView(legalReturn)} />}
         {view === "client" && clientGuideOpen && <GuidePage title="Client Guide" html={CLIENT_GUIDE_HTML} pdf="/guides/dot1-client-guide.pdf" onBack={() => setClientGuideOpen(false)} />}
         {view === "client" && !clientGuideOpen && <ClientView session={clientSession} sessions={state.sessions} clientId={clientId} setClientId={setClientId} addComment={addComment} onRescheduleRequest={clientRescheduleRequest} markMessagesRead={markMessagesRead} patchSession={patchSession} resizeImage={resizeImage} uploadMessageImage={uploadMessageImage} showToast={showToast} />}
-        {view === "thankyou" && <ThankYou session={clientSession} onPortal={() => setView("client")} />}
+        {view === "thankyou" && <ThankYou session={clientSession} onPortal={() => setView("client")} brand={brand} />}
         {view === "onboard" && <InvoiceOnboarding session={clientSession} onDone={() => { try { localStorage.setItem("dot1_view_pref", "client"); } catch (e) {} setView("client"); showToast("You're all set. Welcome to your portal!"); }} />}
         {view === "client" && !guideSeen && clientSession && <ClientGuide onClose={() => { setGuideSeen(true); try { localStorage.setItem("dot1_guide_seen", "1"); } catch (e) {} }} />}
         {themeOpen && <ThemePicker themeKey={themeKey} customAccent={customAccent} onPick={(k, a) => setTheme(k, a)} onClose={() => setThemeOpen(false)} />}
@@ -552,7 +560,7 @@ export default function App() {
         )}
       </main>
       {view !== "terms" && view !== "privacy" ? <Footer onLegal={(k) => { setLegalReturn(view); setView(k); }} /> : null}
-      <PortalFooter />
+      <PortalFooter brand={brand} />
 
       {toast && <div style={{ position: "fixed", bottom: 44, left: "50%", transform: "translateX(-50%)", background: INK, color: "#fff", padding: "11px 18px", borderRadius: 8, boxShadow: "0 10px 30px rgba(0,0,0,0.25)", fontSize: 13.5, maxWidth: "92%", display: "flex", alignItems: "center", gap: 9, zIndex: 60 }}><CheckCircle2 size={16} color="#7ee0a0" /> {toast}</div>}
       {confirm && <ConfirmDialog {...confirm} onCancel={() => setConfirm(null)} />}
@@ -571,7 +579,7 @@ export default function App() {
 }
 
 /* ============================ LANDING (first-use entry) ============================ */
-function ThankYou({ session, onPortal }) {
+function ThankYou({ session, onPortal, brand = { orgName: "Dot One Media", tagline: "Create with purpose." } }) {
   const grp = session ? (GROUPS[session.serviceLine] || GROUPS.video) : GROUPS.video;
   const paid = session && session.paymentStatus === "paid";
   const isPhoto = session && session.serviceLine === "photo";
@@ -582,7 +590,7 @@ function ThankYou({ session, onPortal }) {
         <Check size={27} color={grp.color} />
       </div>
       <div style={{ ...mono, fontSize: 11, letterSpacing: "0.22em", textTransform: "uppercase", color: grp.color, marginBottom: 14 }}>Booking Confirmed</div>
-      <h1 style={{ ...display, fontWeight: 700, fontSize: 31, color: INK, lineHeight: 1.15, marginBottom: 14 }}>Thank you for booking with Dot One Media</h1>
+      <h1 style={{ ...display, fontWeight: 700, fontSize: 31, color: INK, lineHeight: 1.15, marginBottom: 14 }}>Thank you for booking with {brand.orgName}</h1>
       {session && (
         <div style={{ fontSize: 15, color: BODY, lineHeight: 1.6, marginBottom: paid ? 8 : 4 }}>
           Your <strong style={{ color: INK }}>{session.type}</strong> is booked{session.date ? " for " + fmtDate(session.date) : ""}{session.time ? " at " + fmtTime(session.time) : ""}.
@@ -599,7 +607,7 @@ function ThankYou({ session, onPortal }) {
 }
 
 
-function PortalFooter() {
+function PortalFooter({ brand = { orgName: "Dot One Media", tagline: "Create with purpose." } }) {
   const link = { color: STONE, textDecoration: "none" };
   const A = (href, label) => <a href={href} target="_blank" rel="noopener noreferrer" style={link}>{label}</a>;
   return (
@@ -611,7 +619,7 @@ function PortalFooter() {
         {A("https://apps.apple.com/us/app/dot-1-news/id6757212352", "Dot 1 News · App Store")}
       </div>
       <img src="/api/brand/logo" alt="Dot One Media" style={{ height: 34, width: "auto", margin: "0 auto 10px", display: "block" }} />
-      <div style={{ ...mono, fontSize: 10.5, letterSpacing: "0.16em", textTransform: "uppercase", color: INK, marginBottom: 24 }}>Dot One Media · Create with purpose.</div>
+      <div style={{ ...mono, fontSize: 10.5, letterSpacing: "0.16em", textTransform: "uppercase", color: INK, marginBottom: 24 }}>{brand.orgName} · {brand.tagline}</div>
       <div style={{ fontSize: 11.5, display: "flex", justifyContent: "center", gap: 16, flexWrap: "wrap", marginBottom: 20 }}>
         {A("https://www.dot1.media/privacy-policy", "Privacy Policy")}
         {A("https://www.dot1.media/Dot-One-Media-Client-Services-Agreement.pdf", "Client Services Agreement")}

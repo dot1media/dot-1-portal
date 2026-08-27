@@ -5,7 +5,7 @@ export const runtime = "nodejs";
 
 export async function GET() {
   const b = await getBrandSettings();
-  return NextResponse.json(b);
+  return NextResponse.json({ ...b, needsSetup: !!process.env.SELF_INSTALL && !b.configured });
 }
 export async function POST(req: Request) {
   if (!(await hasStudio())) return NextResponse.json({ ok: false, error: "Please sign in as the studio admin first." }, { status: 401 });

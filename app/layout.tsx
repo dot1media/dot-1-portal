@@ -2,8 +2,11 @@ import type { Metadata } from "next";
 import "./globals.css";
 import { getBrandSettings } from "@/lib/brand-settings";
 
-export const metadata: Metadata = {
-  title: "Dot One Portal",
+export async function generateMetadata(): Promise<Metadata> {
+  const b = await getBrandSettings();
+  const name = b.configured && b.orgName ? b.orgName : "Dot One Portal";
+  return {
+  title: name,
   description: "Your studio's home for the work we make together — book sessions, follow your project from start to finish, and receive your finished work.",
   icons: {
     icon: [ { url: "/favicon.ico?v=2", sizes: "any" }, { url: "/dot1-icon.png?v=2", type: "image/png" } ],
@@ -11,8 +14,9 @@ export const metadata: Metadata = {
   },
   manifest: "/manifest.webmanifest",
   appleWebApp: { capable: true, title: "Dot One", statusBarStyle: "default" },
-  openGraph: { title: "Dot One Portal", description: "Book sessions, follow your project, and receive your finished work.", siteName: "Dot One Portal" },
-};
+  openGraph: { title: name, description: "Book sessions, follow your project, and receive your finished work.", siteName: name },
+  }; 
+}
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const b = await getBrandSettings();
