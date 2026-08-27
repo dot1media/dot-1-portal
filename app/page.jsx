@@ -577,7 +577,7 @@ function ThankYou({ session, onPortal }) {
   const isPhoto = session && session.serviceLine === "photo";
   return (
     <div style={{ maxWidth: 580, margin: "0 auto", padding: "44px 24px 40px", textAlign: "center" }}>
-      <div style={{ marginBottom: 26 }}><img src={isPhoto ? "/dot1-photo-logo.png" : "/dot1-logo.png"} alt="Dot One Media" style={{ height: isPhoto ? 52 : 44, width: "auto", margin: "0 auto", display: "block" }} />{isPhoto && <div style={{ ...mono, fontSize: 9, letterSpacing: "0.28em", textTransform: "uppercase", color: "#2f74c0", textAlign: "center", marginTop: 6 }}>Timeless Portraits</div>}</div>
+      <div style={{ marginBottom: 26 }}><img src={isPhoto ? "/dot1-photo-logo.png" : "/api/brand/logo"} alt="Dot One Media" style={{ height: isPhoto ? 52 : 44, width: "auto", margin: "0 auto", display: "block" }} />{isPhoto && <div style={{ ...mono, fontSize: 9, letterSpacing: "0.28em", textTransform: "uppercase", color: "#2f74c0", textAlign: "center", marginTop: 6 }}>Timeless Portraits</div>}</div>
       <div style={{ width: 56, height: 56, borderRadius: "50%", background: grp.bg, border: `1.5px solid ${grp.border}`, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 20px" }}>
         <Check size={27} color={grp.color} />
       </div>
@@ -610,7 +610,7 @@ function PortalFooter() {
         {A("https://instagram.com/dot1photo", "Instagram · @dot1photo")}
         {A("https://apps.apple.com/us/app/dot-1-news/id6757212352", "Dot 1 News · App Store")}
       </div>
-      <img src="/dot1-logo.png" alt="Dot One Media" style={{ height: 34, width: "auto", margin: "0 auto 10px", display: "block" }} />
+      <img src="/api/brand/logo" alt="Dot One Media" style={{ height: 34, width: "auto", margin: "0 auto 10px", display: "block" }} />
       <div style={{ ...mono, fontSize: 10.5, letterSpacing: "0.16em", textTransform: "uppercase", color: INK, marginBottom: 24 }}>Dot One Media · Create with purpose.</div>
       <div style={{ fontSize: 11.5, display: "flex", justifyContent: "center", gap: 16, flexWrap: "wrap", marginBottom: 20 }}>
         {A("https://www.dot1.media/privacy-policy", "Privacy Policy")}
@@ -1088,7 +1088,7 @@ function PortalSplash() {
   return (
     <div style={{ minHeight: "100vh", background: CREAM, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 22, fontFamily: "'Archivo', system-ui, sans-serif" }}>
       <FontLoader />
-      <img src="/dot1-logo.png" alt="Dot One Media" className="d1-breathe" style={{ height: 46, width: "auto" }} />
+      <img src="/api/brand/logo" alt="Dot One Media" className="d1-breathe" style={{ height: 46, width: "auto" }} />
       <div style={{ width: 132, height: 3, borderRadius: 3, background: LINE, overflow: "hidden" }}>
         <div className="d1-loadbar" style={{ height: "100%", width: "40%", borderRadius: 3, background: RED }} />
       </div>
