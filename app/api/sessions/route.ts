@@ -45,6 +45,12 @@ export async function POST(request: Request) {
   const s = body.session;
   if (!s || !s.id) return NextResponse.json({ error: "Invalid session." }, { status: 400 });
   const clientEmail = me.role === "client" ? me.email.toLowerCase() : String(s.clientEmail || "").toLowerCase();
+  if (me.role === "client") {
+    const existing = await sql`SELECT client_email FROM portal_sessions WHERE id = ${s.id} LIMIT 1`;
+    if (existing.length && String((existing[0] as any).client_email || "").toLowerCase() !== clientEmail) {
+      return NextResponse.json({ error: "Not authorized." }, { status: 403 });
+    }
+  }
   const dataStr = JSON.stringify(s);
   const ins = await sql`
     INSERT INTO portal_sessions (id, client_email, date, time, status, data)
