@@ -57,6 +57,13 @@ function para(text: string): string {
   return `<p style="font-family:${SANS};font-size:14px;line-height:1.65;color:#4a463f;margin:0 0 16px;">${text}</p>`;
 }
 
+function messageHtml(text: string, accent: string): string {
+  const lines = String(text || "").split(/\r?\n/).map((line) =>
+    esc(line).replace(/(https?:\/\/[^\s<]+)/g, (u) => `<a href="${u}" style="color:${accent};text-decoration:underline;">${u}</a>`)
+  );
+  return `<div style="font-family:${SANS};font-size:14px;line-height:1.7;color:#4a463f;margin:0 0 18px;">${lines.join("<br>")}</div>`;
+}
+
 function shell(brand: any, eyebrow: string, heading: string, bodyHtml: string): string {
   return `<div style="margin:0;padding:0;background:${CREAM};">
   <div style="max-width:600px;margin:0 auto;padding:40px 22px;font-family:${SANS};color:#2b2926;">
@@ -99,6 +106,10 @@ export function bookingClientEmail(s: any): string {
   if (s && s.time) rows.push(["Time", esc(s.time)]);
   if (s && s.photographer) rows.push(["Your creator", esc(s.photographer)]);
   if (paid) rows.push(["Paid", dollars(s.payAmount)]);
+  if (s && s.location) {
+    const locName = esc(s.location);
+    rows.push(["Location", s.locationUrl ? `<a href="${esc(s.locationUrl)}" style="color:${brand.accent};text-decoration:underline;">${locName}</a>` : locName]);
+  }
 
   const steps = isConsultBooking
     ? [["1", "We confirm", "We review your request and lock in the details."], ["2", "We meet", "We connect for your consultation and talk through your vision."]]
@@ -113,12 +124,17 @@ export function bookingClientEmail(s: any): string {
       </td></tr></table>`).join("")}
   </div>`;
 
-  const body =
-    para(`Thank you for booking with Dot One Media${first ? ", " + first : ""}. Your ${isConsultBooking ? "consultation" : "session"} is confirmed, and we can't wait to create with you.`) +
-    detailRows(rows) +
-    nextBlock +
-    para("Sign in anytime with your email and password to follow your progress and, when it's ready, receive your finished work.") +
-    button(brand, PORTAL, "Open your client portal");
+  const hasMsg = !!(s && s.confirmationMessage && String(s.confirmationMessage).trim());
+  const body = hasMsg
+    ? messageHtml(s.confirmationMessage, brand.accent) +
+      detailRows(rows) +
+      para("Sign in anytime with your email and password to follow your session and, when it's ready, receive your finished work.") +
+      button(brand, PORTAL, "Open your client portal")
+    : para(`Thank you for booking with Dot One Media${first ? ", " + first : ""}. Your ${isConsultBooking ? "consultation" : "session"} is confirmed, and we can't wait to create with you.`) +
+      detailRows(rows) +
+      nextBlock +
+      para("Sign in anytime with your email and password to follow your progress and, when it's ready, receive your finished work.") +
+      button(brand, PORTAL, "Open your client portal");
   return shell(brand, "Booking Confirmed", isConsultBooking ? "Your consultation is confirmed" : "Your session is confirmed", body);
 }
 

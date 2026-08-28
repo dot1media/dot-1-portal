@@ -15,6 +15,9 @@ let extrasEnsured = false;
 async function ensureServiceExtras() {
   if (extrasEnsured) return;
   await sql`ALTER TABLE services ADD COLUMN IF NOT EXISTS package_id INTEGER`;
+  await sql`ALTER TABLE services ADD COLUMN IF NOT EXISTS location_name TEXT`;
+  await sql`ALTER TABLE services ADD COLUMN IF NOT EXISTS location_url TEXT`;
+  await sql`ALTER TABLE services ADD COLUMN IF NOT EXISTS confirmation_message TEXT`;
   extrasEnsured = true;
 }
 
@@ -33,13 +36,16 @@ function mapService(r: any) {
     addonIds: r.addon_ids || [],
     visible: r.visible !== false,
     packageId: r.package_id != null ? r.package_id : null,
+    location: r.location_name || "",
+    locationUrl: r.location_url || "",
+    confirmationMessage: r.confirmation_message || "",
   };
 }
 
 export async function GET() {
   await ensureServiceExtras();
   const services = await sql`
-    SELECT id, grp, category, name, description, price_cents, duration_min, pad_before_min, pad_after_min, addon_mode, addon_ids, visible, package_id
+    SELECT id, grp, category, name, description, price_cents, duration_min, pad_before_min, pad_after_min, addon_mode, addon_ids, visible, package_id, location_name, location_url, confirmation_message
     FROM services WHERE active = true ORDER BY grp, sort_order, name`;
   const addons = await sql`
     SELECT id, grp, name, price_cents, add_time_min, visible
@@ -66,11 +72,14 @@ export async function POST(request: Request) {
   const padBefore = b.padBefore != null && b.padBefore !== "" ? Math.max(0, Math.round(Number(b.padBefore))) : 0;
   const padAfter = b.padAfter != null && b.padAfter !== "" ? Math.max(0, Math.round(Number(b.padAfter))) : 0;
   const packageId = b.packageId != null && b.packageId !== "" ? parseInt(String(b.packageId), 10) : null;
+  const locName = b.location != null ? (String(b.location).trim() || null) : null;
+  const locUrl = b.locationUrl != null ? (String(b.locationUrl).trim() || null) : null;
+  const confMsg = b.confirmationMessage != null ? (String(b.confirmationMessage) || null) : null;
   try {
     const rows = await sql`
-      INSERT INTO services (grp, category, name, description, price_cents, duration_min, pad_before_min, pad_after_min, addon_mode, addon_ids, visible, package_id, active)
-      VALUES (${grp}::service_group, ${category}, ${name}, ${String(b.description || "")}, ${priceCents}, ${duration}, ${padBefore}, ${padAfter}, ${addonMode}::addon_mode, ${addonIds}::jsonb, ${visible}, ${packageId}, true)
-      RETURNING id, grp, category, name, description, price_cents, duration_min, pad_before_min, pad_after_min, addon_mode, addon_ids, visible, package_id`;
+      INSERT INTO services (grp, category, name, description, price_cents, duration_min, pad_before_min, pad_after_min, addon_mode, addon_ids, visible, package_id, location_name, location_url, confirmation_message, active)
+      VALUES (${grp}::service_group, ${category}, ${name}, ${String(b.description || "")}, ${priceCents}, ${duration}, ${padBefore}, ${padAfter}, ${addonMode}::addon_mode, ${addonIds}::jsonb, ${visible}, ${packageId}, ${locName}, ${locUrl}, ${confMsg}, true)
+      RETURNING id, grp, category, name, description, price_cents, duration_min, pad_before_min, pad_after_min, addon_mode, addon_ids, visible, package_id, location_name, location_url, confirmation_message`;
     return NextResponse.json({ service: mapService(rows[0]) });
   } catch (e: any) {
     return NextResponse.json({ error: "Save failed: " + (e && e.message ? e.message : String(e)) }, { status: 500 });
@@ -97,11 +106,14 @@ export async function PATCH(request: Request) {
   const padBefore = b.padBefore != null ? (b.padBefore === "" ? 0 : Math.max(0, Math.round(Number(b.padBefore)))) : (c.pad_before_min || 0);
   const padAfter = b.padAfter != null ? (b.padAfter === "" ? 0 : Math.max(0, Math.round(Number(b.padAfter)))) : (c.pad_after_min || 0);
   const packageId = b.packageId !== undefined ? (b.packageId === "" || b.packageId === null ? null : parseInt(String(b.packageId), 10)) : c.package_id;
+  const locName = b.location !== undefined ? (b.location ? String(b.location).trim() : null) : (c.location_name || null);
+  const locUrl = b.locationUrl !== undefined ? (b.locationUrl ? String(b.locationUrl).trim() : null) : (c.location_url || null);
+  const confMsg = b.confirmationMessage !== undefined ? (b.confirmationMessage ? String(b.confirmationMessage) : null) : (c.confirmation_message || null);
   try {
     const rows = await sql`
-      UPDATE services SET category = ${category}, name = ${name}, description = ${description}, price_cents = ${priceCents}, duration_min = ${duration}, pad_before_min = ${padBefore}, pad_after_min = ${padAfter}, addon_mode = ${addonMode}::addon_mode, addon_ids = ${addonIds}::jsonb, visible = ${visible}, package_id = ${packageId}, updated_at = now()
+      UPDATE services SET category = ${category}, name = ${name}, description = ${description}, price_cents = ${priceCents}, duration_min = ${duration}, pad_before_min = ${padBefore}, pad_after_min = ${padAfter}, addon_mode = ${addonMode}::addon_mode, addon_ids = ${addonIds}::jsonb, visible = ${visible}, package_id = ${packageId}, location_name = ${locName}, location_url = ${locUrl}, confirmation_message = ${confMsg}, updated_at = now()
       WHERE id = ${id}
-      RETURNING id, grp, category, name, description, price_cents, duration_min, pad_before_min, pad_after_min, addon_mode, addon_ids, visible, package_id`;
+      RETURNING id, grp, category, name, description, price_cents, duration_min, pad_before_min, pad_after_min, addon_mode, addon_ids, visible, package_id, location_name, location_url, confirmation_message`;
     return NextResponse.json({ service: mapService(rows[0]) });
   } catch (e: any) {
     return NextResponse.json({ error: "Save failed: " + (e && e.message ? e.message : String(e)) }, { status: 500 });

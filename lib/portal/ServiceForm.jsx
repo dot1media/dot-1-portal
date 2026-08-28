@@ -47,6 +47,10 @@ export function ServiceForm({ form, setForm, onSave, onCancel, group, groupAddon
       )}
       <FieldLabel>Sub-category (optional, groups this under a client-facing heading)</FieldLabel>
       <TextInput value={form.category || ""} onChange={(v) => setForm({ ...form, category: v })} placeholder="e.g. Destination Photography" />
+      <FieldLabel>Location (shown in the booking confirmation email)</FieldLabel>
+      <TextInput value={form.location || ""} onChange={(v) => setForm({ ...form, location: v })} placeholder="e.g. Mirror Lake" />
+      <FieldLabel>Location map link (optional)</FieldLabel>
+      <TextInput value={form.locationUrl || ""} onChange={(v) => setForm({ ...form, locationUrl: v })} placeholder="https://maps.app.goo.gl/..." />
       <FieldLabel>Price (USD)</FieldLabel>
       <TextInput value={form.price} onChange={(v) => setForm({ ...form, price: v })} placeholder="e.g. 1200" prefix="$" />
       <div style={{ display: "flex", gap: 10 }}>
@@ -77,6 +81,9 @@ export function ServiceForm({ form, setForm, onSave, onCancel, group, groupAddon
           ); })}
         </div>
       )}
+      <FieldLabel>Confirmation email message (optional, sent to the client when they book this)</FieldLabel>
+      <textarea value={form.confirmationMessage || ""} onChange={(e) => setForm({ ...form, confirmationMessage: e.target.value })} rows={7} placeholder={"Thank you, your appointment has been successfully scheduled!\n\nAdd your personal note, what to expect, and any links you want to share. Links become clickable automatically."} style={{ width: "100%", border: `1px solid ${LINE}`, borderRadius: 8, padding: "9px 11px", fontSize: 13, fontFamily: "inherit", resize: "vertical", background: PAPER, color: BODY, boxSizing: "border-box", marginBottom: 6 }} />
+      <div style={{ ...mono, fontSize: 9.5, color: FAINT, marginBottom: 12, lineHeight: 1.5 }}>Leave blank to use the standard confirmation. The location above is added to the email automatically.</div>
       <label style={{ display: "flex", alignItems: "center", gap: 9, margin: "4px 0 12px", cursor: "pointer" }}>
         <input type="checkbox" checked={form.visible !== false} onChange={(e) => setForm({ ...form, visible: e.target.checked })} style={{ width: 16, height: 16, accentColor: g.color, cursor: "pointer" }} />
         <span style={{ fontSize: 12, color: BODY, lineHeight: 1.4 }}>Show on the public booking page (uncheck to keep it bookable by direct link only)</span>
