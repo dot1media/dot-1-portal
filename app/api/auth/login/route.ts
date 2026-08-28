@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { makeToken, ADMIN_COOKIE, verifyPassword } from "@/lib/auth";
 import { ensureAdminTable, isDot1Email, getAdminHash, adminCookieOpts, getSuiteAccount } from "@/lib/admins";
+import { rateLimit, clientIp } from "@/lib/ratelimit";
 
 export const runtime = "nodejs";
 
@@ -13,6 +14,10 @@ export async function POST(request: Request) {
   const body = await request.json().catch(() => ({}));
   const email = String(body.email || "").trim().toLowerCase();
   const password = String(body.password || "");
+  const ip = clientIp(request);
+  if (!(await rateLimit(`login:ip:${ip}`, 30, 600)) || !(await rateLimit(`login:acct:${email}`, 8, 600))) {
+    return NextResponse.json({ error: "Too many attempts. Please wait a few minutes and try again." }, { status: 429 });
+  }
 
   await ensureAdminTable();
   if (!isDot1Email(email)) return NextResponse.json({ error: "Incorrect email or password." }, { status: 401 });

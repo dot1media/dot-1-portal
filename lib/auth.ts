@@ -6,7 +6,7 @@ const WEEK_MS = 1000 * 60 * 60 * 24 * 7;
 
 function sign(payloadObj: object): string {
   const secret = process.env.SESSION_SECRET || "";
-  const body = Buffer.from(JSON.stringify(payloadObj)).toString("base64url");
+  const body = Buffer.from(JSON.stringify({ ...payloadObj, iat: Date.now() })).toString("base64url");
   const sig = crypto.createHmac("sha256", secret).update(body).digest("base64url");
   return body + "." + sig;
 }
@@ -23,6 +23,8 @@ function verify(token: string | undefined | null, role: string): { email: string
   try {
     const payload = JSON.parse(Buffer.from(body, "base64url").toString());
     if (payload.role !== role || typeof payload.exp !== "number" || Date.now() > payload.exp) return null;
+    const floor = Number(process.env.SESSION_MIN_IAT || 0);
+    if (floor && (typeof payload.iat !== "number" || payload.iat < floor)) return null;
     // tier and grants are optional extra claims (added with the suite hub). Older cookies and other
     // apps that don't read them keep working; consumers that want them read them here.
     return { email: String(payload.email || ""), tier: payload.tier, grants: payload.grants };
