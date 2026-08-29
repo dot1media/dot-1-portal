@@ -66,7 +66,7 @@ export function AdminSessions({ state, adminId, setAdminId, requestSetStage, add
   const reschedClash = slotTaken(reschedDate, reschedTime, session.id);
 
   return (
-    <div className="d1-stagger" style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "260px 1fr", gap: isMobile ? 20 : 26 }}>
+    <div className="d1-stagger" style={{ maxWidth: 760 }}>
       <div>
         <div style={{ ...mono, fontSize: 10.5, letterSpacing: "0.2em", textTransform: "uppercase", color: RED, marginBottom: 14 }}>Sessions</div>
         <button onClick={onNewInternal} style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 7, marginBottom: 16, padding: "10px", borderRadius: 9, cursor: "pointer", border: `1px dashed ${LINE}`, background: CREAM, color: STONE, ...mono, fontSize: 10.5, letterSpacing: "0.06em", textTransform: "uppercase" }}><Plus size={13} /> New internal booking</button>
@@ -104,8 +104,11 @@ export function AdminSessions({ state, adminId, setAdminId, requestSetStage, add
         })()}
       </div>
 
-      <div>
-        <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 4, flexWrap: "wrap" }}>
+      {adminId && session ? (
+      <div className="d1-overlay" style={{ position: "fixed", inset: 0, background: "rgba(20,20,26,0.55)", zIndex: 60, display: "flex", alignItems: "flex-start", justifyContent: "center", padding: "38px 16px", overflowY: "auto" }} onClick={() => setAdminId("")}>
+      <div onClick={(e) => e.stopPropagation()} style={{ background: PAPER, borderRadius: 14, border: `1px solid ${LINE}`, width: "100%", maxWidth: 720, padding: "30px 30px 34px", position: "relative", boxShadow: "0 30px 80px rgba(20,18,16,0.28)" }}>
+        <button onClick={() => setAdminId("")} title="Close" aria-label="Close" style={{ position: "absolute", top: 14, right: 14, background: CREAM, border: `1px solid ${LINE}`, borderRadius: 8, width: 32, height: 32, cursor: "pointer", display: "inline-flex", alignItems: "center", justifyContent: "center", color: STONE, zIndex: 3 }}><XCircle size={16} /></button>
+        <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 4, flexWrap: "wrap", paddingRight: 40 }}>
           <Avatar name={session.clientName} src={session.clientImage} size={40} />
           <h2 style={{ ...display, fontWeight: 700, fontSize: 26, color: INK, letterSpacing: "-0.01em" }}>{session.clientName}</h2>
           <div style={{ position: "relative" }}>
@@ -318,6 +321,8 @@ export function AdminSessions({ state, adminId, setAdminId, requestSetStage, add
           <button onClick={() => sendStudioMsg(session.id)} disabled={uploadingImg} style={{ ...btnSolid, background: INK, whiteSpace: "nowrap" }}><Send size={14} /> {uploadingImg ? "Uploading\u2026" : "Send"}</button>
         </div>
       </div>
+      </div>
+      ) : null}
       {lightbox ? (
         <div onClick={() => setLightbox("")} style={{ position: "fixed", inset: 0, background: "rgba(20,20,26,0.82)", zIndex: 90, display: "flex", alignItems: "center", justifyContent: "center", padding: 24, cursor: "zoom-out" }}>
           <img src={lightbox} alt="Attached" style={{ maxWidth: "100%", maxHeight: "100%", borderRadius: 8, boxShadow: "0 20px 60px rgba(0,0,0,0.5)" }} />
