@@ -537,7 +537,7 @@ export default function App() {
         {invoiceOpen && <InvoiceModal state={state} showToast={showToast} onClose={() => setInvoiceOpen(false)} onSessionsRefresh={async () => { try { const sd = await fetch("/api/sessions").then((r) => r.json()); if (sd && sd.sessions) setState((s) => ({ ...s, sessions: sd.sessions })); } catch (e) {} }} />}
         {view === "admin" && (
           <div>
-            <div style={{ display: "flex", gap: 6, marginBottom: 24, borderBottom: `1px solid ${LINE}`, flexWrap: "wrap" }}>
+            <div style={{ display: "flex", gap: 6, marginBottom: 24, borderBottom: `1px solid ${LINE}`, flexWrap: "nowrap", overflowX: "auto", WebkitOverflowScrolling: "touch" }}>
               <SubTab active={adminTab === "home"} onClick={() => setAdminTab("home")} label="Home" />
               <SubTab active={adminTab === "inbox"} onClick={() => setAdminTab("inbox")} label="Inbox" badge={inquiries.filter((i) => !i.handled).length} />
               <SubTab active={adminTab === "sessions"} onClick={() => setAdminTab("sessions")} label="Sessions" badge={unreadClientTotal} />
@@ -978,7 +978,7 @@ function downloadCsv(rows, filename) {
 
 
 function SubTab({ active, onClick, label, badge }) {
-  return <button onClick={onClick} style={{ ...mono, fontSize: 11, letterSpacing: "0.1em", textTransform: "uppercase", padding: "10px 4px", marginRight: 20, cursor: "pointer", background: "transparent", border: "none", color: active ? INK : FAINT, borderBottom: `2px solid ${active ? RED : "transparent"}`, marginBottom: -1, display: "inline-flex", alignItems: "center", gap: 7 }}>{label}{badge ? <span style={{ background: RED, color: "#fff", borderRadius: 20, fontSize: 9.5, minWidth: 16, height: 16, padding: "0 5px", display: "inline-flex", alignItems: "center", justifyContent: "center" }}>{badge}</span> : null}</button>;
+  return <button onClick={onClick} style={{ ...mono, fontSize: 11, letterSpacing: "0.1em", textTransform: "uppercase", padding: "10px 4px", marginRight: 20, cursor: "pointer", background: "transparent", border: "none", color: active ? INK : FAINT, borderBottom: `2px solid ${active ? RED : "transparent"}`, marginBottom: -1, display: "inline-flex", alignItems: "center", gap: 7, whiteSpace: "nowrap", flexShrink: 0 }}>{label}{badge ? <span style={{ background: RED, color: "#fff", borderRadius: 20, fontSize: 9.5, minWidth: 16, height: 16, padding: "0 5px", display: "inline-flex", alignItems: "center", justifyContent: "center" }}>{badge}</span> : null}</button>;
 }
 
 
