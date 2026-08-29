@@ -45,17 +45,18 @@ export function BookingFlow({ state, direct, slotTaken, onCancel, onComplete, on
   const [usage, setUsage] = useState("A");
   const [child, setChild] = useState({ name: "", age: "", relationship: "" });
   const [exception, setException] = useState("");
+  const inviteAccount = direct ? (direct.inviteAccount !== false) : true;
   const submitAccount = async () => {
     setSubmitErr("");
     if (!authedClient) {
       if (!acct.name.trim() || !acct.email.trim()) { setSubmitErr("Please enter your name and email."); return; }
-      if (!acct.password || acct.password.length < 8) { setSubmitErr("Create a password of at least 8 characters."); return; }
+      if (inviteAccount && (!acct.password || acct.password.length < 8)) { setSubmitErr("Create a password of at least 8 characters."); return; }
     }
     if (isMinor && (!child.name.trim() || !child.age.trim() || !child.relationship.trim())) { setSubmitErr("Please add the child's name, age, and your relationship to the child."); return; }
     if (!agree || !acct.signature.trim()) { setSubmitErr("Type your full legal name and check the box to sign."); return; }
     setSubmitting(true);
     try {
-      if (!authedClient) {
+      if (!authedClient && inviteAccount) {
         const ures = await fetch("/api/users", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ name: acct.name.trim(), email: acct.email.trim(), phone: (acct.phone || "").trim(), password: acct.password }) });
         const udata = await ures.json();
         if (!ures.ok) throw new Error(udata.error || "Could not create your account.");
@@ -271,17 +272,19 @@ export function BookingFlow({ state, direct, slotTaken, onCancel, onComplete, on
         <div style={{ maxWidth: 600 }}>
           {!authedClient ? (
             <>
-              <div style={{ fontSize: 13.5, color: BODY, marginBottom: 18, lineHeight: 1.5 }}>Create your account and sign to continue. Already have an account? <span onClick={onLogin} style={{ color: A, cursor: "pointer" }}>Log in</span>.</div>
+              <div style={{ fontSize: 13.5, color: BODY, marginBottom: 18, lineHeight: 1.5 }}>{inviteAccount ? "Create your account and sign to continue. " : "Enter your details and sign to continue. "}{inviteAccount ? <>Already have an account? <span onClick={onLogin} style={{ color: A, cursor: "pointer" }}>Log in</span>.</> : null}</div>
               <FieldLabel>Your name</FieldLabel>
               <TextInput value={acct.name} onChange={(v) => setAcct({ ...acct, name: v })} placeholder="Sarah & James" />
               <FieldLabel>Email</FieldLabel>
               <TextInput value={acct.email} onChange={(v) => setAcct({ ...acct, email: v })} placeholder="you@example.com" />
               <FieldLabel>Phone (optional)</FieldLabel>
               <TextInput value={acct.phone} onChange={(v) => setAcct({ ...acct, phone: v })} placeholder="(907) 555-0123" />
+              {inviteAccount && (<>
               <FieldLabel>Create a password</FieldLabel>
               <input type="password" value={acct.password} onChange={(e) => setAcct({ ...acct, password: e.target.value })} placeholder="At least 8 characters" style={{ ...inputStyle, marginBottom: 2 }} />
               <PasswordMeter value={acct.password} />
               <div style={{ ...mono, fontSize: 10, color: FAINT, marginTop: 4, lineHeight: 1.4 }}>You'll use your email and this password to sign in later and check your session.</div>
+              </>)}
             </>
           ) : (
             <div style={{ fontSize: 13.5, color: BODY, marginBottom: 4, lineHeight: 1.5 }}>You're signed in as <strong style={{ color: INK }}>{authedClient.name || authedClient.email}</strong>. Please sign the release for this session below.</div>

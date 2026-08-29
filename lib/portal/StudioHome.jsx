@@ -1,6 +1,6 @@
 // Dot One Media portal - studio dashboard home (stats, upcoming list, calendar).
-import React from "react";
-import { CalendarClock, ChevronRight, Wallet } from "lucide-react";
+import React, { useState } from "react";
+import { CalendarClock, ChevronRight, Wallet, X } from "lucide-react";
 import { RED, INK, STONE, FAINT, LINE, CREAM, OK, WARN, display, mono, card, cardDense } from "./theme";
 import { GROUPS } from "./groups";
 import { fmtDate, fmtTime, money, timeGreeting } from "./format";
@@ -9,6 +9,7 @@ import { EmptyState } from "./ui";
 import { AdminCalendar } from "./AdminCalendar";
 
 export function StudioHome({ state, setAdminId, setAdminTab, dark }) {
+  const [showUnpaid, setShowUnpaid] = useState(false);
   const sessions = state.sessions || [];
   const now = new Date();
   const todayStr = now.getFullYear() + "-" + String(now.getMonth() + 1).padStart(2, "0") + "-" + String(now.getDate()).padStart(2, "0");
@@ -39,10 +40,10 @@ export function StudioHome({ state, setAdminId, setAdminTab, dark }) {
   const recent = live.filter((s) => s.date && s.date >= d90 && s.date <= todayStr).length;
   const perMonth = recent / 3;
   const goTo = (id) => { setAdminId(id); setAdminTab("sessions"); };
-  const stat = (val, label, color) => (
-    <div style={{ ...cardDense, padding: "16px 18px" }}>
+  const stat = (val, label, color, onClick) => (
+    <div onClick={onClick} className={onClick ? "d1-lift" : undefined} title={onClick ? "See unpaid appointments" : undefined} style={{ ...cardDense, padding: "16px 18px", cursor: onClick ? "pointer" : "default" }}>
       <div style={{ ...display, fontSize: 26, color: color || INK }}>{val}</div>
-      <div style={{ ...mono, fontSize: 9.5, letterSpacing: "0.1em", textTransform: "uppercase", color: STONE, marginTop: 3 }}>{label}</div>
+      <div style={{ ...mono, fontSize: 9.5, letterSpacing: "0.1em", textTransform: "uppercase", color: STONE, marginTop: 3, display: "flex", alignItems: "center", gap: 5 }}>{label}{onClick ? <ChevronRight size={11} color={FAINT} /> : null}</div>
     </div>
   );
   return (
@@ -59,7 +60,7 @@ export function StudioHome({ state, setAdminId, setAdminTab, dark }) {
         {stat(upcoming.length, "Upcoming")}
         {stat(activeCount, "Active bookings")}
         {stat(money(Math.round(collected)), "Collected", OK)}
-        {stat(money(Math.round(outstanding)), "Outstanding", outstanding > 0 ? WARN : INK)}
+        {stat(money(Math.round(outstanding)), "Outstanding", outstanding > 0 ? WARN : INK, pendingPay.length > 0 ? () => setShowUnpaid(true) : undefined)}
       </div>
       <div style={{ ...cardDense, padding: "18px 20px", marginBottom: 18 }}>
         <div style={{ ...mono, fontSize: 10.5, letterSpacing: "0.16em", textTransform: "uppercase", color: STONE, marginBottom: 4 }}>Business insights</div>
@@ -132,6 +133,30 @@ export function StudioHome({ state, setAdminId, setAdminTab, dark }) {
       )}
 
       <AdminCalendar state={state} onSelectSession={(id) => { setAdminId(id); setAdminTab("sessions"); }} />
+
+      {showUnpaid ? (
+        <div className="d1-overlay" style={{ position: "fixed", inset: 0, background: "rgba(20,20,26,0.55)", zIndex: 60, display: "flex", alignItems: "flex-start", justifyContent: "center", padding: "40px 16px", overflowY: "auto" }} onClick={() => setShowUnpaid(false)}>
+          <div onClick={(e) => e.stopPropagation()} style={{ background: "#fff", borderRadius: 14, border: `1px solid ${LINE}`, width: "100%", maxWidth: 540, padding: "24px 24px 26px", position: "relative", boxShadow: "0 30px 80px rgba(20,18,16,0.28)" }}>
+            <button onClick={() => setShowUnpaid(false)} title="Close" aria-label="Close" style={{ position: "absolute", top: 14, right: 14, background: CREAM, border: `1px solid ${LINE}`, borderRadius: 8, width: 32, height: 32, cursor: "pointer", display: "inline-flex", alignItems: "center", justifyContent: "center", color: STONE }}><X size={16} /></button>
+            <div style={{ ...mono, fontSize: 10.5, letterSpacing: "0.16em", textTransform: "uppercase", color: WARN, marginBottom: 4, display: "inline-flex", alignItems: "center", gap: 8 }}><Wallet size={13} color={WARN} /> Unpaid appointments</div>
+            <h2 style={{ ...display, fontWeight: 700, fontSize: 22, color: INK, marginBottom: 4 }}>{money(Math.round(pendingTotal))} outstanding</h2>
+            <div style={{ fontSize: 12.5, color: STONE, marginBottom: 16 }}>{pendingPay.length} {pendingPay.length === 1 ? "appointment has" : "appointments have"} a balance to collect. Tap one to open it.</div>
+            {pendingPay.map(({ sq, due, kind }) => (
+              <button key={sq.id} className="d1-lift" onClick={() => { goTo(sq.id); setShowUnpaid(false); }} style={{ width: "100%", textAlign: "left", display: "flex", alignItems: "center", gap: 12, padding: "12px 14px", marginBottom: 8, borderRadius: 9, cursor: "pointer", border: `1px solid ${LINE}`, background: CREAM }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ ...display, fontWeight: 600, fontSize: 15, color: INK }}>{sq.clientName}</div>
+                  <div style={{ ...mono, fontSize: 10, color: STONE, marginTop: 2, letterSpacing: "0.04em" }}>{sq.type}{sq.date ? " \u00b7 " + fmtDate(sq.date) : ""}</div>
+                </div>
+                <div style={{ textAlign: "right", flexShrink: 0 }}>
+                  <div style={{ ...mono, fontSize: 12, color: WARN, letterSpacing: "0.04em" }}>{money(Math.round(due))}</div>
+                  <div style={{ ...mono, fontSize: 9, color: FAINT, marginTop: 2, textTransform: "uppercase", letterSpacing: "0.06em" }}>{kind}</div>
+                </div>
+                <ChevronRight size={16} color={FAINT} />
+              </button>
+            ))}
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

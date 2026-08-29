@@ -16,6 +16,7 @@ export function DirectLinks({ state, createDirectLink, revokeDirectLink, openDir
   const [time, setTime] = useState("");
   const [recipient, setRecipient] = useState("");
   const [justMade, setJustMade] = useState(null);
+  const [inviteAccount, setInviteAccount] = useState(true);
   const g = GROUPS[group];
   const groupServices = state.services.filter((s) => s.group === group);
   const svc = state.services.find((s) => s.id === serviceId);
@@ -23,7 +24,7 @@ export function DirectLinks({ state, createDirectLink, revokeDirectLink, openDir
   const generate = () => {
     if (!svc) { showToast("Choose a service first."); return; }
     if (!date || !time) { showToast("Pick a date and time."); return; }
-    const res = createDirectLink({ group, serviceId: svc.id, serviceName: svc.name, price: Number(svc.price) || 0, date, time, recipient: recipient.trim() });
+    const res = createDirectLink({ group, serviceId: svc.id, serviceName: svc.name, price: Number(svc.price) || 0, date, time, recipient: recipient.trim(), inviteAccount });
     if (!res.ok) { showToast(res.error); return; }
     setJustMade(res.link);
     setServiceId(""); setDate(""); setTime(""); setRecipient("");
@@ -70,6 +71,11 @@ export function DirectLinks({ state, createDirectLink, revokeDirectLink, openDir
 
           <FieldLabel>Who is this for? (optional)</FieldLabel>
           <TextInput value={recipient} onChange={setRecipient} placeholder="e.g. Sarah M." />
+
+          <label style={{ display: "flex", alignItems: "flex-start", gap: 9, margin: "14px 0 4px", cursor: "pointer" }}>
+            <input type="checkbox" checked={inviteAccount} onChange={(e) => setInviteAccount(e.target.checked)} style={{ marginTop: 2, width: 16, height: 16, accentColor: g.color, cursor: "pointer" }} />
+            <span style={{ fontSize: 12.5, color: BODY, lineHeight: 1.45 }}>Invite them to create an account while booking. Uncheck to let them book with just their details, no password.</span>
+          </label>
 
           <button onClick={generate} style={{ ...btnSolid, background: RED, width: "100%", justifyContent: "center", marginTop: 4, padding: "11px" }}><LinkIcon size={15} /> Generate booking link</button>
         </div>
