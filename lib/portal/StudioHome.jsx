@@ -30,6 +30,20 @@ export function StudioHome({ state, setAdminId, setAdminTab, dark }) {
     return { sq, due, kind };
   }).filter((x) => x.due > 0).sort((a, b) => ((a.sq.date || "9999") + (a.sq.time || "")).localeCompare((b.sq.date || "9999") + (b.sq.time || "")));
   const pendingTotal = pendingPay.reduce((n, x) => n + x.due, 0);
+  // Every session that makes up the Outstanding total, using the same rule as
+  // that number so the stat, its tap target, and the pop-up always agree.
+  const owedList = sessions
+    .filter((s) => (s.status || "active") !== "cancelled")
+    .map((s) => {
+      const paid = s.paymentStatus === "paid" ? (Number(s.payAmount) || 0) : 0;
+      const due = Math.max(0, (Number(s.total) || 0) - paid);
+      let kind = "Payment not collected";
+      if (s.paymentStatus === "pending") kind = "Awaiting payment";
+      else if (s.paymentStatus === "paid") kind = s.balanceStatus === "sent" ? "Balance link sent" : "Balance due";
+      return { sq: s, due, kind };
+    })
+    .filter((x) => x.due > 0)
+    .sort((a, b) => ((a.sq.date || "9999") + (a.sq.time || "")).localeCompare((b.sq.date || "9999") + (b.sq.time || "")));
   const next = upcoming[0];
   // Business insights: average booking value and volume per service line, plus recent pace.
   // These are exactly the inputs the financial model needs.
@@ -60,7 +74,7 @@ export function StudioHome({ state, setAdminId, setAdminTab, dark }) {
         {stat(upcoming.length, "Upcoming")}
         {stat(activeCount, "Active bookings")}
         {stat(money(Math.round(collected)), "Collected", OK)}
-        {stat(money(Math.round(outstanding)), "Outstanding", outstanding > 0 ? WARN : INK, pendingPay.length > 0 ? () => setShowUnpaid(true) : undefined)}
+        {stat(money(Math.round(outstanding)), "Outstanding", outstanding > 0 ? WARN : INK, owedList.length > 0 ? () => setShowUnpaid(true) : undefined)}
       </div>
       <div style={{ ...cardDense, padding: "18px 20px", marginBottom: 18 }}>
         <div style={{ ...mono, fontSize: 10.5, letterSpacing: "0.16em", textTransform: "uppercase", color: STONE, marginBottom: 4 }}>Business insights</div>
@@ -139,9 +153,9 @@ export function StudioHome({ state, setAdminId, setAdminTab, dark }) {
           <div onClick={(e) => e.stopPropagation()} style={{ background: "#fff", borderRadius: 14, border: `1px solid ${LINE}`, width: "100%", maxWidth: 540, padding: "24px 24px 26px", position: "relative", boxShadow: "0 30px 80px rgba(20,18,16,0.28)" }}>
             <button onClick={() => setShowUnpaid(false)} title="Close" aria-label="Close" style={{ position: "absolute", top: 14, right: 14, background: CREAM, border: `1px solid ${LINE}`, borderRadius: 8, width: 32, height: 32, cursor: "pointer", display: "inline-flex", alignItems: "center", justifyContent: "center", color: STONE }}><X size={16} /></button>
             <div style={{ ...mono, fontSize: 10.5, letterSpacing: "0.16em", textTransform: "uppercase", color: WARN, marginBottom: 4, display: "inline-flex", alignItems: "center", gap: 8 }}><Wallet size={13} color={WARN} /> Unpaid appointments</div>
-            <h2 style={{ ...display, fontWeight: 700, fontSize: 22, color: INK, marginBottom: 4 }}>{money(Math.round(pendingTotal))} outstanding</h2>
-            <div style={{ fontSize: 12.5, color: STONE, marginBottom: 16 }}>{pendingPay.length} {pendingPay.length === 1 ? "appointment has" : "appointments have"} a balance to collect. Tap one to open it.</div>
-            {pendingPay.map(({ sq, due, kind }) => (
+            <h2 style={{ ...display, fontWeight: 700, fontSize: 22, color: INK, marginBottom: 4 }}>{money(Math.round(outstanding))} outstanding</h2>
+            <div style={{ fontSize: 12.5, color: STONE, marginBottom: 16 }}>{owedList.length} {owedList.length === 1 ? "appointment needs" : "appointments need"} payment. Tap one to open it.</div>
+            {owedList.map(({ sq, due, kind }) => (
               <button key={sq.id} className="d1-lift" onClick={() => { goTo(sq.id); setShowUnpaid(false); }} style={{ width: "100%", textAlign: "left", display: "flex", alignItems: "center", gap: 12, padding: "12px 14px", marginBottom: 8, borderRadius: 9, cursor: "pointer", border: `1px solid ${LINE}`, background: CREAM }}>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ ...display, fontWeight: 600, fontSize: 15, color: INK }}>{sq.clientName}</div>
