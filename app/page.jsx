@@ -564,7 +564,7 @@ export default function App() {
             {adminTab === "inbox" && <Inbox inquiries={inquiries} setInquiries={setInquiries} showToast={showToast} />}
             {adminTab === "sessions" && <><ServiceLinks state={state} showToast={showToast} /><AdminSessions state={state} adminId={adminId} setAdminId={setAdminId} requestSetStage={requestSetStage} addComment={addComment} uploadMessageImage={uploadMessageImage} patchSession={patchSession} onReschedule={adminReschedule} slotTaken={slotTaken} markMessagesRead={markMessagesRead} onCancelBooking={requestCancelBooking} onCloseBooking={requestCloseBooking} onReopenBooking={requestReopenBooking} onSendBalance={requestSendBalance} onSendCharge={requestSendCharge} onCheckPayment={checkChargePayment} onNewInternal={() => setInternalOpen(true)} onNewInvoice={() => setInvoiceOpen(true)} onEmailDelivery={confirmSendDelivery} onRequestReview={requestReview} onSendInvite={requestInvite} onSetGroup={setSessionGroup} onDeleteBooking={requestDeleteBooking} /></>}
             {adminTab === "calendar" && <AdminCalendar state={state} onSelectSession={(id) => { setAdminId(id); setAdminTab("sessions"); }} />}
-            {adminTab === "availability" && <><CalendarSync showToast={showToast} /><AvailabilityManager availability={state.availability} addAvailability={addAvailability} removeAvailability={removeAvailability} showToast={showToast} /><div style={{ marginTop: 44, paddingTop: 40, borderTop: `1px solid ${LINE}` }}><DirectLinks state={state} createDirectLink={createDirectLink} revokeDirectLink={revokeDirectLink} openDirectLink={openDirectLink} showToast={showToast} /></div></>}
+            {adminTab === "availability" && <><CalendarSync showToast={showToast} /><AvailabilityManager availability={state.availability} addAvailability={addAvailability} removeAvailability={removeAvailability} showToast={showToast} services={state.services} /><div style={{ marginTop: 44, paddingTop: 40, borderTop: `1px solid ${LINE}` }}><DirectLinks state={state} createDirectLink={createDirectLink} revokeDirectLink={revokeDirectLink} openDirectLink={openDirectLink} showToast={showToast} /></div></>}
             {adminTab === "services" && <ServiceCatalog state={state} addService={addService} updateService={updateService} deleteService={deleteService} addAddon={addAddon} updateAddon={updateAddon} deleteAddon={deleteAddon} showToast={showToast} setConfirm={setConfirm} />}
             {adminTab === "business" && <BusinessSettings sessions={state.sessions} showToast={showToast} onImport={importSessions} />}
             {adminTab === "account" && <><AccountManagement state={state} showToast={showToast} /><div style={{ marginTop: 44, paddingTop: 40, borderTop: `1px solid ${LINE}` }}><AdminAccounts showToast={showToast} /></div></>}
@@ -783,20 +783,21 @@ function CalendarSync({ showToast }) {
   );
 }
 
-function AvailabilityManager({ availability, addAvailability, removeAvailability, showToast }) {
+function AvailabilityManager({ availability, addAvailability, removeAvailability, showToast, services }) {
   const [mode, setMode] = useState("single");
   const [date, setDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [start, setStart] = useState("09:00");
   const [end, setEnd] = useState("15:00");
   const [weekdaysOnly, setWeekdaysOnly] = useState(false);
+  const [svcId, setSvcId] = useState("");
   const [busy, setBusy] = useState(false);
   const submit = async () => {
     if (end <= start) { showToast("Close time must be after open time."); return; }
     if (mode === "single") {
       if (!date) { showToast("Pick a day."); return; }
       setBusy(true);
-      const r = await addAvailability({ date, start, end });
+      const r = await addAvailability({ date, start, end, serviceId: svcId || null });
       setBusy(false);
       if (r && r.ok) { showToast("Day opened for booking."); setDate(""); } else { showToast((r && r.error) || "Could not open that day."); }
       return;
@@ -816,7 +817,7 @@ function AvailabilityManager({ availability, addAvailability, removeAvailability
     if (days.length > 92) { showToast("Keep the range to about three months at a time."); return; }
     setBusy(true);
     let opened = 0; let skipped = 0;
-    for (const dd of days) { const r = await addAvailability({ date: dd, start, end }); if (r && r.ok) opened++; else skipped++; }
+    for (const dd of days) { const r = await addAvailability({ date: dd, start, end, serviceId: svcId || null }); if (r && r.ok) opened++; else skipped++; }
     setBusy(false);
     showToast("Opened " + opened + " day" + (opened === 1 ? "" : "s") + (skipped ? " (" + skipped + " already open or unavailable)" : "") + ".");
     if (opened > 0) { setDate(""); setEndDate(""); }
@@ -842,6 +843,7 @@ function AvailabilityManager({ availability, addAvailability, removeAvailability
           )}
           <div><FieldLabel>Open from</FieldLabel><input type="time" value={start} onChange={(e) => setStart(e.target.value)} style={{ ...inputStyle, width: "auto" }} /></div>
           <div><FieldLabel>Until</FieldLabel><input type="time" value={end} onChange={(e) => setEnd(e.target.value)} style={{ ...inputStyle, width: "auto" }} /></div>
+          <div><FieldLabel>For which session type?</FieldLabel><select value={svcId} onChange={(e) => setSvcId(e.target.value)} style={{ ...inputStyle, width: "auto" }}><option value="">All session types</option>{GROUP_KEYS.map((k) => { const list = (services || []).filter((s) => s.group === k && s.visible !== false); if (!list.length) return null; return <optgroup key={k} label={GROUPS[k].label}>{list.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</optgroup>; })}</select></div>
           <button onClick={submit} disabled={busy} style={{ ...btnSolid, background: busy ? FAINT : RED }}><Plus size={14} /> {busy ? "Opening…" : (mode === "single" ? "Open this day" : "Open these days")}</button>
         </div>
         {mode === "range" && (
@@ -858,7 +860,7 @@ function AvailabilityManager({ availability, addAvailability, removeAvailability
           <div key={a.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, border: `1px solid ${LINE}`, borderRadius: 9, padding: "12px 15px", marginBottom: 8, background: PAPER }}>
             <div>
               <div style={{ ...display, fontWeight: 600, fontSize: 15, color: INK }}>{fmtDate(a.date)}</div>
-              <div style={{ ...mono, fontSize: 11, color: STONE, marginTop: 2 }}>{fmtTime(a.start)} to {fmtTime(a.end)}</div>
+              <div style={{ ...mono, fontSize: 11, color: STONE, marginTop: 2 }}>{fmtTime(a.start)} to {fmtTime(a.end)}{(() => { const n = a.serviceId ? ((services || []).find((s) => String(s.id) === String(a.serviceId)) || {}).name : null; return n ? " \u00b7 " + n : " \u00b7 All types"; })()}</div>
             </div>
             <IconBtn onClick={async () => { const r = await removeAvailability(a.id); if (r && !r.ok) showToast(r.error || "Could not remove."); }} danger><Trash2 size={13} /></IconBtn>
           </div>

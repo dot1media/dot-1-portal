@@ -127,9 +127,11 @@ export function BookingFlow({ state, direct, slotTaken, onCancel, onComplete, on
     </div>
   ); };
 
-  const availDates = Array.from(new Set((availability || []).map((a) => a.date)));
+  const specificAvail = serviceId ? (availability || []).filter((a) => String(a.serviceId) === String(serviceId)) : [];
+  const useAvail = specificAvail.length > 0 ? specificAvail : (availability || []).filter((a) => a.serviceId == null);
+  const availDates = Array.from(new Set(useAvail.map((a) => a.date)));
   const slotsForDate = (d) => {
-    const wins = (availability || []).filter((a) => a.date === d);
+    const wins = useAvail.filter((a) => a.date === d);
     const toMin = (t) => { const [h, m] = t.split(":").map(Number); return h * 60 + m; };
     const fromMin = (mm) => String(Math.floor(mm / 60)).padStart(2, "0") + ":" + String(mm % 60).padStart(2, "0");
     const blocked = (state.takenSlots || []).filter((b) => b.date === d).map((b) => { const bs = toMin(b.time); return [bs - (Number(b.padBefore) || 0), bs + (Number(b.apptMin) || 30) + (Number(b.padAfter) || 0)]; }).concat((state.directLinks || []).filter((l) => l.date === d).map((l) => { const ls = toMin(l.time); return [ls, ls + apptLen]; }));

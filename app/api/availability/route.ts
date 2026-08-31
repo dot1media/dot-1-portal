@@ -13,11 +13,13 @@ async function isAdmin() {
 
 // Public: upcoming open days (today onward).
 export async function GET() {
+  try { await sql`ALTER TABLE availability ADD COLUMN IF NOT EXISTS service_id INTEGER`; } catch {}
   const rows = await sql`
     SELECT id,
            to_char(date, 'YYYY-MM-DD') AS date,
            to_char(start_time, 'HH24:MI') AS start,
-           to_char(end_time, 'HH24:MI') AS end
+           to_char(end_time, 'HH24:MI') AS end,
+           service_id AS "serviceId"
     FROM availability
     WHERE date >= CURRENT_DATE
     ORDER BY date, start_time`;
@@ -37,13 +39,16 @@ export async function POST(request: Request) {
   if (end <= start) {
     return NextResponse.json({ error: "Close time must be after open time." }, { status: 400 });
   }
+  try { await sql`ALTER TABLE availability ADD COLUMN IF NOT EXISTS service_id INTEGER`; } catch {}
+  const serviceId = b.serviceId != null && String(b.serviceId).trim() !== "" ? parseInt(String(b.serviceId), 10) : null;
   const rows = await sql`
-    INSERT INTO availability (date, start_time, end_time)
-    VALUES (${date}::date, ${start}::time, ${end}::time)
+    INSERT INTO availability (date, start_time, end_time, service_id)
+    VALUES (${date}::date, ${start}::time, ${end}::time, ${serviceId})
     RETURNING id,
               to_char(date, 'YYYY-MM-DD') AS date,
               to_char(start_time, 'HH24:MI') AS start,
-              to_char(end_time, 'HH24:MI') AS end`;
+              to_char(end_time, 'HH24:MI') AS end,
+              service_id AS "serviceId"`;
   return NextResponse.json({ slot: rows[0] });
 }
 
