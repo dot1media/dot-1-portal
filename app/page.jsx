@@ -794,6 +794,7 @@ function AvailabilityManager({ availability, addAvailability, removeAvailability
   const [end, setEnd] = useState("15:00");
   const [weekdaysOnly, setWeekdaysOnly] = useState(false);
   const [svcIds, setSvcIds] = useState([]);
+  const [svcOpen, setSvcOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const submit = async () => {
     if (end <= start) { showToast("Close time must be after open time."); return; }
@@ -846,7 +847,37 @@ function AvailabilityManager({ availability, addAvailability, removeAvailability
           )}
           <div><FieldLabel>Open from</FieldLabel><input type="time" value={start} onChange={(e) => setStart(e.target.value)} style={{ ...inputStyle, width: "auto" }} /></div>
           <div><FieldLabel>Until</FieldLabel><input type="time" value={end} onChange={(e) => setEnd(e.target.value)} style={{ ...inputStyle, width: "auto" }} /></div>
-          <div style={{ flexBasis: "100%" }}><FieldLabel>For which session types? (leave all off to open for every type)</FieldLabel><div style={{ display: "flex", flexWrap: "wrap", gap: 7 }}>{(services || []).filter((s) => s.visible !== false).map((s) => { const on = svcIds.includes(String(s.id)); const col = (GROUPS[s.group] || {}).color || RED; return (<button key={s.id} type="button" onClick={() => setSvcIds((prev) => on ? prev.filter((x) => x !== String(s.id)) : [...prev, String(s.id)])} style={{ ...mono, fontSize: 10.5, padding: "7px 12px", borderRadius: 999, cursor: "pointer", border: `1px solid ${on ? col : LINE}`, background: on ? col : PAPER, color: on ? "#fff" : STONE }}>{s.name}</button>); })}</div></div>
+          <div style={{ flexBasis: "100%", position: "relative", maxWidth: 360 }}>
+            <FieldLabel>For which session types?</FieldLabel>
+            <button type="button" onClick={() => setSvcOpen((o) => !o)} style={{ ...inputStyle, width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between", cursor: "pointer", textAlign: "left" }}>
+              <span style={{ color: svcIds.length ? INK : STONE, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{svcIds.length === 0 ? "All session types" : svcIds.length + " type" + (svcIds.length === 1 ? "" : "s") + " selected"}</span>
+              <ChevronDown size={15} color={STONE} style={{ transition: "transform .2s", transform: svcOpen ? "rotate(180deg)" : "none", flexShrink: 0 }} />
+            </button>
+            {svcOpen ? (
+              <>
+                <div onClick={() => setSvcOpen(false)} style={{ position: "fixed", inset: 0, zIndex: 30 }} />
+                <div style={{ position: "absolute", top: "calc(100% + 4px)", left: 0, right: 0, background: PAPER, border: `1px solid ${LINE}`, borderRadius: 10, boxShadow: "0 10px 34px rgba(26,26,23,0.16)", zIndex: 31, maxHeight: 320, overflowY: "auto", padding: 6 }}>
+                  {(() => {
+                    const rows = [];
+                    const row = (key, label, checked, onClick, indent) => (
+                      <button type="button" key={key} onClick={onClick} style={{ width: "100%", display: "flex", alignItems: "center", gap: 10, padding: indent ? "9px 10px 9px 22px" : "9px 10px", background: "transparent", border: "none", cursor: "pointer", textAlign: "left", borderRadius: 7 }}>
+                        <span style={{ width: 17, height: 17, borderRadius: 5, border: `1.5px solid ${checked ? RED : LINE}`, background: checked ? RED : PAPER, flexShrink: 0, display: "inline-flex", alignItems: "center", justifyContent: "center" }}>{checked ? <Check size={12} color="#fff" /> : null}</span>
+                        <span style={{ fontSize: 13, color: INK }}>{label}</span>
+                      </button>
+                    );
+                    rows.push(row("all", "All session types", svcIds.length === 0, () => setSvcIds([]), false));
+                    GROUP_KEYS.forEach((k) => {
+                      const list = (services || []).filter((s) => s.group === k && s.visible !== false);
+                      if (!list.length) return;
+                      rows.push(<div key={"h" + k} style={{ ...mono, fontSize: 9.5, letterSpacing: "0.12em", textTransform: "uppercase", color: (GROUPS[k] || {}).color, padding: "9px 10px 3px" }}>{GROUPS[k].label}</div>);
+                      list.forEach((s) => { const on = svcIds.includes(String(s.id)); rows.push(row(s.id, s.name, on, () => setSvcIds((prev) => on ? prev.filter((x) => x !== String(s.id)) : [...prev, String(s.id)]), true)); });
+                    });
+                    return rows;
+                  })()}
+                </div>
+              </>
+            ) : null}
+          </div>
           <button onClick={submit} disabled={busy} style={{ ...btnSolid, background: busy ? FAINT : RED }}><Plus size={14} /> {busy ? "Opening…" : (mode === "single" ? "Open this day" : "Open these days")}</button>
         </div>
         {mode === "range" && (
