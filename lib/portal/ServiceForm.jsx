@@ -26,6 +26,7 @@ function resizeImageTo(file, max) {
 
 export function ServiceForm({ form, setForm, onSave, onCancel, group, groupAddons, packages }) {
   const g = GROUPS[group];
+  const [imgErr, setImgErr] = React.useState("");
   const multiBiz = new Set((packages || []).map((p) => p.business_name).filter(Boolean)).size > 1;
   return (
     <div style={{ border: `1px solid ${g.color}`, borderRadius: 10, padding: "16px", marginBottom: 14, background: PAPER }}>
@@ -40,10 +41,13 @@ export function ServiceForm({ form, setForm, onSave, onCancel, group, groupAddon
           <button onClick={() => setForm({ ...form, image: "" })} style={{ position: "absolute", top: 8, right: 8, background: "rgba(26,26,23,0.72)", color: "#fff", border: "none", borderRadius: 6, padding: "5px 9px", cursor: "pointer", ...mono, fontSize: 9, letterSpacing: "0.06em", textTransform: "uppercase", display: "inline-flex", alignItems: "center", gap: 5 }}><Trash2 size={11} /> Remove</button>
         </div>
       ) : (
-        <label style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, marginBottom: 12, padding: "16px", borderRadius: 9, border: `1.5px dashed ${LINE}`, background: CREAM, cursor: "pointer", color: STONE, fontSize: 12.5 }}>
+        <>
+        <label style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, marginBottom: imgErr ? 6 : 12, padding: "16px", borderRadius: 9, border: `1.5px dashed ${LINE}`, background: CREAM, cursor: "pointer", color: STONE, fontSize: 12.5 }}>
           <ImageIcon size={15} /> Upload an example image
-          <input type="file" accept="image/*" style={{ display: "none" }} onChange={async (e) => { const f = e.target.files && e.target.files[0]; if (!f) return; try { const url = await resizeImageTo(f, 640); setForm((prev) => ({ ...prev, image: url })); } catch (err) {} if (e.target) e.target.value = ""; }} />
+          <input type="file" accept="image/*,.jpg,.jpeg,.png,.webp" style={{ display: "none" }} onChange={async (e) => { const f = e.target.files && e.target.files[0]; if (!f) return; setImgErr(""); try { const url = await resizeImageTo(f, 640); if (!url || url.length < 200) throw new Error("empty"); setForm((prev) => ({ ...prev, image: url })); } catch (err) { setImgErr("That image couldn't be processed. Please use a JPG, PNG, or WEBP. iPhone photos saved as HEIC may need converting to JPG first."); } if (e.target) e.target.value = ""; }} />
         </label>
+        {imgErr ? <div style={{ ...mono, fontSize: 10.5, color: "#b3261e", marginBottom: 12, lineHeight: 1.5 }}>{imgErr}</div> : null}
+        </>
       )}
       <FieldLabel>Sub-category (optional, groups this under a client-facing heading)</FieldLabel>
       <TextInput value={form.category || ""} onChange={(v) => setForm({ ...form, category: v })} placeholder="e.g. Destination Photography" />
