@@ -148,6 +148,7 @@ export async function PATCH(request: Request) {
   }
   if (me.role === "client" && allowed.brief && allowed.brief.submitted && !(old.brief && old.brief.submitted)) {
     await sendEmail({ to: merged.notifyEmail || "contact@dot1.media", subject: (merged.clientName || "A client") + " submitted their production brief", html: briefStudioEmail(merged), replyTo: merged.clientEmail });
+    try { await sendPush("Brief submitted", (merged.clientName || "A client") + " submitted their production brief", "/"); } catch (e) {}
   }
 
   if (me.role === "admin" && merged.status === "cancelled" && (old.status || "active") !== "cancelled") {
