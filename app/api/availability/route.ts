@@ -14,12 +14,14 @@ async function isAdmin() {
 // Public: upcoming open days (today onward).
 export async function GET() {
   try { await sql`ALTER TABLE availability ADD COLUMN IF NOT EXISTS service_id INTEGER`; } catch {}
+  try { await sql`ALTER TABLE availability ADD COLUMN IF NOT EXISTS service_ids JSONB`; } catch {}
+  try { await sql`UPDATE availability SET service_ids = to_jsonb(ARRAY[service_id]) WHERE service_id IS NOT NULL AND service_ids IS NULL`; } catch {}
   const rows = await sql`
     SELECT id,
            to_char(date, 'YYYY-MM-DD') AS date,
            to_char(start_time, 'HH24:MI') AS start,
            to_char(end_time, 'HH24:MI') AS end,
-           service_id AS "serviceId"
+           COALESCE(service_ids, '[]'::jsonb) AS "serviceIds"
     FROM availability
     WHERE date >= CURRENT_DATE
     ORDER BY date, start_time`;
@@ -39,16 +41,16 @@ export async function POST(request: Request) {
   if (end <= start) {
     return NextResponse.json({ error: "Close time must be after open time." }, { status: 400 });
   }
-  try { await sql`ALTER TABLE availability ADD COLUMN IF NOT EXISTS service_id INTEGER`; } catch {}
-  const serviceId = b.serviceId != null && String(b.serviceId).trim() !== "" ? parseInt(String(b.serviceId), 10) : null;
+  try { await sql`ALTER TABLE availability ADD COLUMN IF NOT EXISTS service_ids JSONB`; } catch {}
+  const serviceIds = Array.isArray(b.serviceIds) ? Array.from(new Set(b.serviceIds.map((x: any) => parseInt(String(x), 10)).filter((n: number) => !isNaN(n)))) : [];
   const rows = await sql`
-    INSERT INTO availability (date, start_time, end_time, service_id)
-    VALUES (${date}::date, ${start}::time, ${end}::time, ${serviceId})
+    INSERT INTO availability (date, start_time, end_time, service_ids)
+    VALUES (${date}::date, ${start}::time, ${end}::time, ${JSON.stringify(serviceIds)}::jsonb)
     RETURNING id,
               to_char(date, 'YYYY-MM-DD') AS date,
               to_char(start_time, 'HH24:MI') AS start,
               to_char(end_time, 'HH24:MI') AS end,
-              service_id AS "serviceId"`;
+              COALESCE(service_ids, '[]'::jsonb) AS "serviceIds"`;
   return NextResponse.json({ slot: rows[0] });
 }
 

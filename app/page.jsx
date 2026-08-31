@@ -793,14 +793,14 @@ function AvailabilityManager({ availability, addAvailability, removeAvailability
   const [start, setStart] = useState("09:00");
   const [end, setEnd] = useState("15:00");
   const [weekdaysOnly, setWeekdaysOnly] = useState(false);
-  const [svcId, setSvcId] = useState("");
+  const [svcIds, setSvcIds] = useState([]);
   const [busy, setBusy] = useState(false);
   const submit = async () => {
     if (end <= start) { showToast("Close time must be after open time."); return; }
     if (mode === "single") {
       if (!date) { showToast("Pick a day."); return; }
       setBusy(true);
-      const r = await addAvailability({ date, start, end, serviceId: svcId || null });
+      const r = await addAvailability({ date, start, end, serviceIds: svcIds });
       setBusy(false);
       if (r && r.ok) { showToast("Day opened for booking."); setDate(""); } else { showToast((r && r.error) || "Could not open that day."); }
       return;
@@ -820,7 +820,7 @@ function AvailabilityManager({ availability, addAvailability, removeAvailability
     if (days.length > 92) { showToast("Keep the range to about three months at a time."); return; }
     setBusy(true);
     let opened = 0; let skipped = 0;
-    for (const dd of days) { const r = await addAvailability({ date: dd, start, end, serviceId: svcId || null }); if (r && r.ok) opened++; else skipped++; }
+    for (const dd of days) { const r = await addAvailability({ date: dd, start, end, serviceIds: svcIds }); if (r && r.ok) opened++; else skipped++; }
     setBusy(false);
     showToast("Opened " + opened + " day" + (opened === 1 ? "" : "s") + (skipped ? " (" + skipped + " already open or unavailable)" : "") + ".");
     if (opened > 0) { setDate(""); setEndDate(""); }
@@ -846,7 +846,7 @@ function AvailabilityManager({ availability, addAvailability, removeAvailability
           )}
           <div><FieldLabel>Open from</FieldLabel><input type="time" value={start} onChange={(e) => setStart(e.target.value)} style={{ ...inputStyle, width: "auto" }} /></div>
           <div><FieldLabel>Until</FieldLabel><input type="time" value={end} onChange={(e) => setEnd(e.target.value)} style={{ ...inputStyle, width: "auto" }} /></div>
-          <div><FieldLabel>For which session type?</FieldLabel><select value={svcId} onChange={(e) => setSvcId(e.target.value)} style={{ ...inputStyle, width: "auto" }}><option value="">All session types</option>{GROUP_KEYS.map((k) => { const list = (services || []).filter((s) => s.group === k && s.visible !== false); if (!list.length) return null; return <optgroup key={k} label={GROUPS[k].label}>{list.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</optgroup>; })}</select></div>
+          <div style={{ flexBasis: "100%" }}><FieldLabel>For which session types? (leave all off to open for every type)</FieldLabel><div style={{ display: "flex", flexWrap: "wrap", gap: 7 }}>{(services || []).filter((s) => s.visible !== false).map((s) => { const on = svcIds.includes(String(s.id)); const col = (GROUPS[s.group] || {}).color || RED; return (<button key={s.id} type="button" onClick={() => setSvcIds((prev) => on ? prev.filter((x) => x !== String(s.id)) : [...prev, String(s.id)])} style={{ ...mono, fontSize: 10.5, padding: "7px 12px", borderRadius: 999, cursor: "pointer", border: `1px solid ${on ? col : LINE}`, background: on ? col : PAPER, color: on ? "#fff" : STONE }}>{s.name}</button>); })}</div></div>
           <button onClick={submit} disabled={busy} style={{ ...btnSolid, background: busy ? FAINT : RED }}><Plus size={14} /> {busy ? "Opening…" : (mode === "single" ? "Open this day" : "Open these days")}</button>
         </div>
         {mode === "range" && (
@@ -863,7 +863,7 @@ function AvailabilityManager({ availability, addAvailability, removeAvailability
           <div key={a.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, border: `1px solid ${LINE}`, borderRadius: 9, padding: "12px 15px", marginBottom: 8, background: PAPER }}>
             <div>
               <div style={{ ...display, fontWeight: 600, fontSize: 15, color: INK }}>{fmtDate(a.date)}</div>
-              <div style={{ ...mono, fontSize: 11, color: STONE, marginTop: 2 }}>{fmtTime(a.start)} to {fmtTime(a.end)}{(() => { const n = a.serviceId ? ((services || []).find((s) => String(s.id) === String(a.serviceId)) || {}).name : null; return n ? " \u00b7 " + n : " \u00b7 All types"; })()}</div>
+              <div style={{ ...mono, fontSize: 11, color: STONE, marginTop: 2 }}>{fmtTime(a.start)} to {fmtTime(a.end)}{(() => { const ids = Array.isArray(a.serviceIds) ? a.serviceIds : []; if (!ids.length) return " \u00b7 All types"; const names = ids.map((id) => ((services || []).find((s) => String(s.id) === String(id)) || {}).name).filter(Boolean); return " \u00b7 " + (names.join(", ") || "Selected types"); })()}</div>
             </div>
             <IconBtn onClick={async () => { const r = await removeAvailability(a.id); if (r && !r.ok) showToast(r.error || "Could not remove."); }} danger><Trash2 size={13} /></IconBtn>
           </div>

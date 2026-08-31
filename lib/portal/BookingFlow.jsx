@@ -164,8 +164,9 @@ export function BookingFlow({ state, direct, slotTaken, onCancel, onComplete, on
     </div>
   ); };
 
-  const specificAvail = serviceId ? (availability || []).filter((a) => String(a.serviceId) === String(serviceId)) : [];
-  const useAvail = specificAvail.length > 0 ? specificAvail : (availability || []).filter((a) => a.serviceId == null);
+  const isAllWindow = (a) => !Array.isArray(a.serviceIds) || a.serviceIds.length === 0;
+  const specificAvail = serviceId ? (availability || []).filter((a) => Array.isArray(a.serviceIds) && a.serviceIds.map(String).includes(String(serviceId))) : [];
+  const useAvail = specificAvail.length > 0 ? specificAvail : (availability || []).filter(isAllWindow);
   const availDates = Array.from(new Set(useAvail.map((a) => a.date)));
   const slotsForDate = (d) => {
     const wins = useAvail.filter((a) => a.date === d);
