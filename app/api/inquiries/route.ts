@@ -4,6 +4,7 @@ import { sql } from "@/lib/db";
 import { verifyToken, ADMIN_COOKIE } from "@/lib/auth";
 import { hasStudio } from "@/lib/studioGuard";
 import { sendEmail } from "@/lib/email";
+import { sendPush } from "@/lib/push";
 
 export const runtime = "nodejs";
 
@@ -56,6 +57,7 @@ export async function POST(request: Request) {
       html: '<div style="font-family:Arial,sans-serif;font-size:14px;color:#33322d;line-height:1.6"><p><b>' + esc(name) + '</b> (' + esc(email) + ') sent a message through dot1.media:</p><blockquote style="margin:10px 0;padding:10px 14px;border-left:3px solid #e23b2e;background:#fbf8f2;white-space:pre-wrap">' + esc(message) + '</blockquote><p style="font-size:12px;color:#6f6d65">It is also waiting in the portal Inbox: <a href="https://portal.dot1.media">portal.dot1.media</a>. Replying to this email replies to ' + esc(name.split(" ")[0]) + ' directly.</p></div>',
     });
   } catch (e) {}
+  try { await sendPush("New website message", name + " sent a message", "/"); } catch (e) {}
   return NextResponse.json({ ok: true }, { headers: CORS });
 }
 

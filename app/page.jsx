@@ -18,6 +18,7 @@ import { InvoiceOnboarding } from "../lib/portal/InvoiceOnboarding";
 import { ServiceForm } from "../lib/portal/ServiceForm";
 import { DirectLinks } from "../lib/portal/DirectLinks";
 import { AdminSessions } from "../lib/portal/AdminSessions";
+import PushToggle from "../lib/portal/PushToggle";
 import Inbox from "../lib/portal/Inbox";
 import { BusinessSettings } from "../lib/portal/BusinessSettings";
 import { AdminAccounts } from "../lib/portal/AdminAccounts";
@@ -1207,6 +1208,11 @@ function NotificationBell({ mode, sessions, clientId, onOpenSession, onMarkRead,
               <span style={{ ...mono, fontSize: 10.5, letterSpacing: "0.14em", textTransform: "uppercase", color: STONE }}>Notifications</span>
               {count > 0 && <span style={{ ...mono, fontSize: 10, color: FAINT }}>{count} new</span>}
             </div>
+            {mode === "studio" && (
+              <div style={{ padding: "10px 14px", borderBottom: `1px solid ${LINE}`, background: CREAM }}>
+                <PushToggle accent={RED} line={LINE} stone={STONE} ink={INK} />
+              </div>
+            )}
             <div style={{ maxHeight: 358, overflowY: "auto" }}>
               {count === 0 ? (
                 <div style={{ padding: "34px 20px", textAlign: "center" }}>

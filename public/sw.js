@@ -1,4 +1,4 @@
-const CACHE = "dot1-portal-v20";
+const CACHE = "dot1-portal-v21";
 self.addEventListener("install", (e) => {
   e.waitUntil(caches.open(CACHE).then((c) => c.add("/")).catch(() => {}));
   self.skipWaiting();
@@ -29,3 +29,25 @@ self.addEventListener("fetch", (e) => {
 });
 
 
+
+self.addEventListener("push", (e) => {
+  let d = {};
+  try { d = e.data ? e.data.json() : {}; } catch (err) {}
+  const title = d.title || "Dot One Studio";
+  e.waitUntil(self.registration.showNotification(title, {
+    body: d.body || "",
+    icon: "/dot1-icon.png",
+    badge: "/dot1-icon.png",
+    data: { url: d.url || "/" },
+    tag: d.tag || undefined,
+    renotify: !!d.tag,
+  }));
+});
+self.addEventListener("notificationclick", (e) => {
+  e.notification.close();
+  const url = (e.notification.data && e.notification.data.url) || "/";
+  e.waitUntil(self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((wins) => {
+    for (const w of wins) { if (w.url.indexOf(self.location.origin) === 0 && "focus" in w) { w.navigate(url); return w.focus(); } }
+    if (self.clients.openWindow) return self.clients.openWindow(url);
+  }));
+});
