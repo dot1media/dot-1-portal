@@ -26,7 +26,7 @@ export function AgreementBox({ title, text, pdf, A }) {
 }
 
 export function BookingFlow({ state, direct, slotTaken, onCancel, onComplete, onLogin, catalogLoaded, catalogError, availability, authedClient, refreshSlots }) {
-  const [step, setStep] = useState(direct ? 2 : 0); // 0 welcome, 1 choose, 2 account, 3 confirm
+  const [step, setStep] = useState(direct ? 3 : 0); // 0 welcome, 1 choose, 2 date, 3 account, 4 confirm
   const [group, setGroup] = useState(direct?.group || "video");
   const [serviceId, setServiceId] = useState(direct?.serviceId || null);
   const [addonIds, setAddonIds] = useState([]);
@@ -71,7 +71,7 @@ export function BookingFlow({ state, direct, slotTaken, onCancel, onComplete, on
         : [ { type: "client_services", version: CLIENT_SERVICES_VERSION }, { type: releaseType, version: RELEASE_VERSION, usageOption: usage, details } ];
       const ares = await fetch("/api/agreements", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ email: signEmail, signedName: acct.signature.trim(), agreements }) });
       if (!ares.ok) { const d = await ares.json().catch(() => ({})); throw new Error(d.error || "Could not record your signature."); }
-      setStep(3);
+      setStep(4);
     } catch (e) {
       setSubmitErr((e && e.message) || "Something went wrong. Please try again.");
     } finally {
@@ -100,14 +100,14 @@ export function BookingFlow({ state, direct, slotTaken, onCancel, onComplete, on
   const releaseHold = () => { if (holdId) { try { fetch("/api/hold?id=" + encodeURIComponent(holdId), { method: "DELETE" }); } catch (e) {} setHoldId(""); } };
   useEffect(() => { holdRef.current = holdId; }, [holdId]);
   useEffect(() => { return () => { if (holdRef.current) { try { fetch("/api/hold?id=" + encodeURIComponent(holdRef.current), { method: "DELETE", keepalive: true }); } catch (e) {} } }; }, []);
-  useEffect(() => { if (step === 3 && refreshSlots) refreshSlots(); }, [step]);
+  useEffect(() => { if (step === 2 && refreshSlots) refreshSlots(); }, [step]);
   const total = bookingTotal(basePrice, chosenAddons);
   const rules = PAYMENT_RULES[group];
   const A = GROUPS[group].color, AB = GROUPS[group].bg, ABD = GROUPS[group].border, AT = GROUPS[group].text;
   const taken = !direct && slotTaken(date, time);
 
   const stepLabel2 = authedClient ? "Sign Release" : "Account";
-  const stepDefs = direct ? [{ n: 2, label: stepLabel2 }, { n: 3, label: "Confirm & Pay" }] : [{ n: 1, label: "Choose" }, { n: 2, label: stepLabel2 }, { n: 3, label: "Confirm & Pay" }];
+  const stepDefs = direct ? [{ n: 3, label: stepLabel2 }, { n: 4, label: "Confirm & Pay" }] : [{ n: 1, label: "Choose" }, { n: 2, label: "Date & Time" }, { n: 3, label: stepLabel2 }, { n: 4, label: "Confirm & Pay" }];
 
   /* STEP 0 — WELCOME */
   const renderServiceBtn = (s) => { const sel = serviceId === s.id; const dOpen = !!openDesc[s.id]; return (
@@ -268,7 +268,50 @@ export function BookingFlow({ state, direct, slotTaken, onCancel, onComplete, on
       )}
 
       {/* STEP 2 — ACCOUNT */}
-      {step === 2 && (
+      {/* STEP 2 — DATE & TIME */}
+      {step === 2 && !direct && (
+        <div style={{ maxWidth: 600 }}>
+          <div style={{ background: PAPER, border: `1px solid ${LINE}`, borderRadius: 10, padding: "18px 20px", marginBottom: 18 }}>
+            <div style={{ ...mono, fontSize: 10, letterSpacing: "0.14em", textTransform: "uppercase", color: STONE, marginBottom: 12 }}>Your booking</div>
+            <Row k={service?.name || ""} v={money(basePrice)} bold />
+            {chosenAddons.map((a) => <Row key={a.id} k={a.name} v={"+" + money(a.price)} sub />)}
+            <div style={{ borderTop: `1px solid ${LINE}`, marginTop: 8, paddingTop: 8 }}><Row k="Total" v={money(total)} bold red /></div>
+          </div>
+          <div style={{ marginBottom: 16 }}>
+            <FieldLabel>Choose an available day</FieldLabel>
+            {availDates.length === 0 ? (
+              <div style={{ border: `1px dashed ${LINE}`, borderRadius: 9, padding: "18px", textAlign: "center", background: PAPER, fontSize: 13, color: STONE, lineHeight: 1.5 }}>No open dates right now. Please check back soon, or contact us and we'll find a time.</div>
+            ) : (
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                {availDates.map((d) => { const on = date === d; return (
+                  <button key={d} onClick={() => { setDate(d); setTime(""); releaseHold(); }} style={{ ...mono, fontSize: 12, padding: "9px 13px", borderRadius: 8, cursor: "pointer", border: `1.5px solid ${on ? A : LINE}`, background: on ? A : PAPER, color: on ? "#fff" : INK }}>{fmtDate(d)}</button>
+                ); })}
+              </div>
+            )}
+            {date && (
+              <div style={{ marginTop: 14 }}>
+                <FieldLabel>Choose a time</FieldLabel>
+                {slotsForDate(date).length === 0 ? (
+                  <div style={{ fontSize: 12.5, color: STONE }}>Every time on this day is booked. Please choose another day.</div>
+                ) : (
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                    {slotsForDate(date).map((t) => { const on = time === t; return (
+                      <button key={t} onClick={() => { setTime(t); acquireHold(date, t); }} style={{ ...mono, fontSize: 12, padding: "9px 13px", borderRadius: 8, cursor: "pointer", border: `1.5px solid ${on ? A : LINE}`, background: on ? A : PAPER, color: on ? "#fff" : INK }}>{fmtTime(t)}</button>
+                    ); })}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+          {taken && <div style={{ background: "#fbeeed", border: "1px solid #f2cdc9", borderRadius: 8, padding: "9px 13px", marginBottom: 14, fontSize: 12.5, color: DANGER, display: "flex", alignItems: "center", gap: 8 }}><AlertTriangle size={14} /> That date and time is already booked. Please pick another.</div>}
+          <div style={{ display: "flex", justifyContent: "space-between", marginTop: 6 }}>
+            <button onClick={() => setStep(1)} style={btnGhost}><ArrowLeft size={14} /> Back</button>
+            <button onClick={() => { if (!date || !time || taken) return; setStep(3); }} style={{ ...btnSolid, background: date && time && !taken ? A : FAINT }}>Continue <ArrowRight size={15} /></button>
+          </div>
+        </div>
+      )}
+
+      {step === 3 && (
         <div style={{ maxWidth: 600 }}>
           {!authedClient ? (
             <>
@@ -327,14 +370,14 @@ export function BookingFlow({ state, direct, slotTaken, onCancel, onComplete, on
           {submitErr && <div style={{ marginTop: 12, fontSize: 12.5, color: DANGER, display: "flex", alignItems: "center", gap: 7 }}><AlertTriangle size={14} /> {submitErr}</div>}
 
           <div style={{ display: "flex", justifyContent: "space-between", marginTop: 18 }}>
-            <button onClick={() => (direct ? onCancel() : setStep(1))} disabled={submitting} style={btnGhost}><ArrowLeft size={14} /> Back</button>
+            <button onClick={() => (direct ? onCancel() : setStep(2))} disabled={submitting} style={btnGhost}><ArrowLeft size={14} /> Back</button>
             <button onClick={submitAccount} disabled={submitting} style={{ ...btnSolid, background: submitting ? FAINT : A }}>{submitting ? "Saving..." : "Sign and continue"} <ArrowRight size={15} /></button>
           </div>
         </div>
       )}
 
-      {/* STEP 3 — CONFIRM & PAY */}
-      {step === 3 && (
+      {/* STEP 4 — CONFIRM & PAY */}
+      {step === 4 && (
         <div>
           <div style={{ background: PAPER, border: `1px solid ${LINE}`, borderRadius: 10, padding: "18px 20px", marginBottom: 18 }}>
             <div style={{ ...mono, fontSize: 10, letterSpacing: "0.14em", textTransform: "uppercase", color: STONE, marginBottom: 12 }}>Your booking</div>
@@ -343,39 +386,10 @@ export function BookingFlow({ state, direct, slotTaken, onCancel, onComplete, on
             <div style={{ borderTop: `1px solid ${LINE}`, marginTop: 8, paddingTop: 8 }}><Row k="Total" v={money(total)} bold red /></div>
           </div>
 
-          {direct ? (
-            <div style={{ background: CREAM, border: `1px solid ${LINE}`, borderRadius: 9, padding: "12px 16px", marginBottom: 16 }}>
-              <div style={{ ...mono, fontSize: 9.5, letterSpacing: "0.1em", textTransform: "uppercase", color: STONE, marginBottom: 4 }}>Your reserved session</div>
-              <div style={{ fontSize: 14, color: INK, fontWeight: 500 }}>{fmtDate(direct.date)} at {fmtTime(direct.time)}</div>
-            </div>
-          ) : (
-            <div style={{ marginBottom: 16 }}>
-              <FieldLabel>Choose an available day</FieldLabel>
-              {availDates.length === 0 ? (
-                <div style={{ border: `1px dashed ${LINE}`, borderRadius: 9, padding: "18px", textAlign: "center", background: PAPER, fontSize: 13, color: STONE, lineHeight: 1.5 }}>No open dates right now. Please check back soon, or contact us and we'll find a time.</div>
-              ) : (
-                <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-                  {availDates.map((d) => { const on = date === d; return (
-                    <button key={d} onClick={() => { setDate(d); setTime(""); releaseHold(); }} style={{ ...mono, fontSize: 12, padding: "9px 13px", borderRadius: 8, cursor: "pointer", border: `1.5px solid ${on ? A : LINE}`, background: on ? A : PAPER, color: on ? "#fff" : INK }}>{fmtDate(d)}</button>
-                  ); })}
-                </div>
-              )}
-              {date && (
-                <div style={{ marginTop: 14 }}>
-                  <FieldLabel>Choose a time</FieldLabel>
-                  {slotsForDate(date).length === 0 ? (
-                    <div style={{ fontSize: 12.5, color: STONE }}>Every time on this day is booked. Please choose another day.</div>
-                  ) : (
-                    <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-                      {slotsForDate(date).map((t) => { const on = time === t; return (
-                        <button key={t} onClick={() => { setTime(t); acquireHold(date, t); }} style={{ ...mono, fontSize: 12, padding: "9px 13px", borderRadius: 8, cursor: "pointer", border: `1.5px solid ${on ? A : LINE}`, background: on ? A : PAPER, color: on ? "#fff" : INK }}>{fmtTime(t)}</button>
-                      ); })}
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-          )}
+          <div style={{ background: CREAM, border: `1px solid ${LINE}`, borderRadius: 9, padding: "12px 16px", marginBottom: 16 }}>
+            <div style={{ ...mono, fontSize: 9.5, letterSpacing: "0.1em", textTransform: "uppercase", color: STONE, marginBottom: 4 }}>Your session</div>
+            <div style={{ fontSize: 14, color: INK, fontWeight: 500 }}>{fmtDate(direct ? direct.date : date)} at {fmtTime(direct ? direct.time : time)}</div>
+          </div>
           {taken && <div style={{ background: "#fbeeed", border: "1px solid #f2cdc9", borderRadius: 8, padding: "9px 13px", marginBottom: 14, fontSize: 12.5, color: DANGER, display: "flex", alignItems: "center", gap: 8 }}><AlertTriangle size={14} /> That date and time is already booked. Please pick another.</div>}
 
           <FieldLabel>Payment</FieldLabel>
@@ -390,7 +404,7 @@ export function BookingFlow({ state, direct, slotTaken, onCancel, onComplete, on
           <div style={{ ...mono, fontSize: 9.5, color: FAINT, marginTop: 4, marginBottom: 18 }}>Payments are processed securely through Square.</div>
 
           <div style={{ display: "flex", justifyContent: "space-between" }}>
-            <button onClick={() => setStep(2)} style={btnGhost}><ArrowLeft size={14} /> Back</button>
+            <button onClick={() => setStep(3)} style={btnGhost}><ArrowLeft size={14} /> Back</button>
             <button onClick={() => { if (!date || !time || !payChoice || taken) return; const payAmount = optionAmount(rules.options.find((o) => o.key === payChoice), total); onComplete({ linkId: direct?.id, group, serviceName: service.name, location: service.location || "", locationUrl: service.locationUrl || "", confirmationMessage: service.confirmationMessage || "", duration: apptLen, apptMin: apptLen, padBefore: padB, padAfter: padA, addons: chosenAddons.map((a) => ({ name: a.name, price: Number(a.price) || 0, addTime: Number(a.addTime) || 0 })), total, payAmount, date, time, payChoice, name: acct.name, email: acct.email }); }} style={{ ...btnSolid, background: date && time && payChoice && !taken ? A : FAINT }}><Check size={15} /> {(() => { const amt = optionAmount(rules.options.find((o) => o.key === payChoice), total); return amt > 0 ? "Continue to payment · " + money(amt) : "Confirm booking"; })()}</button>
           </div>
         </div>
