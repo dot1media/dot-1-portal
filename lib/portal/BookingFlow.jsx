@@ -25,10 +25,10 @@ export function AgreementBox({ title, text, pdf, A }) {
   );
 }
 
-export function BookingFlow({ state, direct, slotTaken, onCancel, onComplete, onLogin, catalogLoaded, catalogError, availability, authedClient, refreshSlots, onGroupChange }) {
-  const [step, setStep] = useState(direct ? 3 : 0); // 0 welcome, 1 choose, 2 date, 3 account, 4 confirm
-  const [group, setGroup] = useState(direct?.group || "video");
-  const [serviceId, setServiceId] = useState(direct?.serviceId || null);
+export function BookingFlow({ state, direct, slotTaken, onCancel, onComplete, onLogin, catalogLoaded, catalogError, availability, authedClient, refreshSlots, onGroupChange, preService }) {
+  const [step, setStep] = useState(direct ? 3 : preService ? 1 : 0); // 0 welcome, 1 choose, 2 date, 3 account, 4 confirm
+  const [group, setGroup] = useState(preService?.group || direct?.group || "video");
+  const [serviceId, setServiceId] = useState(preService?.id || direct?.serviceId || null);
   const [addonIds, setAddonIds] = useState([]);
   const [openCats, setOpenCats] = useState({});
   const [openDesc, setOpenDesc] = useState({});
@@ -45,7 +45,8 @@ export function BookingFlow({ state, direct, slotTaken, onCancel, onComplete, on
   const [usage, setUsage] = useState("A");
   const [child, setChild] = useState({ name: "", age: "", relationship: "" });
   const [exception, setException] = useState("");
-  const inviteAccount = direct ? (direct.inviteAccount !== false) : true;
+  const [wantAccount, setWantAccount] = useState(true);
+  const inviteAccount = direct ? (direct.inviteAccount !== false) : wantAccount;
   const submitAccount = async () => {
     setSubmitErr("");
     if (!authedClient) {
@@ -79,7 +80,7 @@ export function BookingFlow({ state, direct, slotTaken, onCancel, onComplete, on
     }
   };
 
-  const groupServices = state.services.filter((s) => s.group === group && s.visible !== false);
+  const groupServices = preService ? state.services.filter((s) => String(s.id) === String(preService.id)) : state.services.filter((s) => s.group === group && s.visible !== false);
   const catalogService = state.services.find((s) => s.id === serviceId) || null;
   const service = catalogService || (direct ? { id: direct.serviceId, name: direct.serviceName, price: direct.price, addonMode: "group", addonIds: [] } : null);
   const groupAddons = state.addons.filter((a) => a.group === group && a.visible !== false);
@@ -105,6 +106,7 @@ export function BookingFlow({ state, direct, slotTaken, onCancel, onComplete, on
   const rules = PAYMENT_RULES[group];
   const A = GROUPS[group].color, AB = GROUPS[group].bg, ABD = GROUPS[group].border, AT = GROUPS[group].text;
   useEffect(() => { if (onGroupChange) onGroupChange(group); }, [group]);
+  useEffect(() => { if (preService && String(serviceId) !== String(preService.id)) { setGroup(preService.group); setServiceId(preService.id); if (step === 0) setStep(1); } }, [preService]);
   const taken = !direct && slotTaken(date, time);
 
   const stepLabel2 = authedClient ? "Sign Release" : "Account";
@@ -206,11 +208,13 @@ export function BookingFlow({ state, direct, slotTaken, onCancel, onComplete, on
       {/* STEP 1 — CHOOSE */}
       {step === 1 && (
         <div>
+          {!preService && (
           <div style={{ display: "flex", gap: 8, marginBottom: 20, flexWrap: "wrap" }}>
             {GROUP_KEYS.map((k) => { const gg = GROUPS[k]; const active = group === k; return (
               <button key={k} onClick={() => { setGroup(k); setServiceId(null); setAddonIds([]); }} style={{ display: "flex", alignItems: "center", gap: 8, padding: "9px 15px", borderRadius: 8, cursor: "pointer", fontSize: 13, border: `1px solid ${active ? gg.color : LINE}`, background: active ? gg.color : PAPER, color: active ? "#fff" : STONE }}><gg.Icon size={14} /> {gg.label}</button>
             ); })}
           </div>
+          )}
           {group === "photo" && (
             <div style={{ textAlign: "center", margin: "2px auto 24px", maxWidth: 470 }}>
               <img src="/dot1-photo-logo.png" alt="Dot One Photography" style={{ height: 54, width: "auto", display: "block", margin: "0 auto 11px" }} />
@@ -316,6 +320,12 @@ export function BookingFlow({ state, direct, slotTaken, onCancel, onComplete, on
         <div style={{ maxWidth: 600 }}>
           {!authedClient ? (
             <>
+              {!direct && (
+                <label style={{ display: "flex", alignItems: "flex-start", gap: 10, marginBottom: 16, cursor: "pointer", background: CREAM, border: `1px solid ${LINE}`, borderRadius: 9, padding: "12px 14px" }}>
+                  <input type="checkbox" checked={wantAccount} onChange={(e) => setWantAccount(e.target.checked)} style={{ marginTop: 2, width: 16, height: 16, accentColor: A, cursor: "pointer" }} />
+                  <span style={{ fontSize: 12.5, color: BODY, lineHeight: 1.5 }}>Create an account to follow your session and receive your finished work. Leave unchecked to just book with your details.</span>
+                </label>
+              )}
               <div style={{ fontSize: 13.5, color: BODY, marginBottom: 18, lineHeight: 1.5 }}>{inviteAccount ? "Create your account and sign to continue. " : "Enter your details and sign to continue. "}{inviteAccount ? <>Already have an account? <span onClick={onLogin} style={{ color: A, cursor: "pointer" }}>Log in</span>.</> : null}</div>
               <FieldLabel>Your name</FieldLabel>
               <TextInput value={acct.name} onChange={(v) => setAcct({ ...acct, name: v })} placeholder="Sarah & James" />

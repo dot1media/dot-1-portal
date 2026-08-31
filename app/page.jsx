@@ -17,6 +17,7 @@ import { InvoiceModal } from "../lib/portal/Invoices";
 import { InvoiceOnboarding } from "../lib/portal/InvoiceOnboarding";
 import { ServiceForm } from "../lib/portal/ServiceForm";
 import { DirectLinks } from "../lib/portal/DirectLinks";
+import { ServiceLinks } from "../lib/portal/ServiceLinks";
 import { AdminSessions } from "../lib/portal/AdminSessions";
 import PushToggle from "../lib/portal/PushToggle";
 import Inbox from "../lib/portal/Inbox";
@@ -106,6 +107,7 @@ export default function App() {
   const [internalOpen, setInternalOpen] = useState(false);
   const [invoiceOpen, setInvoiceOpen] = useState(false);
   const [directContext, setDirectContext] = useState(null);
+  const [preServiceId, setPreServiceId] = useState("");
   const [toast, setToast] = useState(null);
   const [confirm, setConfirm] = useState(null);
   const [inquiries, setInquiries] = useState([]);
@@ -205,9 +207,11 @@ export default function App() {
     if (rt) { setResetToken(rt); setView("resetpw"); }
     const it = params.get("invite");
     if (it) { setInviteToken(it); setView("invite"); }
+    const sid = params.get("s");
+    if (sid) { setPreServiceId(sid); setView("book"); }
     const path = window.location.pathname || "";
     const tok = params.get("b") || (path.indexOf("/book/") === 0 ? decodeURIComponent(path.slice(6).split("/")[0]) : "");
-    if (tok) {
+    if (!sid && tok) {
       (async () => {
         try {
           const d = await fetch("/api/direct-link?token=" + encodeURIComponent(tok)).then((r) => r.json()).catch(() => null);
@@ -458,6 +462,7 @@ export default function App() {
   const requestDeleteBooking = (session) => setConfirm({ title: "Delete this booking?", message: "This permanently removes " + session.clientName + "'s " + session.type + " from your studio. This cannot be undone.", confirmLabel: "Delete permanently", danger: true, onYes: async () => { setConfirm(null); try { const res = await fetch("/api/sessions?id=" + encodeURIComponent(session.id), { method: "DELETE" }); const data = await res.json().catch(() => ({})); if (res.ok) { setState((s) => ({ ...s, sessions: s.sessions.filter((x) => x.id !== session.id) })); if (adminId === session.id) setAdminId(""); showToast("Booking deleted."); } else { showToast(data.error || "Could not delete the booking."); } } catch (e) { showToast("Network error."); } } });
 
   const clientSession = state.sessions.find((s) => s.id === clientId) || state.sessions[0] || null;
+  const preService = preServiceId ? (state.services.find((s) => String(s.id) === String(preServiceId)) || null) : null;
   const photoCtx = (view === "client" && clientSession && clientSession.serviceLine === "photo") || (view === "book" && bookingGroup === "photo");
   useEffect(() => {
     if (view !== "book" && view !== "client") return; // never touch the studio-side theme
@@ -530,7 +535,7 @@ export default function App() {
           onLogout={adminLogout}
         />}
         {view === "studiologin" && <StudioLogin onLogin={loginAsStudio} onBack={() => setView("landing")} />}
-        {view === "book" && <BookingFlow state={state} direct={directContext} slotTaken={slotTaken} onCancel={() => { setDirectContext(null); setView("landing"); }} onComplete={createBooking} onLogin={() => setView("login")} catalogLoaded={catalogLoaded} catalogError={catalogError} availability={state.availability} authedClient={clientAuth} refreshSlots={refreshSlots} onGroupChange={setBookingGroup} />}
+        {view === "book" && <BookingFlow state={state} direct={directContext} slotTaken={slotTaken} onCancel={() => { setDirectContext(null); setView("landing"); }} onComplete={createBooking} onLogin={() => setView("login")} catalogLoaded={catalogLoaded} catalogError={catalogError} availability={state.availability} authedClient={clientAuth} refreshSlots={refreshSlots} onGroupChange={setBookingGroup} preService={preService} />}
         {view === "login" && <LoginView onLogin={loginAs} onBook={() => { setDirectContext(null); setView("book"); }} onStudio={() => setView("studiologin")} onForgot={requestReset} />}
         {view === "resetpw" && <ResetPassword token={resetToken} onDone={() => setView("login")} showToast={showToast} />}
         {view === "invite" && <InviteAccept token={inviteToken} showToast={showToast} />}
@@ -557,7 +562,7 @@ export default function App() {
             </div>
             {adminTab === "home" && <StudioHome state={state} setAdminId={setAdminId} setAdminTab={setAdminTab} dark={themeKey === "midnight"} />}
             {adminTab === "inbox" && <Inbox inquiries={inquiries} setInquiries={setInquiries} showToast={showToast} />}
-            {adminTab === "sessions" && <AdminSessions state={state} adminId={adminId} setAdminId={setAdminId} requestSetStage={requestSetStage} addComment={addComment} uploadMessageImage={uploadMessageImage} patchSession={patchSession} onReschedule={adminReschedule} slotTaken={slotTaken} markMessagesRead={markMessagesRead} onCancelBooking={requestCancelBooking} onCloseBooking={requestCloseBooking} onReopenBooking={requestReopenBooking} onSendBalance={requestSendBalance} onSendCharge={requestSendCharge} onCheckPayment={checkChargePayment} onNewInternal={() => setInternalOpen(true)} onNewInvoice={() => setInvoiceOpen(true)} onEmailDelivery={confirmSendDelivery} onRequestReview={requestReview} onSendInvite={requestInvite} onSetGroup={setSessionGroup} onDeleteBooking={requestDeleteBooking} />}
+            {adminTab === "sessions" && <><ServiceLinks state={state} showToast={showToast} /><AdminSessions state={state} adminId={adminId} setAdminId={setAdminId} requestSetStage={requestSetStage} addComment={addComment} uploadMessageImage={uploadMessageImage} patchSession={patchSession} onReschedule={adminReschedule} slotTaken={slotTaken} markMessagesRead={markMessagesRead} onCancelBooking={requestCancelBooking} onCloseBooking={requestCloseBooking} onReopenBooking={requestReopenBooking} onSendBalance={requestSendBalance} onSendCharge={requestSendCharge} onCheckPayment={checkChargePayment} onNewInternal={() => setInternalOpen(true)} onNewInvoice={() => setInvoiceOpen(true)} onEmailDelivery={confirmSendDelivery} onRequestReview={requestReview} onSendInvite={requestInvite} onSetGroup={setSessionGroup} onDeleteBooking={requestDeleteBooking} /></>}
             {adminTab === "calendar" && <AdminCalendar state={state} onSelectSession={(id) => { setAdminId(id); setAdminTab("sessions"); }} />}
             {adminTab === "availability" && <><CalendarSync showToast={showToast} /><AvailabilityManager availability={state.availability} addAvailability={addAvailability} removeAvailability={removeAvailability} showToast={showToast} /><div style={{ marginTop: 44, paddingTop: 40, borderTop: `1px solid ${LINE}` }}><DirectLinks state={state} createDirectLink={createDirectLink} revokeDirectLink={revokeDirectLink} openDirectLink={openDirectLink} showToast={showToast} /></div></>}
             {adminTab === "services" && <ServiceCatalog state={state} addService={addService} updateService={updateService} deleteService={deleteService} addAddon={addAddon} updateAddon={updateAddon} deleteAddon={deleteAddon} showToast={showToast} setConfirm={setConfirm} />}
