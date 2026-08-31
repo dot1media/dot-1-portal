@@ -1188,8 +1188,23 @@ function Footer({ onLegal }) {
 
 function NotificationBell({ mode, sessions, clientId, onOpenSession, onMarkRead, onOpenTab }) {
   const [open, setOpen] = useState(false);
+  const [seen, setSeen] = useState(null);
+  useEffect(() => {
+    if (mode !== "studio" || seen !== null || !sessions || sessions.length === 0) return;
+    try {
+      const raw = localStorage.getItem("dot1_seen_bookings");
+      if (raw == null) { const ids = sessions.filter((s) => !s.internal).map((s) => s.id); localStorage.setItem("dot1_seen_bookings", JSON.stringify(ids)); setSeen(new Set(ids)); }
+      else setSeen(new Set(JSON.parse(raw)));
+    } catch (e) { setSeen(new Set()); }
+  }, [mode, sessions, seen]);
+  const markBookingSeen = (id) => { setSeen((prev) => { const n = new Set(prev || []); n.add(id); try { localStorage.setItem("dot1_seen_bookings", JSON.stringify([...n])); } catch (e) {} return n; }); };
   const items = [];
   if (mode === "studio") {
+    if (seen) {
+      (sessions || []).filter((s) => !s.internal && (s.status || "active") === "active" && !seen.has(s.id)).forEach((s) => {
+        items.push({ key: "b" + s.id, Icon: CalendarClock, title: "New booking \u00b7 " + (s.clientName || "Client"), sub: (s.type || "Session") + (s.date ? " \u00b7 " + fmtDate(s.date) + (s.time ? " " + fmtTime(s.time) : "") : ""), run: () => { markBookingSeen(s.id); onOpenSession && onOpenSession(s.id); } });
+      });
+    }
     (sessions || []).forEach((s) => {
       (s.comments || []).forEach((c, idx) => {
         if (c && c.author === "client" && !c.read) {

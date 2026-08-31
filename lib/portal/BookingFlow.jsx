@@ -1,6 +1,6 @@
 // Dot One Media portal - client booking + payment flow (service -> add-ons -> date/time -> agreement -> payment) + private USAGE_OPTIONS + AgreementBox. MONEY MATH KEPT INLINE VERBATIM.
 import React, { useState, useEffect, useRef } from "react";
-import { AlertTriangle, ArrowLeft, ArrowRight, CalendarClock, Check, ChevronDown, FileCheck, Sparkles, X } from "lucide-react";
+import { AlertTriangle, ArrowLeft, ArrowRight, CalendarClock, Check, ChevronDown, ChevronLeft, ChevronRight, FileCheck, Sparkles, X } from "lucide-react";
 import { RED, INK, BODY, STONE, FAINT, LINE, PAPER, CREAM, DANGER, display, mono, card, inputStyle, btnGhost, btnSolid } from "./theme";
 import { GROUPS, GROUP_KEYS } from "./groups";
 import { fmtDate, fmtTime, money } from "./format";
@@ -21,6 +21,43 @@ export function AgreementBox({ title, text, pdf, A }) {
       <div style={{ ...mono, fontSize: 10.5, letterSpacing: "0.16em", textTransform: "uppercase", color: STONE, marginBottom: 6 }}>{title}</div>
       <div style={{ maxHeight: 170, overflowY: "auto", border: `1px solid ${LINE}`, borderRadius: 9, padding: "13px 15px", background: PAPER, fontSize: 12.5, lineHeight: 1.55, color: BODY, whiteSpace: "pre-wrap" }}>{text}</div>
       <a href={pdf} target="_blank" rel="noopener noreferrer" style={{ ...mono, fontSize: 10.5, letterSpacing: "0.04em", color: A, textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 6, marginTop: 6 }}><FileCheck size={12} /> Read the full agreement (PDF)</a>
+    </div>
+  );
+}
+
+function BookingCalendar({ availDates, value, onPick, A }) {
+  const avail = new Set(availDates || []);
+  const sorted = (availDates || []).slice().sort();
+  const start = value || sorted[0] || (() => { const t = new Date(); return t.getFullYear() + "-" + String(t.getMonth() + 1).padStart(2, "0") + "-01"; })();
+  const [ym, setYm] = useState(start.slice(0, 7));
+  const y = Number(ym.slice(0, 4)); const m = Number(ym.slice(5, 7));
+  const monthStart = new Date(y, m - 1, 1);
+  const startDow = monthStart.getDay();
+  const daysInMonth = new Date(y, m, 0).getDate();
+  const monthName = monthStart.toLocaleDateString("en-US", { month: "long", year: "numeric" });
+  const iso = (d) => y + "-" + String(m).padStart(2, "0") + "-" + String(d).padStart(2, "0");
+  const shift = (delta) => { let mm = m + delta, yy = y; if (mm < 1) { mm = 12; yy--; } if (mm > 12) { mm = 1; yy++; } setYm(yy + "-" + String(mm).padStart(2, "0")); };
+  const cells = []; for (let i = 0; i < startDow; i++) cells.push(null); for (let d = 1; d <= daysInMonth; d++) cells.push(d);
+  const nav = { width: 32, height: 32, borderRadius: 8, border: `1px solid ${LINE}`, background: PAPER, cursor: "pointer", display: "inline-flex", alignItems: "center", justifyContent: "center", color: STONE, padding: 0 };
+  return (
+    <div style={{ border: `1px solid ${LINE}`, borderRadius: 12, padding: "14px 14px 16px", background: PAPER, maxWidth: 360 }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+        <button onClick={() => shift(-1)} style={nav} aria-label="Previous month"><ChevronLeft size={16} /></button>
+        <div style={{ ...display, fontWeight: 600, fontSize: 15.5, color: INK }}>{monthName}</div>
+        <button onClick={() => shift(1)} style={nav} aria-label="Next month"><ChevronRight size={16} /></button>
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 5, marginBottom: 6 }}>
+        {["S", "M", "T", "W", "T", "F", "S"].map((d, i) => <div key={i} style={{ ...mono, fontSize: 9.5, textAlign: "center", color: FAINT }}>{d}</div>)}
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 5 }}>
+        {cells.map((d, i) => {
+          if (!d) return <div key={i} />;
+          const di = iso(d); const has = avail.has(di); const sel = value === di;
+          return (
+            <button key={i} disabled={!has} onClick={() => has && onPick(di)} style={{ aspectRatio: "1", borderRadius: 8, border: sel ? `1.5px solid ${A}` : has ? `1px solid ${A}55` : "1px solid transparent", background: sel ? A : has ? A + "14" : "transparent", color: sel ? "#fff" : has ? INK : FAINT, cursor: has ? "pointer" : "default", fontSize: 13, fontWeight: has ? 600 : 400, fontFamily: "inherit", display: "flex", alignItems: "center", justifyContent: "center", padding: 0 }}>{d}</button>
+          );
+        })}
+      </div>
     </div>
   );
 }
@@ -300,11 +337,7 @@ export function BookingFlow({ state, direct, slotTaken, onCancel, onComplete, on
             {availDates.length === 0 ? (
               <div style={{ border: `1px dashed ${LINE}`, borderRadius: 9, padding: "18px", textAlign: "center", background: PAPER, fontSize: 13, color: STONE, lineHeight: 1.5 }}>No open dates right now. Please check back soon, or contact us and we'll find a time.</div>
             ) : (
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-                {availDates.map((d) => { const on = date === d; return (
-                  <button key={d} onClick={() => { setDate(d); setTime(""); releaseHold(); }} style={{ ...mono, fontSize: 12, padding: "9px 13px", borderRadius: 8, cursor: "pointer", border: `1.5px solid ${on ? A : LINE}`, background: on ? A : PAPER, color: on ? "#fff" : INK }}>{fmtDate(d)}</button>
-                ); })}
-              </div>
+              <BookingCalendar availDates={availDates} value={date} onPick={(d) => { setDate(d); setTime(""); releaseHold(); }} A={A} />
             )}
             {date && (
               <div style={{ marginTop: 14 }}>
