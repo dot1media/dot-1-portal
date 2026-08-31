@@ -40,7 +40,7 @@ function BookingCalendar({ availDates, value, onPick, A }) {
   const cells = []; for (let i = 0; i < startDow; i++) cells.push(null); for (let d = 1; d <= daysInMonth; d++) cells.push(d);
   const nav = { width: 32, height: 32, borderRadius: 8, border: `1px solid ${LINE}`, background: PAPER, cursor: "pointer", display: "inline-flex", alignItems: "center", justifyContent: "center", color: STONE, padding: 0 };
   return (
-    <div style={{ border: `1px solid ${LINE}`, borderRadius: 12, padding: "14px 14px 16px", background: PAPER, maxWidth: 360 }}>
+    <div style={{ border: `1px solid ${LINE}`, borderRadius: 12, padding: "14px 14px 16px", background: PAPER, width: "100%", maxWidth: 360 }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
         <button onClick={() => shift(-1)} style={nav} aria-label="Previous month"><ChevronLeft size={16} /></button>
         <div style={{ ...display, fontWeight: 600, fontSize: 15.5, color: INK }}>{monthName}</div>
@@ -327,14 +327,8 @@ export function BookingFlow({ state, direct, slotTaken, onCancel, onComplete, on
       {/* STEP 2 — DATE & TIME */}
       {step === 2 && !direct && (
         <div style={{ maxWidth: 600 }}>
-          <div style={{ background: PAPER, border: `1px solid ${LINE}`, borderRadius: 10, padding: "18px 20px", marginBottom: 18 }}>
-            <div style={{ ...mono, fontSize: 10, letterSpacing: "0.14em", textTransform: "uppercase", color: STONE, marginBottom: 12 }}>Your booking</div>
-            <Row k={service?.name || ""} v={money(basePrice)} bold />
-            {chosenAddons.map((a) => <Row key={a.id} k={a.name} v={"+" + money(a.price)} sub />)}
-            <div style={{ borderTop: `1px solid ${LINE}`, marginTop: 8, paddingTop: 8 }}><Row k="Total" v={money(total)} bold red /></div>
-          </div>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 22, alignItems: "flex-start", marginBottom: 16 }}>
-            <div>
+            <div style={{ flex: "1 1 300px", minWidth: 0, maxWidth: 380 }}>
             <FieldLabel>Choose an available day</FieldLabel>
             {availDates.length === 0 ? (
               <div style={{ border: `1px dashed ${LINE}`, borderRadius: 9, padding: "18px", textAlign: "center", background: PAPER, fontSize: 13, color: STONE, lineHeight: 1.5 }}>No open dates right now. Please check back soon, or contact us and we'll find a time.</div>
