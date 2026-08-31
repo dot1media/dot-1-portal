@@ -194,6 +194,17 @@ export function BookingFlow({ state, direct, slotTaken, onCancel, onComplete, on
         </div>
       )}
 
+      {service && step >= 2 && (
+        <div style={{ display: "flex", alignItems: "center", gap: 13, padding: "12px 14px", marginBottom: 18, border: `1px solid ${LINE}`, borderRadius: 11, background: PAPER }}>
+          {service.image ? <img src={service.image} alt="" style={{ width: 52, height: 52, borderRadius: 9, objectFit: "cover", flexShrink: 0 }} /> : null}
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ ...display, fontWeight: 600, fontSize: 15.5, color: INK, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{service.name}</div>
+            <div style={{ ...mono, fontSize: 11, color: STONE, marginTop: 3 }}>{date ? fmtDate(date) + (time ? " at " + fmtTime(time) : "") : "Choose a date and time"}</div>
+          </div>
+          {basePrice > 0 ? <div style={{ ...mono, fontSize: 13, color: A, fontWeight: 500, flexShrink: 0 }}>{money(total)}</div> : null}
+        </div>
+      )}
+
       {/* stepper */}
       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 26, flexWrap: "wrap" }}>
         {stepDefs.map((sd, i) => { const active = step === sd.n, done = step > sd.n; return (
