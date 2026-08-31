@@ -3,7 +3,7 @@ import { cookies } from "next/headers";
 import { sql } from "@/lib/db";
 import { verifyToken, verifyClientToken, ADMIN_COOKIE, CLIENT_COOKIE, makeInviteToken } from "@/lib/auth";
 import { hasStudio } from "@/lib/studioGuard";
-import { sendPush } from "@/lib/push";
+import { sendPush, formatWhen } from "@/lib/push";
 import { sendEmail, sendToClient, bookingStudioEmail, bookingClientEmail, stageClientEmail, messageEmail, stageLabelFor, briefStudioEmail, cancelClientEmail, internalBookingEmail, galleryEmail, videoEmail, deliveryEmail, reviewEmail, inviteEmail, isFinalStage } from "@/lib/email";
 import { GOOGLE_REVIEW_URL } from "@/lib/portal/constants";
 
@@ -63,7 +63,7 @@ export async function POST(request: Request) {
   `;
   if (ins[0] && (ins[0] as any).inserted && !s.imported) {
     await sendEmail({ to: s.notifyEmail || "contact@dot1.media", subject: "New booking: " + (s.type || "session") + " for " + (s.clientName || "a client"), html: bookingStudioEmail(s), replyTo: s.clientEmail });
-    try { await sendPush("New booking", (s.clientName || "A client") + " booked " + (s.type || "a session"), "/"); } catch (e) {}
+    try { await sendPush("New booking", [(s.clientName || "A client"), (s.type || "session"), formatWhen(s.date, s.time)].filter(Boolean).join(" \u00b7 "), "/"); } catch (e) {}
     if (s.internal) {
       await sendEmail({ to: s.clientEmail, subject: "Your Dot One Media session is reserved", html: internalBookingEmail(s), replyTo: "contact@dot1.media" });
     } else {
@@ -113,7 +113,7 @@ export async function PATCH(request: Request) {
     if (last && last.author === "client") {
       const subj = last.body ? "New message from " + (merged.clientName || "your client") : (merged.clientName || "Your client") + " sent an image";
       await sendEmail({ to: merged.notifyEmail || "contact@dot1.media", subject: subj, html: messageEmail(merged, true, last.body, last.image), replyTo: merged.clientEmail });
-      try { await sendPush(subj, last.body ? String(last.body).slice(0, 110) : "Sent an image", "/"); } catch (e) {}
+      try { await sendPush(subj, [(merged.type || "Session"), formatWhen(merged.date, merged.time), last.body ? String(last.body).slice(0, 70) : "sent an image"].filter(Boolean).join(" \u00b7 "), "/"); } catch (e) {}
     } else if (last && last.author === "studio") {
       const subj = last.body ? "New reply from Dot One Media" : "Dot One Media sent you an image";
       await sendToClient(merged.clientEmail, "messages", { subject: subj, html: messageEmail(merged, false, last.body, last.image), replyTo: "contact@dot1.media" });
@@ -148,7 +148,7 @@ export async function PATCH(request: Request) {
   }
   if (me.role === "client" && allowed.brief && allowed.brief.submitted && !(old.brief && old.brief.submitted)) {
     await sendEmail({ to: merged.notifyEmail || "contact@dot1.media", subject: (merged.clientName || "A client") + " submitted their production brief", html: briefStudioEmail(merged), replyTo: merged.clientEmail });
-    try { await sendPush("Brief submitted", (merged.clientName || "A client") + " submitted their production brief", "/"); } catch (e) {}
+    try { await sendPush("Brief submitted", [(merged.clientName || "A client"), (merged.type || "session"), formatWhen(merged.date, merged.time)].filter(Boolean).join(" \u00b7 "), "/"); } catch (e) {}
   }
 
   if (me.role === "admin" && merged.status === "cancelled" && (old.status || "active") !== "cancelled") {

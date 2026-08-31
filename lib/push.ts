@@ -13,6 +13,24 @@ function config(): boolean {
   return configured;
 }
 
+export function formatWhen(date?: string, time?: string): string {
+  let d = "";
+  if (date && /^\d{4}-\d{2}-\d{2}$/.test(date)) {
+    const parts = date.split("-");
+    const mo = Number(parts[1]); const day = Number(parts[2]);
+    const names = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    d = (names[mo - 1] || "") + " " + day;
+  } else if (date) { d = String(date); }
+  let t = time ? String(time) : "";
+  if (/^\d{1,2}:\d{2}$/.test(t)) {
+    const [h, m] = t.split(":").map(Number);
+    const ap = h >= 12 ? "PM" : "AM";
+    const hh = ((h + 11) % 12) + 1;
+    t = hh + ":" + String(m).padStart(2, "0") + " " + ap;
+  }
+  return d && t ? d + " at " + t : (d || t || "");
+}
+
 let ensured = false;
 async function ensure() {
   if (ensured) return;

@@ -3,7 +3,7 @@ import { sql } from "@/lib/db";
 import { ensureLedger } from "@/lib/ledger";
 import { receiptPdf } from "@/lib/receipt";
 import { receiptEmail, sendEmail, sendToClient, paymentStudioEmail } from "@/lib/email";
-import { sendPush } from "@/lib/push";
+import { sendPush, formatWhen } from "@/lib/push";
 import { randomUUID } from "crypto";
 
 export const runtime = "nodejs";
@@ -101,7 +101,7 @@ export async function GET(request: Request) {
           if (inserted.length > 0) {
             receipt = "recorded";
             try { await sendEmail({ to: data.notifyEmail || "contact@dot1.media", subject: "Payment received \u00b7 $" + (amountCents / 100).toFixed(2) + " from " + (data.clientName || "a client"), html: paymentStudioEmail(data, { amountCents, kind: rcptKind, cardBrand: cd.card_brand, cardLast4: cd.last_4 }), replyTo: data.clientEmail }); } catch (e3) {}
-            try { await sendPush("Payment received", "$" + (amountCents / 100).toFixed(2) + " from " + (data.clientName || "a client"), "/"); } catch (e3) {}
+            try { await sendPush("Payment received", ["$" + (amountCents / 100).toFixed(2) + " from " + (data.clientName || "a client"), (data.type || "session"), formatWhen(data.date, data.time)].filter(Boolean).join(" \u00b7 "), "/"); } catch (e3) {}
             if (data.clientEmail) {
               const rec: any = { id: rid, client_email: data.clientEmail, client_name: data.clientName, service: rcptService, kind: rcptKind, amount_cents: amountCents, total_cents: Math.round((Number(data.total) || 0) * 100), card_brand: cd.card_brand, card_last4: cd.last_4, paid_at: paidAt };
               let attachments: any = undefined;
