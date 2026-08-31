@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useLayoutEffect, useRef } from "react";
 import { parseCsvRows, ACUITY_MONTHS, parseAcuityStart, importServiceLine } from "../lib/portal/csv";
 import { uid, fmtDate, fmtTime, pad2, calDate, addMinutes, gcalLink, icsContent, money, compactMoney, MONTH_ABBR, monthShort, payKindLabel, payCardLabel, payMoney, payDateShort, sessionBucket, timeGreeting } from "../lib/portal/format";
-import { RED, INK, BODY, STONE, FAINT, LINE, PAPER, CREAM, OK, WARN, DANGER, THEME_VARS, THEMES, ACCENT_SWATCHES, applyTheme, display, mono, card, cardDense, inputStyle, iconBtnStyle, navBtn, shareBtn, btnGhost, btnSolid } from "../lib/portal/theme";
+import { RED, INK, BODY, STONE, FAINT, LINE, PAPER, CREAM, OK, WARN, DANGER, THEME_VARS, THEMES, ACCENT_SWATCHES, applyTheme, setPhotoTheme, display, mono, card, cardDense, inputStyle, iconBtnStyle, navBtn, shareBtn, btnGhost, btnSolid } from "../lib/portal/theme";
 import { GROUPS, GROUP_KEYS } from "../lib/portal/groups";
 import { DonutChart, HBars, MiniColumns, LinkRow, LinkField, FieldLabel, TextInput, RadioPill, IconBtn, EmptyHint, MiniCalendar, FontLoader, EmptyState, Avatar, Skeleton, Row } from "../lib/portal/ui";
 import { useIsMobile } from "../lib/portal/hooks";
@@ -72,6 +72,7 @@ export default function App() {
   const [view, setView] = useState("landing");   // landing | hub | client | admin | book | login | studiologin
   const [prevTab, setPrevTab] = useState("home");
   const [adminTab, setAdminTab] = useState("home"); // home | sessions | calendar | services | links
+  const [bookingGroup, setBookingGroup] = useState(null);
   const [state, setState] = useState(DEFAULT_STATE);
   const stateRef = useRef(state);
   useEffect(() => { stateRef.current = state; }, [state]);
@@ -457,6 +458,12 @@ export default function App() {
   const requestDeleteBooking = (session) => setConfirm({ title: "Delete this booking?", message: "This permanently removes " + session.clientName + "'s " + session.type + " from your studio. This cannot be undone.", confirmLabel: "Delete permanently", danger: true, onYes: async () => { setConfirm(null); try { const res = await fetch("/api/sessions?id=" + encodeURIComponent(session.id), { method: "DELETE" }); const data = await res.json().catch(() => ({})); if (res.ok) { setState((s) => ({ ...s, sessions: s.sessions.filter((x) => x.id !== session.id) })); if (adminId === session.id) setAdminId(""); showToast("Booking deleted."); } else { showToast(data.error || "Could not delete the booking."); } } catch (e) { showToast("Network error."); } } });
 
   const clientSession = state.sessions.find((s) => s.id === clientId) || state.sessions[0] || null;
+  const photoCtx = (view === "client" && clientSession && clientSession.serviceLine === "photo") || (view === "book" && bookingGroup === "photo");
+  useEffect(() => {
+    if (view !== "book" && view !== "client") return; // never touch the studio-side theme
+    if (photoCtx) setPhotoTheme();
+    else { applyTheme(themeKey, customAccent); if (typeof document !== "undefined") document.body.style.background = "#fbf8f2"; }
+  }, [view, photoCtx, themeKey, customAccent]);
   const unreadClientTotal = state.sessions.reduce((n, s) => n + s.comments.filter((c) => c.author === "client" && !c.read).length, 0);
 
   if (!authChecked) return <PortalSplash />;
@@ -523,7 +530,7 @@ export default function App() {
           onLogout={adminLogout}
         />}
         {view === "studiologin" && <StudioLogin onLogin={loginAsStudio} onBack={() => setView("landing")} />}
-        {view === "book" && <BookingFlow state={state} direct={directContext} slotTaken={slotTaken} onCancel={() => { setDirectContext(null); setView("landing"); }} onComplete={createBooking} onLogin={() => setView("login")} catalogLoaded={catalogLoaded} catalogError={catalogError} availability={state.availability} authedClient={clientAuth} refreshSlots={refreshSlots} />}
+        {view === "book" && <BookingFlow state={state} direct={directContext} slotTaken={slotTaken} onCancel={() => { setDirectContext(null); setView("landing"); }} onComplete={createBooking} onLogin={() => setView("login")} catalogLoaded={catalogLoaded} catalogError={catalogError} availability={state.availability} authedClient={clientAuth} refreshSlots={refreshSlots} onGroupChange={setBookingGroup} />}
         {view === "login" && <LoginView onLogin={loginAs} onBook={() => { setDirectContext(null); setView("book"); }} onStudio={() => setView("studiologin")} onForgot={requestReset} />}
         {view === "resetpw" && <ResetPassword token={resetToken} onDone={() => setView("login")} showToast={showToast} />}
         {view === "invite" && <InviteAccept token={inviteToken} showToast={showToast} />}

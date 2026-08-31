@@ -25,7 +25,7 @@ export function AgreementBox({ title, text, pdf, A }) {
   );
 }
 
-export function BookingFlow({ state, direct, slotTaken, onCancel, onComplete, onLogin, catalogLoaded, catalogError, availability, authedClient, refreshSlots }) {
+export function BookingFlow({ state, direct, slotTaken, onCancel, onComplete, onLogin, catalogLoaded, catalogError, availability, authedClient, refreshSlots, onGroupChange }) {
   const [step, setStep] = useState(direct ? 3 : 0); // 0 welcome, 1 choose, 2 date, 3 account, 4 confirm
   const [group, setGroup] = useState(direct?.group || "video");
   const [serviceId, setServiceId] = useState(direct?.serviceId || null);
@@ -104,6 +104,7 @@ export function BookingFlow({ state, direct, slotTaken, onCancel, onComplete, on
   const total = bookingTotal(basePrice, chosenAddons);
   const rules = PAYMENT_RULES[group];
   const A = GROUPS[group].color, AB = GROUPS[group].bg, ABD = GROUPS[group].border, AT = GROUPS[group].text;
+  useEffect(() => { if (onGroupChange) onGroupChange(group); }, [group]);
   const taken = !direct && slotTaken(date, time);
 
   const stepLabel2 = authedClient ? "Sign Release" : "Account";
