@@ -9,6 +9,7 @@ const nextConfig: NextConfig = {
   async rewrites() {
     return [
       { source: "/book/:token", destination: "/" },
+      { source: "/b/:slug", destination: "/" },
       { source: "/shop", destination: "/shop.html" },
     ];
   },

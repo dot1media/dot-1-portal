@@ -12,12 +12,15 @@ async function isAdmin() {
 }
 
 let extrasEnsured = false;
+const slugify = (v: any) => { const x = String(v || "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 40); return x || null; };
+
 async function ensureServiceExtras() {
   if (extrasEnsured) return;
   await sql`ALTER TABLE services ADD COLUMN IF NOT EXISTS package_id INTEGER`;
   await sql`ALTER TABLE services ADD COLUMN IF NOT EXISTS location_name TEXT`;
   await sql`ALTER TABLE services ADD COLUMN IF NOT EXISTS location_url TEXT`;
   await sql`ALTER TABLE services ADD COLUMN IF NOT EXISTS confirmation_message TEXT`;
+  await sql`ALTER TABLE services ADD COLUMN IF NOT EXISTS slug TEXT`;
   extrasEnsured = true;
 }
 
@@ -39,13 +42,14 @@ function mapService(r: any) {
     location: r.location_name || "",
     locationUrl: r.location_url || "",
     confirmationMessage: r.confirmation_message || "",
+    slug: r.slug || "",
   };
 }
 
 export async function GET() {
   await ensureServiceExtras();
   const services = await sql`
-    SELECT id, grp, category, name, description, price_cents, duration_min, pad_before_min, pad_after_min, addon_mode, addon_ids, visible, package_id, location_name, location_url, confirmation_message
+    SELECT id, grp, category, name, description, price_cents, duration_min, pad_before_min, pad_after_min, addon_mode, addon_ids, visible, package_id, location_name, location_url, confirmation_message, slug
     FROM services WHERE active = true ORDER BY grp, sort_order, name`;
   const addons = await sql`
     SELECT id, grp, name, price_cents, add_time_min, visible
@@ -75,11 +79,12 @@ export async function POST(request: Request) {
   const locName = b.location != null ? (String(b.location).trim() || null) : null;
   const locUrl = b.locationUrl != null ? (String(b.locationUrl).trim() || null) : null;
   const confMsg = b.confirmationMessage != null ? (String(b.confirmationMessage) || null) : null;
+  const slug = slugify(b.slug);
   try {
     const rows = await sql`
-      INSERT INTO services (grp, category, name, description, price_cents, duration_min, pad_before_min, pad_after_min, addon_mode, addon_ids, visible, package_id, location_name, location_url, confirmation_message, active)
-      VALUES (${grp}::service_group, ${category}, ${name}, ${String(b.description || "")}, ${priceCents}, ${duration}, ${padBefore}, ${padAfter}, ${addonMode}::addon_mode, ${addonIds}::jsonb, ${visible}, ${packageId}, ${locName}, ${locUrl}, ${confMsg}, true)
-      RETURNING id, grp, category, name, description, price_cents, duration_min, pad_before_min, pad_after_min, addon_mode, addon_ids, visible, package_id, location_name, location_url, confirmation_message`;
+      INSERT INTO services (grp, category, name, description, price_cents, duration_min, pad_before_min, pad_after_min, addon_mode, addon_ids, visible, package_id, location_name, location_url, confirmation_message, slug, active)
+      VALUES (${grp}::service_group, ${category}, ${name}, ${String(b.description || "")}, ${priceCents}, ${duration}, ${padBefore}, ${padAfter}, ${addonMode}::addon_mode, ${addonIds}::jsonb, ${visible}, ${packageId}, ${locName}, ${locUrl}, ${confMsg}, ${slug}, true)
+      RETURNING id, grp, category, name, description, price_cents, duration_min, pad_before_min, pad_after_min, addon_mode, addon_ids, visible, package_id, location_name, location_url, confirmation_message, slug`;
     return NextResponse.json({ service: mapService(rows[0]) });
   } catch (e: any) {
     return NextResponse.json({ error: "Save failed: " + (e && e.message ? e.message : String(e)) }, { status: 500 });
@@ -109,11 +114,12 @@ export async function PATCH(request: Request) {
   const locName = b.location !== undefined ? (b.location ? String(b.location).trim() : null) : (c.location_name || null);
   const locUrl = b.locationUrl !== undefined ? (b.locationUrl ? String(b.locationUrl).trim() : null) : (c.location_url || null);
   const confMsg = b.confirmationMessage !== undefined ? (b.confirmationMessage ? String(b.confirmationMessage) : null) : (c.confirmation_message || null);
+  const slug = b.slug !== undefined ? slugify(b.slug) : (c.slug || null);
   try {
     const rows = await sql`
-      UPDATE services SET category = ${category}, name = ${name}, description = ${description}, price_cents = ${priceCents}, duration_min = ${duration}, pad_before_min = ${padBefore}, pad_after_min = ${padAfter}, addon_mode = ${addonMode}::addon_mode, addon_ids = ${addonIds}::jsonb, visible = ${visible}, package_id = ${packageId}, location_name = ${locName}, location_url = ${locUrl}, confirmation_message = ${confMsg}, updated_at = now()
+      UPDATE services SET category = ${category}, name = ${name}, description = ${description}, price_cents = ${priceCents}, duration_min = ${duration}, pad_before_min = ${padBefore}, pad_after_min = ${padAfter}, addon_mode = ${addonMode}::addon_mode, addon_ids = ${addonIds}::jsonb, visible = ${visible}, package_id = ${packageId}, location_name = ${locName}, location_url = ${locUrl}, confirmation_message = ${confMsg}, slug = ${slug}, updated_at = now()
       WHERE id = ${id}
-      RETURNING id, grp, category, name, description, price_cents, duration_min, pad_before_min, pad_after_min, addon_mode, addon_ids, visible, package_id, location_name, location_url, confirmation_message`;
+      RETURNING id, grp, category, name, description, price_cents, duration_min, pad_before_min, pad_after_min, addon_mode, addon_ids, visible, package_id, location_name, location_url, confirmation_message, slug`;
     return NextResponse.json({ service: mapService(rows[0]) });
   } catch (e: any) {
     return NextResponse.json({ error: "Save failed: " + (e && e.message ? e.message : String(e)) }, { status: 500 });
