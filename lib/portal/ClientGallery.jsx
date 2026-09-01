@@ -21,13 +21,15 @@ export function ClientGallery({ sessionId }) {
   const [dl, setDl] = useState(false);
   const [requested, setRequested] = useState(false);
   const [release, setRelease] = useState(null);
+  const [releaseLocked, setReleaseLocked] = useState(false);
+  const [savingRelease, setSavingRelease] = useState(false);
 
   const selectedCount = photos.filter((p) => p.favorite).length;
   const included = g && g.included != null ? g.included : null;
   const atLimit = included != null && selectedCount >= included;
 
   const load = useCallback(async () => {
-    try { const r = await fetch("/api/gallery?sessionId=" + encodeURIComponent(sessionId)).then((x) => x.json()); setG(r.gallery); setPhotos(r.photos || []); setRelease(r.gallery && r.gallery.release ? r.gallery.release : { portfolio: true, social: true, advertising: true }); } catch (e) {}
+    try { const r = await fetch("/api/gallery?sessionId=" + encodeURIComponent(sessionId)).then((x) => x.json()); setG(r.gallery); setPhotos(r.photos || []); setRelease(r.gallery && r.gallery.release ? r.gallery.release : { portfolio: true, social: true, advertising: true }); setReleaseLocked(!!(r.gallery && r.gallery.releaseLocked)); } catch (e) {}
     setLoading(false);
   }, [sessionId]);
   useEffect(() => { if (sessionId) load(); }, [sessionId, load]);
@@ -71,10 +73,12 @@ export function ClientGallery({ sessionId }) {
   }
   async function requestMore() { try { await fetch("/api/gallery/request-more", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ galleryId: g.id }) }); setRequested(true); } catch (e) {} }
 
-  async function toggleRelease(key) {
-    const next = { ...(release || {}), [key]: !(release && release[key]) };
-    setRelease(next);
-    try { await fetch("/api/gallery/release", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ galleryId: g.id, release: next }) }); } catch (e) {}
+  function toggleRelease(key) { if (releaseLocked) return; setRelease((r) => ({ ...(r || {}), [key]: !(r && r[key]) })); }
+  async function saveRelease() {
+    if (savingRelease || releaseLocked) return;
+    setSavingRelease(true);
+    try { const r = await fetch("/api/gallery/release", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ galleryId: g.id, release }) }).then((x) => x.json()); if (r.ok) setReleaseLocked(true); } catch (e) {}
+    setSavingRelease(false);
   }
 
   if (loading || !g || !photos.length) return null;
@@ -110,13 +114,15 @@ export function ClientGallery({ sessionId }) {
       )}
       <div style={{ marginTop: 26, background: CREAM, border: `1px solid ${LINE}`, borderRadius: 12, padding: "18px 20px" }}>
         <div style={{ ...mono, fontSize: 10, letterSpacing: "0.14em", textTransform: "uppercase", color: STONE, marginBottom: 6 }}>Image usage &amp; model release</div>
-        <div style={{ fontSize: 13, color: BODY, lineHeight: 1.55, marginBottom: 12 }}>You choose how we may share your images. Adjust these any time, and we'll honor your latest choice.</div>
+        <div style={{ fontSize: 13, color: BODY, lineHeight: 1.55, marginBottom: 12 }}>{releaseLocked ? "Your model release is saved. Contact us if you'd like to change it." : "Choose how we may share your images, then save. You set this once here, so take a moment before you confirm."}</div>
         {RELEASE_OPTS.map((o) => { const on = !!(release && release[o.key]); return (
-          <div key={o.key} onClick={() => toggleRelease(o.key)} style={{ display: "flex", alignItems: "flex-start", gap: 12, padding: "11px 0", cursor: "pointer", borderTop: `1px solid ${LINE}` }}>
+          <div key={o.key} onClick={() => toggleRelease(o.key)} style={{ display: "flex", alignItems: "flex-start", gap: 12, padding: "11px 0", cursor: releaseLocked ? "default" : "pointer", borderTop: `1px solid ${LINE}`, opacity: releaseLocked ? 0.9 : 1 }}>
             <span style={{ width: 22, height: 22, borderRadius: 6, border: `1.5px solid ${on ? A : LINE}`, background: on ? A : "#fff", flexShrink: 0, display: "inline-flex", alignItems: "center", justifyContent: "center", marginTop: 1 }}>{on ? <Check size={14} color="#fff" /> : null}</span>
             <div style={{ flex: 1, minWidth: 0 }}><div style={{ fontSize: 14, color: INK, fontWeight: 500 }}>{o.label}</div><div style={{ fontSize: 12.5, color: STONE, lineHeight: 1.5, marginTop: 2 }}>{o.desc}</div></div>
           </div>
         ); })}
+        {releaseLocked ? <div style={{ ...mono, fontSize: 10.5, letterSpacing: "0.06em", textTransform: "uppercase", color: A, marginTop: 14, display: "flex", alignItems: "center", gap: 7 }}><Check size={13} /> Saved</div>
+          : <button onClick={saveRelease} disabled={savingRelease} style={{ ...mono, fontSize: 11, letterSpacing: "0.06em", textTransform: "uppercase", marginTop: 15, padding: "12px 22px", borderRadius: 9, cursor: "pointer", border: "none", background: A, color: "#fff" }}>{savingRelease ? "Saving…" : "Save my model release"}</button>}
       </div>
       {lightbox >= 0 && (
         <div onClick={() => setLightbox(-1)} style={{ position: "fixed", inset: 0, background: "rgba(14,14,16,0.95)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: 18 }}>

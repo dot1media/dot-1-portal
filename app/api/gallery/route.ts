@@ -19,7 +19,7 @@ export async function GET(req: Request) {
   const photos = (await sql`SELECT id, filename, favorite, sort FROM gallery_photos WHERE gallery_id = ${g.id} ORDER BY sort, created_at`) as any[];
   const selectedCount = photos.filter((p) => p.favorite).length;
   const out = await Promise.all(photos.map(async (p) => ({ id: p.id, filename: p.filename, favorite: p.favorite, thumb: await presignGet(keyThumb(g.id, p.id), 21600) })));
-  return NextResponse.json({ gallery: { id: g.id, title: g.title, count: out.length, included: g.included ?? null, selectedCount, release: g.release || null }, photos: out });
+  return NextResponse.json({ gallery: { id: g.id, title: g.title, count: out.length, included: g.included ?? null, selectedCount, release: g.release || null, releaseLocked: !!g.release_locked }, photos: out });
 }
 
 export async function DELETE(req: Request) {
