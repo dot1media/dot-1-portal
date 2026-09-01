@@ -9,7 +9,7 @@ export async function GET(req: Request) {
   const sessionId = url.searchParams.get("sessionId") || "";
   const reviewId = url.searchParams.get("reviewId") || "";
   await ensureVideoSchema();
-  const reviews = (await sql`SELECT id, version, title, status, approved_at, client_email FROM video_reviews WHERE session_id = ${sessionId} AND uploaded = true ORDER BY version DESC`) as any[];
+  const reviews = (await sql`SELECT id, version, title, status, approved_at, client_email, final_uploaded, final_filename FROM video_reviews WHERE session_id = ${sessionId} AND uploaded = true ORDER BY version DESC`) as any[];
   if (!reviews.length) return NextResponse.json({ reviews: [], current: null, comments: [] });
   let ok = await hasStudio();
   if (!ok) { const em = await currentClientEmail(); ok = !!em && em === String(reviews[0].client_email || "").toLowerCase(); }
@@ -18,7 +18,7 @@ export async function GET(req: Request) {
   const comments = (await sql`SELECT id, t, body, author FROM video_comments WHERE review_id = ${cur.id} ORDER BY t`) as any[];
   return NextResponse.json({
     reviews: reviews.map((r) => ({ id: r.id, version: r.version, title: r.title, status: r.status })),
-    current: { id: cur.id, version: cur.version, title: cur.title, status: cur.status, playUrl: await presignGet(videoKey(cur.id), 10800) },
+    current: { id: cur.id, version: cur.version, title: cur.title, status: cur.status, playUrl: await presignGet(videoKey(cur.id), 10800), final: { available: !!cur.final_uploaded, filename: cur.final_filename || null } },
     comments: comments.map((c) => ({ id: c.id, t: Number(c.t) || 0, body: c.body, author: c.author })),
   });
 }

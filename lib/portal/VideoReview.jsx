@@ -1,6 +1,6 @@
 "use client";
 import React, { useEffect, useRef, useState, useCallback } from "react";
-import { Film, Check, ChevronDown, Plus } from "lucide-react";
+import { Film, Check, ChevronDown, Plus, Download, Upload } from "lucide-react";
 import { mono, display, INK, BODY, LINE, STONE, FAINT, PAPER, CREAM } from "./theme";
 import { GROUPS } from "./groups";
 
@@ -14,6 +14,8 @@ export function VideoReview({ sessionId, isStudio }) {
   const [posting, setPosting] = useState(false);
   const [verOpen, setVerOpen] = useState(false);
   const videoRef = useRef(null);
+  const [finalBusy, setFinalBusy] = useState(false);
+  const [finalPct, setFinalPct] = useState(0);
   const A = GROUPS.video.color;
 
   const load = useCallback(async (reviewId) => {
@@ -38,6 +40,24 @@ export function VideoReview({ sessionId, isStudio }) {
   async function approve() {
     if (!cur || !window.confirm("Approve this cut? It locks this version as the final, approved version.")) return;
     try { await fetch("/api/video/approve", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ reviewId: cur.id }) }); await load(cur.id); } catch (e) {}
+  }
+
+  async function onFinalPick(e) {
+    const f = e.target.files && e.target.files[0]; if (e.target) e.target.value = "";
+    if (!f || !cur) return;
+    setFinalBusy(true); setFinalPct(0);
+    try {
+      const res = await fetch("/api/video/final/sign-upload", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ reviewId: cur.id, filename: f.name, type: f.type || "video/mp4" }) }).then((x) => x.json());
+      if (!res.url) throw new Error(res.error || "Could not start the upload.");
+      await new Promise((resolve, reject) => { const xhr = new XMLHttpRequest(); xhr.open("PUT", res.url); xhr.setRequestHeader("Content-Type", f.type || "video/mp4"); xhr.upload.onprogress = (ev) => { if (ev.lengthComputable) setFinalPct(Math.round((ev.loaded / ev.total) * 100)); }; xhr.onload = () => (xhr.status >= 200 && xhr.status < 300) ? resolve() : reject(new Error("failed")); xhr.onerror = () => reject(new Error("failed")); xhr.send(f); });
+      await fetch("/api/video/final/finalize", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ reviewId: cur.id, filename: f.name }) });
+      await load(cur.id);
+    } catch (e2) {}
+    setFinalBusy(false); setFinalPct(0);
+  }
+  async function downloadFinal() {
+    if (!cur) return;
+    try { const r = await fetch("/api/video/final?reviewId=" + cur.id).then((x) => x.json()); if (r.url) { const a = document.createElement("a"); a.href = r.url; a.download = (cur.final && cur.final.filename) || "final.mp4"; document.body.appendChild(a); a.click(); a.remove(); } } catch (e) {}
   }
 
   if (loading || !cur) return null;
@@ -76,8 +96,19 @@ export function VideoReview({ sessionId, isStudio }) {
           </div>
         ))}
       </div>
-      {!approved && (
+      {!approved ? (
         <button onClick={approve} style={{ ...mono, fontSize: 11, letterSpacing: "0.06em", textTransform: "uppercase", marginTop: 18, padding: "13px 22px", borderRadius: 10, cursor: "pointer", border: `1px solid ${A}`, background: PAPER, color: A, display: "inline-flex", alignItems: "center", gap: 9, width: "100%", justifyContent: "center" }}><Check size={16} /> {isStudio ? "Mark this cut approved" : "Approve this cut"}</button>
+      ) : cur.final && cur.final.available ? (
+        <button onClick={downloadFinal} style={{ ...mono, fontSize: 12, letterSpacing: "0.06em", textTransform: "uppercase", marginTop: 18, padding: "15px 22px", borderRadius: 11, cursor: "pointer", border: "none", background: A, color: "#fff", display: "inline-flex", alignItems: "center", gap: 10, width: "100%", justifyContent: "center" }}><Download size={17} /> Download final in high quality</button>
+      ) : isStudio ? (
+        <div style={{ marginTop: 18, background: CREAM, border: `1px solid ${LINE}`, borderRadius: 11, padding: "16px 18px" }}>
+          <div style={{ ...mono, fontSize: 10, letterSpacing: "0.14em", textTransform: "uppercase", color: STONE, marginBottom: 10 }}>Deliver the final</div>
+          {finalBusy ? <div style={{ ...mono, fontSize: 12, color: A }}>Uploading final… {finalPct}% (keep this open)</div>
+            : <label style={{ ...mono, fontSize: 11, letterSpacing: "0.05em", textTransform: "uppercase", padding: "12px 18px", borderRadius: 9, cursor: "pointer", border: "none", background: A, color: "#fff", display: "inline-flex", alignItems: "center", gap: 8 }}><Upload size={14} /> Upload high-quality final<input type="file" accept="video/*" style={{ display: "none" }} onChange={onFinalPick} /></label>}
+          <div style={{ ...mono, fontSize: 9.5, color: STONE, marginTop: 11, lineHeight: 1.55, opacity: 0.85 }}>This cut is approved. Drop your pristine export (up to 5 GB) and the client gets a high-quality download here.</div>
+        </div>
+      ) : (
+        <div style={{ marginTop: 18, ...mono, fontSize: 11, color: STONE, textAlign: "center", padding: "14px", background: CREAM, borderRadius: 10, border: `1px solid ${LINE}` }}>Approved. Your final in high quality will appear here to download shortly.</div>
       )}
     </div>
   );
