@@ -1,0 +1,84 @@
+"use client";
+import React, { useEffect, useRef, useState, useCallback } from "react";
+import { Film, Check, ChevronDown, Plus } from "lucide-react";
+import { mono, display, INK, BODY, LINE, STONE, FAINT, PAPER, CREAM } from "./theme";
+import { GROUPS } from "./groups";
+
+function fmtT(t) { const m = Math.floor((t || 0) / 60), s = Math.floor((t || 0) % 60); return m + ":" + String(s).padStart(2, "0"); }
+
+export function VideoReview({ sessionId, isStudio }) {
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [note, setNote] = useState("");
+  const [curTime, setCurTime] = useState(0);
+  const [posting, setPosting] = useState(false);
+  const [verOpen, setVerOpen] = useState(false);
+  const videoRef = useRef(null);
+  const A = GROUPS.video.color;
+
+  const load = useCallback(async (reviewId) => {
+    try { const r = await fetch("/api/video?sessionId=" + encodeURIComponent(sessionId) + (reviewId ? "&reviewId=" + reviewId : "")).then((x) => x.json()); setData(r); } catch (e) {}
+    setLoading(false);
+  }, [sessionId]);
+  useEffect(() => { if (sessionId) load(); }, [sessionId, load]);
+
+  const cur = data && data.current;
+  const comments = (data && data.comments) || [];
+  const reviews = (data && data.reviews) || [];
+  const approved = cur && cur.status === "approved";
+
+  function seek(t) { const v = videoRef.current; if (v) { v.currentTime = t; v.play().catch(() => {}); } }
+  async function addNote() {
+    const body = note.trim(); if (!body || !cur || posting) return;
+    setPosting(true);
+    const t = videoRef.current ? videoRef.current.currentTime : curTime;
+    try { const r = await fetch("/api/video/comment", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ reviewId: cur.id, t, body }) }).then((x) => x.json()); if (r.ok) { setNote(""); await load(cur.id); } } catch (e) {}
+    setPosting(false);
+  }
+  async function approve() {
+    if (!cur || !window.confirm("Approve this cut? It locks this version as the final, approved version.")) return;
+    try { await fetch("/api/video/approve", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ reviewId: cur.id }) }); await load(cur.id); } catch (e) {}
+  }
+
+  if (loading || !cur) return null;
+  return (
+    <div style={{ marginTop: 6, marginBottom: 28 }}>
+      <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: 12, marginBottom: 14 }}>
+        <div style={{ ...display, fontWeight: 700, fontSize: 22, color: INK, display: "flex", alignItems: "center", gap: 9 }}><Film size={18} color={A} /> {cur.title}</div>
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          {reviews.length > 1 && (
+            <div style={{ position: "relative" }}>
+              <button onClick={() => setVerOpen((o) => !o)} style={{ ...mono, fontSize: 11, letterSpacing: "0.05em", textTransform: "uppercase", padding: "8px 12px", borderRadius: 8, cursor: "pointer", border: `1px solid ${LINE}`, background: PAPER, color: STONE, display: "inline-flex", alignItems: "center", gap: 7 }}>Cut {cur.version} <ChevronDown size={14} /></button>
+              {verOpen && (<><div onClick={() => setVerOpen(false)} style={{ position: "fixed", inset: 0, zIndex: 20 }} /><div style={{ position: "absolute", top: "calc(100% + 4px)", right: 0, background: PAPER, border: `1px solid ${LINE}`, borderRadius: 9, boxShadow: "0 10px 30px rgba(20,18,16,0.14)", zIndex: 21, minWidth: 150, overflow: "hidden" }}>{reviews.map((r) => (<button key={r.id} onClick={() => { setVerOpen(false); load(r.id); }} style={{ display: "flex", width: "100%", alignItems: "center", justifyContent: "space-between", gap: 10, padding: "10px 13px", background: r.id === cur.id ? CREAM : "transparent", border: "none", cursor: "pointer", textAlign: "left" }}><span style={{ fontSize: 13, color: INK }}>{r.title}</span>{r.status === "approved" && <Check size={13} color={A} />}</button>))}</div></>)}
+            </div>
+          )}
+          {approved && <span style={{ ...mono, fontSize: 10.5, letterSpacing: "0.06em", textTransform: "uppercase", color: "#fff", background: A, borderRadius: 20, padding: "6px 12px", display: "inline-flex", alignItems: "center", gap: 6 }}><Check size={13} /> Approved</span>}
+        </div>
+      </div>
+      <video ref={videoRef} src={cur.playUrl} controls playsInline onTimeUpdate={(e) => setCurTime(e.target.currentTime)} style={{ width: "100%", borderRadius: 10, background: "#000", display: "block", maxHeight: "68vh" }} />
+      {!approved && (
+        <div style={{ display: "flex", gap: 8, marginTop: 14, alignItems: "center" }}>
+          <span style={{ ...mono, fontSize: 12.5, color: A, flexShrink: 0, minWidth: 42 }}>{fmtT(curTime)}</span>
+          <input value={note} onChange={(e) => setNote(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") addNote(); }} placeholder="Add a note at this moment…" style={{ flex: 1, border: `1px solid ${LINE}`, borderRadius: 9, padding: "11px 13px", fontFamily: "Archivo, sans-serif", fontSize: 14, color: INK, background: PAPER }} />
+          <button onClick={addNote} disabled={posting || !note.trim()} style={{ width: 44, height: 44, borderRadius: 9, border: "none", cursor: note.trim() ? "pointer" : "default", background: note.trim() ? A : LINE, color: "#fff", display: "inline-flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}><Plus size={18} /></button>
+        </div>
+      )}
+      <div style={{ marginTop: 16 }}>
+        {comments.length === 0 ? (
+          <div style={{ ...mono, fontSize: 11, color: FAINT, padding: "8px 0" }}>{approved ? "This cut was approved." : "No notes yet. Scrub to a moment and add one."}</div>
+        ) : comments.map((c) => (
+          <div key={c.id} style={{ display: "flex", gap: 12, padding: "11px 0", borderTop: `1px solid ${LINE}` }}>
+            <button onClick={() => seek(c.t)} style={{ ...mono, fontSize: 11, fontWeight: 500, color: "#fff", background: A, border: "none", borderRadius: 6, padding: "5px 8px", cursor: "pointer", flexShrink: 0, alignSelf: "flex-start" }}>{fmtT(c.t)}</button>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 13.5, color: INK, lineHeight: 1.5 }}>{c.body}</div>
+              <div style={{ ...mono, fontSize: 9.5, letterSpacing: "0.08em", textTransform: "uppercase", color: FAINT, marginTop: 3 }}>{c.author === "studio" ? "Studio" : "Client"}</div>
+            </div>
+          </div>
+        ))}
+      </div>
+      {!approved && (
+        <button onClick={approve} style={{ ...mono, fontSize: 11, letterSpacing: "0.06em", textTransform: "uppercase", marginTop: 18, padding: "13px 22px", borderRadius: 10, cursor: "pointer", border: `1px solid ${A}`, background: PAPER, color: A, display: "inline-flex", alignItems: "center", gap: 9, width: "100%", justifyContent: "center" }}><Check size={16} /> {isStudio ? "Mark this cut approved" : "Approve this cut"}</button>
+      )}
+    </div>
+  );
+}
