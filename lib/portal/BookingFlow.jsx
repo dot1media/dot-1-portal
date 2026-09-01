@@ -340,17 +340,15 @@ export function BookingFlow({ state, direct, slotTaken, onCancel, onComplete, on
       {/* STEP 2 — DATE & TIME */}
       {step === 2 && !direct && (
         <div style={{ maxWidth: 600 }}>
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 22, alignItems: "flex-start", marginBottom: 16 }}>
-            <div style={{ flex: "1 1 300px", minWidth: 0, maxWidth: 380 }}>
+          <div style={{ maxWidth: 360, margin: "0 auto", marginBottom: 16 }}>
             <FieldLabel>Choose an available day</FieldLabel>
             {availDates.length === 0 ? (
               <div style={{ border: `1px dashed ${LINE}`, borderRadius: 9, padding: "18px", textAlign: "center", background: PAPER, fontSize: 13, color: STONE, lineHeight: 1.5 }}>No open dates right now. Please check back soon, or contact us and we'll find a time.</div>
             ) : (
               <BookingCalendar availDates={availDates} value={date} onPick={(d) => { setDate(d); setTime(""); releaseHold(); }} A={A} />
             )}
-            </div>
             {date && (
-              <div style={{ flex: "1 1 190px", minWidth: 190 }}>
+              <div style={{ marginTop: 18 }}>
                 <FieldLabel>Choose a time</FieldLabel>
                 {slotsForDate(date).length === 0 ? (
                   <div style={{ fontSize: 12.5, color: STONE }}>Every time on this day is booked. Please choose another day.</div>
