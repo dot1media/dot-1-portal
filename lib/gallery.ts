@@ -7,6 +7,7 @@ export async function ensureGallerySchema() {
   if (ensured) return;
   await sql`CREATE TABLE IF NOT EXISTS galleries (id TEXT PRIMARY KEY, session_id TEXT, client_email TEXT, title TEXT, included INT, created_at TIMESTAMPTZ DEFAULT now())`;
   await sql`ALTER TABLE galleries ADD COLUMN IF NOT EXISTS included INT`;
+  await sql`ALTER TABLE galleries ADD COLUMN IF NOT EXISTS release JSONB`;
   await sql`CREATE TABLE IF NOT EXISTS gallery_photos (id TEXT PRIMARY KEY, gallery_id TEXT NOT NULL, filename TEXT, favorite BOOLEAN DEFAULT false, sort INT DEFAULT 0, created_at TIMESTAMPTZ DEFAULT now())`;
   await sql`CREATE INDEX IF NOT EXISTS gallery_photos_gid ON gallery_photos (gallery_id)`;
   ensured = true;

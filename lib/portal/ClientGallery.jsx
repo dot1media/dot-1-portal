@@ -1,9 +1,14 @@
 "use client";
 import React, { useEffect, useState, useCallback } from "react";
-import { Heart, Download, X, ChevronLeft, ChevronRight } from "lucide-react";
-import { mono, display, INK, LINE, STONE, FAINT, CREAM } from "./theme";
+import { Heart, Download, X, ChevronLeft, ChevronRight, Check } from "lucide-react";
+import { mono, display, INK, BODY, LINE, STONE, FAINT, CREAM } from "./theme";
 
 const A = "#4a90d9";
+const RELEASE_OPTS = [
+  { key: "portfolio", label: "Portfolio & website", desc: "Feature these images in Dot One's portfolio and on their website." },
+  { key: "social", label: "Social media", desc: "Share these images on Instagram and Facebook." },
+  { key: "advertising", label: "Advertising & print", desc: "Use these images in ads, printed materials, and paid promotion." },
+];
 
 export function ClientGallery({ sessionId }) {
   const [g, setG] = useState(null);
@@ -15,13 +20,14 @@ export function ClientGallery({ sessionId }) {
   const [limitMsg, setLimitMsg] = useState("");
   const [dl, setDl] = useState(false);
   const [requested, setRequested] = useState(false);
+  const [release, setRelease] = useState(null);
 
   const selectedCount = photos.filter((p) => p.favorite).length;
   const included = g && g.included != null ? g.included : null;
   const atLimit = included != null && selectedCount >= included;
 
   const load = useCallback(async () => {
-    try { const r = await fetch("/api/gallery?sessionId=" + encodeURIComponent(sessionId)).then((x) => x.json()); setG(r.gallery); setPhotos(r.photos || []); } catch (e) {}
+    try { const r = await fetch("/api/gallery?sessionId=" + encodeURIComponent(sessionId)).then((x) => x.json()); setG(r.gallery); setPhotos(r.photos || []); setRelease(r.gallery && r.gallery.release ? r.gallery.release : { portfolio: true, social: true, advertising: true }); } catch (e) {}
     setLoading(false);
   }, [sessionId]);
   useEffect(() => { if (sessionId) load(); }, [sessionId, load]);
@@ -65,6 +71,12 @@ export function ClientGallery({ sessionId }) {
   }
   async function requestMore() { try { await fetch("/api/gallery/request-more", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ galleryId: g.id }) }); setRequested(true); } catch (e) {} }
 
+  async function toggleRelease(key) {
+    const next = { ...(release || {}), [key]: !(release && release[key]) };
+    setRelease(next);
+    try { await fetch("/api/gallery/release", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ galleryId: g.id, release: next }) }); } catch (e) {}
+  }
+
   if (loading || !g || !photos.length) return null;
 
   return (
@@ -96,6 +108,16 @@ export function ClientGallery({ sessionId }) {
             : <button onClick={requestMore} style={{ ...mono, fontSize: 11, letterSpacing: "0.06em", textTransform: "uppercase", padding: "12px 22px", borderRadius: 9, cursor: "pointer", border: `1px solid ${A}`, background: "#fff", color: A }}>Request additional images</button>}
         </div>
       )}
+      <div style={{ marginTop: 26, background: CREAM, border: `1px solid ${LINE}`, borderRadius: 12, padding: "18px 20px" }}>
+        <div style={{ ...mono, fontSize: 10, letterSpacing: "0.14em", textTransform: "uppercase", color: STONE, marginBottom: 6 }}>Image usage &amp; model release</div>
+        <div style={{ fontSize: 13, color: BODY, lineHeight: 1.55, marginBottom: 12 }}>You choose how we may share your images. Adjust these any time, and we'll honor your latest choice.</div>
+        {RELEASE_OPTS.map((o) => { const on = !!(release && release[o.key]); return (
+          <div key={o.key} onClick={() => toggleRelease(o.key)} style={{ display: "flex", alignItems: "flex-start", gap: 12, padding: "11px 0", cursor: "pointer", borderTop: `1px solid ${LINE}` }}>
+            <span style={{ width: 22, height: 22, borderRadius: 6, border: `1.5px solid ${on ? A : LINE}`, background: on ? A : "#fff", flexShrink: 0, display: "inline-flex", alignItems: "center", justifyContent: "center", marginTop: 1 }}>{on ? <Check size={14} color="#fff" /> : null}</span>
+            <div style={{ flex: 1, minWidth: 0 }}><div style={{ fontSize: 14, color: INK, fontWeight: 500 }}>{o.label}</div><div style={{ fontSize: 12.5, color: STONE, lineHeight: 1.5, marginTop: 2 }}>{o.desc}</div></div>
+          </div>
+        ); })}
+      </div>
       {lightbox >= 0 && (
         <div onClick={() => setLightbox(-1)} style={{ position: "fixed", inset: 0, background: "rgba(14,14,16,0.95)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: 18 }}>
           <button onClick={() => setLightbox(-1)} style={{ position: "absolute", top: 16, right: 16, width: 44, height: 44, borderRadius: "50%", border: "none", background: "rgba(255,255,255,0.12)", color: "#fff", cursor: "pointer", display: "inline-flex", alignItems: "center", justifyContent: "center" }}><X size={22} /></button>
