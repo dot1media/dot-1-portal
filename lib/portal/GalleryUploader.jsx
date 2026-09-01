@@ -30,6 +30,11 @@ export function GalleryUploader({ sessionId, showToast }) {
 
   async function saveIncluded(v) { const gg = gid; if (!gg) return; try { await fetch("/api/gallery/settings", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ galleryId: gg, included: v === "" ? null : v }) }); } catch (e) {} }
 
+  async function deleteGallery() {
+    if (!gid || !window.confirm("Delete this whole gallery and all its photos from storage? This cannot be undone.")) return;
+    try { await fetch("/api/gallery?galleryId=" + gid, { method: "DELETE" }); setCount(0); setGid(""); setIncluded(""); if (showToast) showToast("Gallery deleted."); } catch (e) {}
+  }
+
   async function onPick(e) {
     const files = Array.from(e.target.files || []); if (e.target) e.target.value = "";
     if (!files.length) return;
@@ -68,6 +73,7 @@ export function GalleryUploader({ sessionId, showToast }) {
       {(count !== null && count > 0) ? <div style={{ display: "flex", alignItems: "center", gap: 9, marginTop: 14 }}><span style={{ ...mono, fontSize: 10, letterSpacing: "0.1em", textTransform: "uppercase", color: STONE }}>Images included</span><input value={included} onChange={(e) => setIncluded(e.target.value.replace(/[^0-9]/g, ""))} onBlur={(e) => saveIncluded(e.target.value)} placeholder="all" inputMode="numeric" style={{ width: 64, border: `1px solid ${LINE}`, borderRadius: 7, padding: "7px 9px", fontFamily: "'IBM Plex Mono', monospace", fontSize: 12, color: INK, background: "#fff" }} /><span style={{ fontSize: 11, color: STONE }}>the client can select this many to download</span></div> : null}
       {err && <div style={{ ...mono, fontSize: 10.5, color: "#b3261e", marginTop: 8, lineHeight: 1.5 }}>{err}</div>}
       <div style={{ ...mono, fontSize: 9.5, color: STONE, marginTop: 13, lineHeight: 1.55, opacity: 0.85 }}>Prefer CloudSpot or another gallery? Skip this and paste your link under Delivery &amp; review links below. The client sees whichever you use, or both.</div>
+      {(count !== null && count > 0 && gid) ? <button onClick={deleteGallery} style={{ background: "none", border: "none", cursor: "pointer", padding: 0, marginTop: 11, fontFamily: "'IBM Plex Mono', monospace", fontSize: 9.5, color: "#b3261e", textDecoration: "underline" }}>Delete this gallery and all its photos</button> : null}
     </div>
   );
 }

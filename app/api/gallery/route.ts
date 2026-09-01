@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 import { sql } from "@/lib/db";
 import { hasStudio } from "@/lib/studioGuard";
-import { ensureGallerySchema, keyThumb, currentClientEmail } from "@/lib/gallery";
-import { presignGet } from "@/lib/r2";
+import { ensureGallerySchema, keyThumb, keyProof, keyFull, currentClientEmail, photoWithOwner } from "@/lib/gallery";
+import { presignGet, deleteObject } from "@/lib/r2";
 export const runtime = "nodejs";
 export async function GET(req: Request) {
   const url = new URL(req.url);
@@ -20,4 +20,25 @@ export async function GET(req: Request) {
   const selectedCount = photos.filter((p) => p.favorite).length;
   const out = await Promise.all(photos.map(async (p) => ({ id: p.id, filename: p.filename, favorite: p.favorite, thumb: await presignGet(keyThumb(g.id, p.id), 21600) })));
   return NextResponse.json({ gallery: { id: g.id, title: g.title, count: out.length, included: g.included ?? null, selectedCount }, photos: out });
+}
+
+export async function DELETE(req: Request) {
+  if (!(await hasStudio())) return NextResponse.json({ error: "Not authorized." }, { status: 401 });
+  const url = new URL(req.url);
+  const galleryId = url.searchParams.get("galleryId") || "";
+  const photoId = url.searchParams.get("photoId") || "";
+  await ensureGallerySchema();
+  if (photoId) {
+    const p = await photoWithOwner(photoId);
+    if (p) { await Promise.all([deleteObject(keyThumb(p.gallery_id, photoId)), deleteObject(keyProof(p.gallery_id, photoId)), deleteObject(keyFull(p.gallery_id, photoId))]); await sql`DELETE FROM gallery_photos WHERE id = ${photoId}`; }
+    return NextResponse.json({ ok: true });
+  }
+  if (galleryId) {
+    const photos = (await sql`SELECT id FROM gallery_photos WHERE gallery_id = ${galleryId}`) as any[];
+    await Promise.all(photos.flatMap((p) => [deleteObject(keyThumb(galleryId, p.id)), deleteObject(keyProof(galleryId, p.id)), deleteObject(keyFull(galleryId, p.id))]));
+    await sql`DELETE FROM gallery_photos WHERE gallery_id = ${galleryId}`;
+    await sql`DELETE FROM galleries WHERE id = ${galleryId}`;
+    return NextResponse.json({ ok: true });
+  }
+  return NextResponse.json({ error: "Nothing to delete." }, { status: 400 });
 }

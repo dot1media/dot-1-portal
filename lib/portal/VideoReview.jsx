@@ -77,6 +77,10 @@ export function VideoReview({ sessionId, isStudio }) {
     } catch (e2) { setFinalErr((e2 && e2.message) || "Upload failed. Please try again."); }
     setFinalBusy(false); setFinalPct(0);
   }
+  async function deleteCut() {
+    if (!cur || !window.confirm("Delete " + cur.title + " and its files from storage? This cannot be undone.")) return;
+    try { await fetch("/api/video?reviewId=" + cur.id, { method: "DELETE" }); await load(); } catch (e) {}
+  }
   async function downloadFinal() {
     if (!cur) return;
     try { const r = await fetch("/api/video/final?reviewId=" + cur.id).then((x) => x.json()); if (r.url) { const a = document.createElement("a"); a.href = r.url; a.download = (cur.final && cur.final.filename) || "final.mp4"; document.body.appendChild(a); a.click(); a.remove(); } } catch (e) {}
@@ -133,6 +137,7 @@ export function VideoReview({ sessionId, isStudio }) {
       ) : (
         <div style={{ marginTop: 18, ...mono, fontSize: 11, color: STONE, textAlign: "center", padding: "14px", background: CREAM, borderRadius: 10, border: `1px solid ${LINE}` }}>Approved. Your final in high quality will appear here to download shortly.</div>
       )}
+      {isStudio && <button onClick={deleteCut} style={{ background: "none", border: "none", cursor: "pointer", padding: 0, marginTop: 16, fontFamily: "'IBM Plex Mono', monospace", fontSize: 9.5, color: "#b3261e", textDecoration: "underline", display: "block" }}>Delete this cut</button>}
     </div>
   );
 }
