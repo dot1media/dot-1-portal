@@ -164,6 +164,17 @@ export function BookingFlow({ state, direct, slotTaken, onCancel, onComplete, on
     </div>
   ); };
 
+  const renderServiceHero = (s) => (
+    <div key={s.id} style={{ marginBottom: 4 }}>
+      {s.image && <img src={s.image} alt={s.name} style={{ width: "100%", maxHeight: 320, objectFit: "cover", borderRadius: 12, marginBottom: 16, display: "block" }} />}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 12, marginBottom: s.description ? 10 : 0 }}>
+        <span style={{ ...display, fontWeight: 700, fontSize: 25, color: INK, lineHeight: 1.15 }}>{s.name}</span>
+        <span style={{ ...mono, fontSize: 16, color: A, fontWeight: 500, flexShrink: 0 }}>{s.price ? money(s.price) : "Quote"}</span>
+      </div>
+      {s.description && <div style={{ fontSize: 14, color: BODY, lineHeight: 1.6, whiteSpace: "pre-wrap" }}>{s.description}</div>}
+    </div>
+  );
+
   const isAllWindow = (a) => !Array.isArray(a.serviceIds) || a.serviceIds.length === 0;
   const specificAvail = serviceId ? (availability || []).filter((a) => Array.isArray(a.serviceIds) && a.serviceIds.map(String).includes(String(serviceId))) : [];
   const useAvail = specificAvail.length > 0 ? specificAvail : (availability || []).filter(isAllWindow);
@@ -279,7 +290,9 @@ export function BookingFlow({ state, direct, slotTaken, onCancel, onComplete, on
             <div style={{ ...card }}><EmptyState icon={AlertTriangle} title="We couldn't load services right now" text="Please refresh the page, or reach out to us directly and we'll help you book." /></div>
           ) : (
             <div>
-              {groupServices.length === 0 ? (
+              {preService ? (
+                renderServiceHero(preService)
+              ) : groupServices.length === 0 ? (
                 <div style={{ ...card }}><EmptyState icon={GROUPS[group].Icon} title={"No " + GROUPS[group].label + " services yet"} text="Please check back soon, or reach out to us directly and we'll help you book." /></div>
               ) : group === "photo" ? (
                 PHOTO_CATEGORIES.concat(["__other"]).map((cat) => {
