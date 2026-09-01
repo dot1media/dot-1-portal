@@ -3,7 +3,7 @@ import React, { useEffect, useState } from "react";
 import { Image as ImageIcon, Upload } from "lucide-react";
 import { mono, INK, LINE, STONE, CREAM, RED, btnSolid } from "./theme";
 
-function resize(file, max) {
+function resize(file, max, q) {
   return new Promise((resolve, reject) => {
     const r = new FileReader();
     r.onload = () => { const img = new Image(); img.onload = () => {
@@ -11,7 +11,7 @@ function resize(file, max) {
       if (w >= h) { if (w > max) { h = Math.round(h * max / w); w = max; } } else { if (h > max) { w = Math.round(w * max / h); h = max; } }
       const c = document.createElement("canvas"); c.width = w; c.height = h;
       const ctx = c.getContext("2d"); ctx.drawImage(img, 0, 0, w, h);
-      c.toBlob((b) => b ? resolve(b) : reject(new Error("resize")), "image/jpeg", 0.85);
+      c.toBlob((b) => b ? resolve(b) : reject(new Error("resize")), "image/jpeg", q || 0.85);
     }; img.onerror = () => reject(new Error("load")); img.src = r.result; };
     r.onerror = () => reject(new Error("read")); r.readAsDataURL(file);
   });
@@ -41,7 +41,7 @@ export function GalleryUploader({ sessionId, showToast }) {
       const done = [];
       for (let i = 0; i < files.length; i++) {
         const f = files[i], u = res.uploads[i];
-        const thumb = await resize(f, 400), proof = await resize(f, 1600);
+        const thumb = await resize(f, 400, 0.82), proof = await resize(f, 2048, 0.92);
         await fetch(u.thumbUrl, { method: "PUT", headers: { "Content-Type": "image/jpeg" }, body: thumb });
         await fetch(u.proofUrl, { method: "PUT", headers: { "Content-Type": "image/jpeg" }, body: proof });
         await fetch(u.fullUrl, { method: "PUT", headers: { "Content-Type": f.type || "image/jpeg" }, body: f });
