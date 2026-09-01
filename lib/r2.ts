@@ -1,4 +1,4 @@
-import { S3Client, PutObjectCommand, GetObjectCommand, HeadBucketCommand, DeleteObjectCommand } from "@aws-sdk/client-s3";
+import { S3Client, PutObjectCommand, GetObjectCommand, HeadBucketCommand, DeleteObjectCommand, CreateMultipartUploadCommand, UploadPartCommand, CompleteMultipartUploadCommand, AbortMultipartUploadCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
 const ACCOUNT = process.env.R2_ACCOUNT_ID;
@@ -34,6 +34,19 @@ export async function putObject(key: string, body: Uint8Array, contentType: stri
 }
 export async function deleteObject(key: string): Promise<void> {
   try { await client().send(new DeleteObjectCommand({ Bucket: BUCKET, Key: key })); } catch {}
+}
+export async function createMultipart(key: string, contentType: string): Promise<string> {
+  const r = await client().send(new CreateMultipartUploadCommand({ Bucket: BUCKET, Key: key, ContentType: contentType }));
+  return r.UploadId as string;
+}
+export async function presignPart(key: string, uploadId: string, partNumber: number, expiresIn = 21600): Promise<string> {
+  return getSignedUrl(client(), new UploadPartCommand({ Bucket: BUCKET, Key: key, UploadId: uploadId, PartNumber: partNumber }), { expiresIn });
+}
+export async function completeMultipart(key: string, uploadId: string, parts: { PartNumber: number; ETag: string }[]): Promise<void> {
+  await client().send(new CompleteMultipartUploadCommand({ Bucket: BUCKET, Key: key, UploadId: uploadId, MultipartUpload: { Parts: parts.sort((a, b) => a.PartNumber - b.PartNumber) } }));
+}
+export async function abortMultipart(key: string, uploadId: string): Promise<void> {
+  try { await client().send(new AbortMultipartUploadCommand({ Bucket: BUCKET, Key: key, UploadId: uploadId })); } catch {}
 }
 export async function checkR2(): Promise<{ configured: boolean; ok: boolean; bucket?: string; error?: string }> {
   if (!r2Configured()) return { configured: false, ok: false, error: "R2_ACCOUNT_ID / R2_BUCKET / R2_ACCESS_KEY_ID / R2_SECRET_ACCESS_KEY not all set" };

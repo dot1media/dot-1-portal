@@ -16,6 +16,7 @@ export function VideoReview({ sessionId, isStudio }) {
   const videoRef = useRef(null);
   const [finalBusy, setFinalBusy] = useState(false);
   const [finalPct, setFinalPct] = useState(0);
+  const [finalErr, setFinalErr] = useState("");
   const A = GROUPS.video.color;
 
   const load = useCallback(async (reviewId) => {
@@ -45,14 +46,35 @@ export function VideoReview({ sessionId, isStudio }) {
   async function onFinalPick(e) {
     const f = e.target.files && e.target.files[0]; if (e.target) e.target.value = "";
     if (!f || !cur) return;
-    setFinalBusy(true); setFinalPct(0);
+    setFinalBusy(true); setFinalPct(0); setFinalErr("");
     try {
-      const res = await fetch("/api/video/final/sign-upload", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ reviewId: cur.id, filename: f.name, type: f.type || "video/mp4" }) }).then((x) => x.json());
-      if (!res.url) throw new Error(res.error || "Could not start the upload.");
-      await new Promise((resolve, reject) => { const xhr = new XMLHttpRequest(); xhr.open("PUT", res.url); xhr.setRequestHeader("Content-Type", f.type || "video/mp4"); xhr.upload.onprogress = (ev) => { if (ev.lengthComputable) setFinalPct(Math.round((ev.loaded / ev.total) * 100)); }; xhr.onload = () => (xhr.status >= 200 && xhr.status < 300) ? resolve() : reject(new Error("failed")); xhr.onerror = () => reject(new Error("failed")); xhr.send(f); });
-      await fetch("/api/video/final/finalize", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ reviewId: cur.id, filename: f.name }) });
+      const PART = 100 * 1024 * 1024;
+      if (f.size > 200 * 1024 * 1024) {
+        const nParts = Math.ceil(f.size / PART);
+        const init = await fetch("/api/video/final/mpu/create", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ reviewId: cur.id, parts: nParts, type: f.type || "video/mp4" }) }).then((x) => x.json());
+        if (!init.uploadId) throw new Error(init.error || "Could not start the upload.");
+        const parts = []; let uploaded = 0;
+        for (let i = 0; i < nParts; i++) {
+          const start = i * PART, end = Math.min(f.size, start + PART); const blob = f.slice(start, end);
+          const etag = await new Promise((resolve, reject) => {
+            const xhr = new XMLHttpRequest(); xhr.open("PUT", init.urls[i]);
+            xhr.upload.onprogress = (ev) => { if (ev.lengthComputable) setFinalPct(Math.round(((uploaded + ev.loaded) / f.size) * 100)); };
+            xhr.onload = () => { if (xhr.status >= 200 && xhr.status < 300) resolve(xhr.getResponseHeader("ETag")); else reject(new Error("part " + (i + 1) + " failed")); };
+            xhr.onerror = () => reject(new Error("part " + (i + 1) + " failed")); xhr.send(blob);
+          });
+          if (!etag) throw new Error("Upload blocked. The bucket CORS must expose the ETag header.");
+          parts.push({ PartNumber: i + 1, ETag: etag }); uploaded += (end - start);
+        }
+        const done = await fetch("/api/video/final/mpu/complete", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ reviewId: cur.id, uploadId: init.uploadId, parts, filename: f.name }) }).then((x) => x.json());
+        if (!done.ok) throw new Error(done.error || "Could not finish the upload.");
+      } else {
+        const res = await fetch("/api/video/final/sign-upload", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ reviewId: cur.id, filename: f.name, type: f.type || "video/mp4" }) }).then((x) => x.json());
+        if (!res.url) throw new Error(res.error || "Could not start the upload.");
+        await new Promise((resolve, reject) => { const xhr = new XMLHttpRequest(); xhr.open("PUT", res.url); xhr.setRequestHeader("Content-Type", f.type || "video/mp4"); xhr.upload.onprogress = (ev) => { if (ev.lengthComputable) setFinalPct(Math.round((ev.loaded / ev.total) * 100)); }; xhr.onload = () => (xhr.status >= 200 && xhr.status < 300) ? resolve() : reject(new Error("Upload failed. Check the bucket CORS allows PUT from this site.")); xhr.onerror = () => reject(new Error("Upload failed. Check the bucket CORS allows PUT from this site.")); xhr.send(f); });
+        await fetch("/api/video/final/finalize", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ reviewId: cur.id, filename: f.name }) });
+      }
       await load(cur.id);
-    } catch (e2) {}
+    } catch (e2) { setFinalErr((e2 && e2.message) || "Upload failed. Please try again."); }
     setFinalBusy(false); setFinalPct(0);
   }
   async function downloadFinal() {
@@ -105,7 +127,8 @@ export function VideoReview({ sessionId, isStudio }) {
           <div style={{ ...mono, fontSize: 10, letterSpacing: "0.14em", textTransform: "uppercase", color: STONE, marginBottom: 10 }}>Deliver the final</div>
           {finalBusy ? <div style={{ ...mono, fontSize: 12, color: A }}>Uploading final… {finalPct}% (keep this open)</div>
             : <label style={{ ...mono, fontSize: 11, letterSpacing: "0.05em", textTransform: "uppercase", padding: "12px 18px", borderRadius: 9, cursor: "pointer", border: "none", background: A, color: "#fff", display: "inline-flex", alignItems: "center", gap: 8 }}><Upload size={14} /> Upload high-quality final<input type="file" accept="video/*" style={{ display: "none" }} onChange={onFinalPick} /></label>}
-          <div style={{ ...mono, fontSize: 9.5, color: STONE, marginTop: 11, lineHeight: 1.55, opacity: 0.85 }}>This cut is approved. Drop your pristine export (up to 5 GB) and the client gets a high-quality download here.</div>
+          {finalErr && <div style={{ ...mono, fontSize: 10.5, color: "#b3261e", marginTop: 9, lineHeight: 1.5 }}>{finalErr}</div>}
+          <div style={{ ...mono, fontSize: 9.5, color: STONE, marginTop: 11, lineHeight: 1.55, opacity: 0.85 }}>This cut is approved. Drop your pristine export, any size, and the client gets a high-quality download here.</div>
         </div>
       ) : (
         <div style={{ marginTop: 18, ...mono, fontSize: 11, color: STONE, textAlign: "center", padding: "14px", background: CREAM, borderRadius: 10, border: `1px solid ${LINE}` }}>Approved. Your final in high quality will appear here to download shortly.</div>
