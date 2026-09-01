@@ -16,7 +16,8 @@ export async function POST(req: Request) {
     galleryId = newId("g_");
     let clientEmail = String(b.clientEmail || "").toLowerCase();
     if (!clientEmail && b.sessionId) { const r = (await sql`SELECT client_email FROM portal_sessions WHERE id = ${String(b.sessionId)} LIMIT 1`) as any[]; clientEmail = String(r[0]?.client_email || "").toLowerCase(); }
-    await sql`INSERT INTO galleries (id, session_id, client_email, title) VALUES (${galleryId}, ${b.sessionId ? String(b.sessionId) : null}, ${clientEmail || null}, ${b.title || null})`;
+    const inc = b.included != null && String(b.included).trim() !== "" ? parseInt(String(b.included), 10) : null;
+    await sql`INSERT INTO galleries (id, session_id, client_email, title, included) VALUES (${galleryId}, ${b.sessionId ? String(b.sessionId) : null}, ${clientEmail || null}, ${b.title || null}, ${Number.isNaN(inc as any) ? null : inc})`;
   }
   const uploads = [];
   for (const f of files) {

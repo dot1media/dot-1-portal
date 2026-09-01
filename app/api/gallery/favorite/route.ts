@@ -13,6 +13,14 @@ export async function POST(req: Request) {
   if (!ok) { const em = await currentClientEmail(); ok = !!em && em === String(p.client_email || "").toLowerCase(); }
   if (!ok) return NextResponse.json({ error: "Not authorized." }, { status: 401 });
   const fav = b.favorite === undefined ? !p.favorite : !!b.favorite;
+  if (fav && !p.favorite) {
+    const g = ((await sql`SELECT included FROM galleries WHERE id = ${p.gallery_id} LIMIT 1`) as any[])[0];
+    const inc = g?.included;
+    if (inc != null) {
+      const c = ((await sql`SELECT COUNT(*)::int AS n FROM gallery_photos WHERE gallery_id = ${p.gallery_id} AND favorite = true`) as any[])[0];
+      if (Number(c?.n || 0) >= Number(inc)) return NextResponse.json({ error: "You have selected all " + inc + " of your included photos.", limit: true, included: Number(inc) }, { status: 409 });
+    }
+  }
   await sql`UPDATE gallery_photos SET favorite = ${fav} WHERE id = ${photoId}`;
   return NextResponse.json({ ok: true, favorite: fav });
 }

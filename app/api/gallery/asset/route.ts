@@ -14,6 +14,7 @@ export async function GET(req: Request) {
   if (!ok) { const em = await currentClientEmail(); ok = !!em && em === String(p.client_email || "").toLowerCase(); }
   if (!ok) return NextResponse.json({ error: "Not authorized." }, { status: 401 });
   const isFull = size === "full" || size === "download";
+  if (isFull && !(await hasStudio()) && !p.favorite) return NextResponse.json({ error: "Select this photo to download it." }, { status: 403 });
   const key = isFull ? keyFull(p.gallery_id, p.id) : keyProof(p.gallery_id, p.id);
   const dl = size === "download" ? (p.filename || "photo.jpg") : undefined;
   return NextResponse.json({ url: await presignGet(key, 3600, dl) });

@@ -19,12 +19,16 @@ function resize(file, max) {
 
 export function GalleryUploader({ sessionId, showToast }) {
   const [count, setCount] = useState(null);
+  const [gid, setGid] = useState("");
+  const [included, setIncluded] = useState("");
   const [busy, setBusy] = useState(false);
   const [prog, setProg] = useState({ done: 0, total: 0 });
   const [err, setErr] = useState("");
 
-  const load = async () => { try { const r = await fetch("/api/gallery?sessionId=" + encodeURIComponent(sessionId)).then((x) => x.json()); setCount(r.gallery ? r.gallery.count : 0); } catch (e) { setCount(0); } };
+  const load = async () => { try { const r = await fetch("/api/gallery?sessionId=" + encodeURIComponent(sessionId)).then((x) => x.json()); setCount(r.gallery ? r.gallery.count : 0); if (r.gallery) { setGid(r.gallery.id); setIncluded(r.gallery.included == null ? "" : String(r.gallery.included)); } } catch (e) { setCount(0); } };
   useEffect(() => { if (sessionId) load(); }, [sessionId]);
+
+  async function saveIncluded(v) { const gg = gid; if (!gg) return; try { await fetch("/api/gallery/settings", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ galleryId: gg, included: v === "" ? null : v }) }); } catch (e) {} }
 
   async function onPick(e) {
     const files = Array.from(e.target.files || []); if (e.target) e.target.value = "";
@@ -32,7 +36,7 @@ export function GalleryUploader({ sessionId, showToast }) {
     setBusy(true); setErr(""); setProg({ done: 0, total: files.length });
     try {
       const meta = files.map((f) => ({ name: f.name, type: f.type }));
-      const res = await fetch("/api/gallery/sign-upload", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ sessionId, files: meta }) }).then((x) => x.json());
+      const res = await fetch("/api/gallery/sign-upload", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ sessionId, files: meta, included: included !== "" ? included : undefined }) }).then((x) => x.json());
       if (!res.galleryId) throw new Error(res.error || "Could not start the upload.");
       const done = [];
       for (let i = 0; i < files.length; i++) {
@@ -61,6 +65,7 @@ export function GalleryUploader({ sessionId, showToast }) {
       ) : (
         <label style={{ ...btnSolid, background: RED, cursor: "pointer", display: "inline-flex" }}><Upload size={14} /> {count > 0 ? "Add more photos" : "Upload photos"}<input type="file" accept="image/*" multiple style={{ display: "none" }} onChange={onPick} /></label>
       )}
+      {(count !== null && count > 0) ? <div style={{ display: "flex", alignItems: "center", gap: 9, marginTop: 14 }}><span style={{ ...mono, fontSize: 10, letterSpacing: "0.1em", textTransform: "uppercase", color: STONE }}>Images included</span><input value={included} onChange={(e) => setIncluded(e.target.value.replace(/[^0-9]/g, ""))} onBlur={(e) => saveIncluded(e.target.value)} placeholder="all" inputMode="numeric" style={{ width: 64, border: `1px solid ${LINE}`, borderRadius: 7, padding: "7px 9px", fontFamily: "'IBM Plex Mono', monospace", fontSize: 12, color: INK, background: "#fff" }} /><span style={{ fontSize: 11, color: STONE }}>the client can select this many to download</span></div> : null}
       {err && <div style={{ ...mono, fontSize: 10.5, color: "#b3261e", marginTop: 8, lineHeight: 1.5 }}>{err}</div>}
     </div>
   );

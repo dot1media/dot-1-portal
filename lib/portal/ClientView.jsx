@@ -1,3 +1,4 @@
+import { ClientGallery } from "./ClientGallery";
 // Dot One Media portal - client project dashboard (timeline, payments, deliverables, messages, brief, usage rights) + private ProgressBar, SummaryCell, StatusBadge, Timeline, ClientActionPanel. resizeImage is an App-level prop.
 import React, { useState, useEffect, useRef } from "react";
 import { AlertTriangle, CalendarClock, CalendarPlus, Camera, CheckCircle2, ChevronDown, Clock, Download, FileCheck, FileText, Film, Image as ImageIcon, MessageSquare, Play, Send, Star, Upload, User, X, Paperclip} from "lucide-react";
@@ -91,6 +92,7 @@ function ClientActionPanel({ session, grp, draft, setDraft, onSubmit }) {
     ];
     return (
       <div style={{ marginTop: 4 }}>
+        <ClientGallery sessionId={session.id} />
         <div style={{ background: CREAM, border: `1px solid ${LINE}`, borderRadius: 10, padding: "18px" }}>
           <div style={{ ...mono, fontSize: 10, letterSpacing: "0.16em", textTransform: "uppercase", color: g.color, marginBottom: 14 }}>Your finished work is ready</div>
           {vault.length ? (
