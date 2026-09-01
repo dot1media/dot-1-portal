@@ -67,6 +67,7 @@ export function GalleryUploader({ sessionId, showToast }) {
       )}
       {(count !== null && count > 0) ? <div style={{ display: "flex", alignItems: "center", gap: 9, marginTop: 14 }}><span style={{ ...mono, fontSize: 10, letterSpacing: "0.1em", textTransform: "uppercase", color: STONE }}>Images included</span><input value={included} onChange={(e) => setIncluded(e.target.value.replace(/[^0-9]/g, ""))} onBlur={(e) => saveIncluded(e.target.value)} placeholder="all" inputMode="numeric" style={{ width: 64, border: `1px solid ${LINE}`, borderRadius: 7, padding: "7px 9px", fontFamily: "'IBM Plex Mono', monospace", fontSize: 12, color: INK, background: "#fff" }} /><span style={{ fontSize: 11, color: STONE }}>the client can select this many to download</span></div> : null}
       {err && <div style={{ ...mono, fontSize: 10.5, color: "#b3261e", marginTop: 8, lineHeight: 1.5 }}>{err}</div>}
+      <div style={{ ...mono, fontSize: 9.5, color: STONE, marginTop: 13, lineHeight: 1.55, opacity: 0.85 }}>Prefer CloudSpot or another gallery? Skip this and paste your link under Delivery &amp; review links below. The client sees whichever you use, or both.</div>
     </div>
   );
 }
