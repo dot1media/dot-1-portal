@@ -5,6 +5,7 @@ import { RED, INK, BODY, STONE, FAINT, LINE, PAPER, CREAM, OK, WARN, DANGER, dis
 import { GROUPS, GROUP_KEYS } from "./groups";
 import { fmtDate, fmtTime, money, sessionBucket } from "./format";
 import { BRIEF_FIELDS } from "./constants";
+import { GalleryUploader } from "./GalleryUploader";
 import { stagesFor, curStage } from "./stages";
 import { LinkRow, LinkField, MiniCalendar, EmptyState, Avatar } from "./ui";
 import { useIsMobile } from "./hooks";
@@ -230,6 +231,8 @@ export function AdminSessions({ state, adminId, setAdminId, requestSetStage, add
             ))
           ) : <div style={{ fontSize: 12.5, color: FAINT, fontStyle: "italic" }}>The client hasn't filled out their production brief yet.</div>}
         </div>
+
+        <GalleryUploader sessionId={session.id} />
 
         <div style={{ ...cardDense, padding: "16px 18px", marginBottom: 22 }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
