@@ -309,6 +309,7 @@ export function BusinessSettings({ sessions, showToast, onImport }) {
       <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
         <button onClick={exportSessions} style={{ ...btnSolid, background: RED }}><Download size={14} /> Export sessions (CSV)</button>
         <button onClick={exportClients} style={{ ...btnGhost, display: "inline-flex", alignItems: "center", gap: 7 }}><Download size={14} /> Export clients (CSV)</button>
+        <a href={"/api/export?kind=payments" + (start ? "&start=" + start : "") + (end ? "&end=" + end : "")} style={{ ...btnGhost, display: "inline-flex", alignItems: "center", gap: 7, textDecoration: "none" }}><Download size={14} /> Export payments ledger (CSV)</a>
         <button onClick={exportAnalytics} style={{ ...btnGhost, display: "inline-flex", alignItems: "center", gap: 7 }}><Download size={14} /> Export analytics (CSV)</button>
       </div>
       <div style={{ ...mono, fontSize: 10, color: FAINT, marginTop: 12, lineHeight: 1.5, maxWidth: 560 }}>The sessions export uses the date range above (all-time if blank). Each row lists the total, what you collected, and payment status, ready for bookkeeping and taxes.</div>
