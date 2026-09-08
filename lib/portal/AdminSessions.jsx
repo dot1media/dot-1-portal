@@ -224,6 +224,17 @@ export function AdminSessions({ state, adminId, setAdminId, requestSetStage, add
         <div style={{ ...mono, fontSize: 9.5, color: FAINT, marginBottom: 26, letterSpacing: "0.04em" }}>You'll be asked to confirm, and can choose whether to email the client.</div>
 
         <div style={{ ...cardDense, padding: "16px 18px", marginBottom: 22 }}>
+          {Array.isArray(session.shotList) && session.shotList.length > 0 && (
+            <div style={{ marginBottom: 18 }}>
+              <div style={{ ...mono, fontSize: 10, letterSpacing: "0.16em", textTransform: "uppercase", color: STONE, marginBottom: 8 }}>Client shot list <span style={{ color: FAINT }}>\u00b7 {session.shotList.filter((x) => x.done).length}/{session.shotList.length} done</span></div>
+              {session.shotList.map((sh) => (
+                <button key={sh.id} onClick={() => patchSession(session.id, { shotList: session.shotList.map((x) => x.id === sh.id ? { ...x, done: !x.done } : x) })} style={{ display: "flex", alignItems: "center", gap: 9, width: "100%", background: "none", border: "none", cursor: "pointer", padding: "6px 0", textAlign: "left" }}>
+                  <span style={{ width: 16, height: 16, borderRadius: 4, border: `1.5px solid ${sh.done ? OK : LINE}`, background: sh.done ? OK : "transparent", flexShrink: 0 }} />
+                  <span style={{ fontSize: 13, color: INK, textDecoration: sh.done ? "line-through" : "none", opacity: sh.done ? 0.6 : 1 }}>{sh.text}</span>
+                </button>
+              ))}
+            </div>
+          )}
           <div style={{ ...mono, fontSize: 10, letterSpacing: "0.16em", textTransform: "uppercase", color: STONE, marginBottom: 12, display: "flex", alignItems: "center", gap: 7 }}><FileText size={13} /> Production brief{session.brief && session.brief.submitted && <span style={{ ...mono, fontSize: 8.5, letterSpacing: "0.08em", color: OK, background: `color-mix(in srgb, ${OK} 15%, var(--d1-paper,#fff))`, border: "1px solid #bfe6cc", borderRadius: 20, padding: "3px 8px" }}>SUBMITTED</span>}</div>
           {session.brief && BRIEF_FIELDS.some((f) => (session.brief[f.key] || "").trim()) ? (
             BRIEF_FIELDS.filter((f) => (session.brief[f.key] || "").trim()).map((f) => (

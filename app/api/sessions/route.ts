@@ -103,7 +103,7 @@ export async function PATCH(request: Request) {
   let allowed: any = patch;
   if (me.role === "client") {
     allowed = {};
-    for (const k of ["comments", "clientImage", "brief"]) if (k in patch) allowed[k] = patch[k];
+    for (const k of ["comments", "clientImage", "brief", "shotList"]) if (k in patch) allowed[k] = patch[k];
   }
   const merged = { ...cur.data, ...allowed };
   const dataStr = JSON.stringify(merged);

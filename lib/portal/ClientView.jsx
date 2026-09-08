@@ -157,6 +157,10 @@ export function ClientView({ session, sessions, clientId, setClientId, addCommen
   const [prepNotes, setPrepNotes] = useState("");
   const [referral, setReferral] = useState(null);
   const [downloads, setDownloads] = useState(null);
+  const [shotIn, setShotIn] = useState("");
+  const shotList = Array.isArray(session.shotList) ? session.shotList : [];
+  const saveShots = (list) => patchSession(session.id, { shotList: list });
+  const addShot = () => { const t = shotIn.trim(); if (!t) return; saveShots([...shotList, { id: "sh_" + Math.random().toString(36).slice(2, 8), text: t, done: false }]); setShotIn(""); };
   useEffect(() => { fetch("/api/deliverables").then((r) => r.json()).then((d) => { if (d && Array.isArray(d.items)) setDownloads(d); }).catch(() => {}); }, [session.id, session.currentStage]);
   async function openFinal(href) { try { const r = await fetch(href).then((x) => x.json()); if (r.url) { const a = document.createElement("a"); a.href = r.url; a.download = ""; document.body.appendChild(a); a.click(); a.remove(); } } catch (e) {} }
   const [refCopied, setRefCopied] = useState(false);
@@ -526,6 +530,24 @@ export function ClientView({ session, sessions, clientId, setClientId, addCommen
             })}
           </div>
           <div style={{ ...mono, fontSize: 9.5, color: FAINT, marginTop: 8, lineHeight: 1.5 }}>These are the agreements on file for your account. Keep this for your records.</div>
+        </div>
+      )}
+
+      {stage < 6 && (session.status || "active") === "active" && (
+        <div style={{ ...card, marginTop: 18, padding: "22px 24px" }}>
+          <div style={{ ...mono, fontSize: 10.5, letterSpacing: "0.16em", textTransform: "uppercase", color: STONE, marginBottom: 5 }}>Your shot list</div>
+          <div style={{ fontSize: 12.5, color: STONE, marginBottom: 10 }}>Moments and shots you don't want missed. We see this before your session.</div>
+          {shotList.map((sh) => (
+            <div key={sh.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 0", borderTop: `1px solid ${LINE}` }}>
+              <span style={{ width: 18, height: 18, borderRadius: 5, border: `1.5px solid ${sh.done ? grp.color : LINE}`, background: sh.done ? grp.color : "transparent", flexShrink: 0, display: "inline-flex", alignItems: "center", justifyContent: "center" }}>{sh.done ? <CheckCircle2 size={12} color="#fff" /> : null}</span>
+              <span style={{ flex: 1, fontSize: 13.5, color: INK, textDecoration: sh.done ? "line-through" : "none", opacity: sh.done ? 0.6 : 1 }}>{sh.text}</span>
+              {!sh.done && <button onClick={() => saveShots(shotList.filter((x) => x.id !== sh.id))} style={{ background: "none", border: "none", cursor: "pointer", padding: 0, color: FAINT, display: "inline-flex" }} aria-label="Remove"><X size={14} /></button>}
+            </div>
+          ))}
+          <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+            <input value={shotIn} onChange={(e) => setShotIn(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") addShot(); }} placeholder="e.g. Grandma holding the baby, the ring close-up" style={{ ...inputStyle, flex: 1 }} />
+            <button onClick={addShot} disabled={!shotIn.trim()} style={{ ...btnSolid, background: shotIn.trim() ? grp.color : FAINT }}>Add</button>
+          </div>
         </div>
       )}
 
