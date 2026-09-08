@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { sql } from "@/lib/db";
 import { currentClientEmail } from "@/lib/gallery";
 import { presignPut, r2Configured } from "@/lib/r2";
-import { inspKey, ensureInsp, canSee } from "../route";
+import { inspKey, ensureInsp, canSee } from "@/lib/inspiration";
 export const runtime = "nodejs";
 export async function POST(req: Request) {
   const b: any = await req.json().catch(() => ({}));
