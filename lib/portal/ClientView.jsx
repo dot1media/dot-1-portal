@@ -3,7 +3,7 @@ import { VideoReview } from "./VideoReview";
 import { BookingCalendar } from "./BookingFlow";
 // Dot One Media portal - client project dashboard (timeline, payments, deliverables, messages, brief, usage rights) + private ProgressBar, SummaryCell, StatusBadge, Timeline, ClientActionPanel. resizeImage is an App-level prop.
 import React, { useState, useEffect, useRef } from "react";
-import { AlertTriangle, CalendarClock, CalendarPlus, Camera, CheckCircle2, ChevronDown, Clock, Download, FileCheck, FileText, Film, Image as ImageIcon, MessageSquare, Play, Send, Star, Upload, User, X, Paperclip} from "lucide-react";
+import { AlertTriangle, CalendarClock, CalendarPlus, Camera, CheckCircle2, ChevronDown, Clock, Download, ExternalLink, FileCheck, FileText, Film, Image as ImageIcon, MessageSquare, Play, Send, Star, Upload, User, X, Paperclip} from "lucide-react";
 import { RED, INK, BODY, STONE, FAINT, LINE, PAPER, CREAM, OK, DANGER, display, mono, card, inputStyle, btnGhost, btnSolid } from "./theme";
 import { GROUPS } from "./groups";
 import { fmtDate, fmtTime, gcalLink, money, timeGreeting } from "./format";
@@ -131,7 +131,7 @@ function ClientActionPanel({ session, grp, draft, setDraft, onSubmit }) {
   return <div style={{ display: "flex", alignItems: "center", gap: 9, color: STONE, fontSize: 13, marginTop: 4, background: CREAM, border: `1px dashed ${LINE}`, borderRadius: 10, padding: "13px 16px" }}><Clock size={15} color="#9a988f" /> We'll email you the moment your next update is ready.</div>;
 }
 
-export function ClientView({ session, sessions, clientId, setClientId, addComment, onRescheduleRequest, markMessagesRead, patchSession, resizeImage, uploadMessageImage, showToast }) {
+export function ClientView({ session, sessions, clientId, setClientId, addComment, onRescheduleRequest, markMessagesRead, patchSession, resizeImage, uploadMessageImage, showToast, onOpenSession }) {
   const isMobile = useIsMobile();
   const [draft, setDraft] = useState("");
   const [msg, setMsg] = useState("");
@@ -156,6 +156,9 @@ export function ClientView({ session, sessions, clientId, setClientId, addCommen
   const [reschedInfo, setReschedInfo] = useState(null);
   const [prepNotes, setPrepNotes] = useState("");
   const [referral, setReferral] = useState(null);
+  const [downloads, setDownloads] = useState(null);
+  useEffect(() => { fetch("/api/deliverables").then((r) => r.json()).then((d) => { if (d && Array.isArray(d.items)) setDownloads(d); }).catch(() => {}); }, [session.id, session.currentStage]);
+  async function openFinal(href) { try { const r = await fetch(href).then((x) => x.json()); if (r.url) { const a = document.createElement("a"); a.href = r.url; a.download = ""; document.body.appendChild(a); a.click(); a.remove(); } } catch (e) {} }
   const [refCopied, setRefCopied] = useState(false);
   useEffect(() => { fetch("/api/referral").then((r) => r.json()).then((d) => { if (d && d.link) setReferral(d); }).catch(() => {}); }, [session.id]);
   useEffect(() => { let stop = false; setPrepNotes(""); if (session.prepNotes) { setPrepNotes(session.prepNotes); return; } if (!session.serviceId) return; fetch("/api/services").then((r) => r.json()).then((d) => { if (stop) return; const sv = (d.services || []).find((x) => String(x.id) === String(session.serviceId)); if (sv && sv.prepNotes) setPrepNotes(sv.prepNotes); }).catch(() => {}); return () => { stop = true; }; }, [session.id, session.serviceId, session.prepNotes]);
@@ -523,6 +526,24 @@ export function ClientView({ session, sessions, clientId, setClientId, addCommen
             })}
           </div>
           <div style={{ ...mono, fontSize: 9.5, color: FAINT, marginTop: 8, lineHeight: 1.5 }}>These are the agreements on file for your account. Keep this for your records.</div>
+        </div>
+      )}
+
+      {downloads && downloads.items.length > 0 && (
+        <div style={{ ...card, marginTop: 18, padding: "22px 24px" }}>
+          <div style={{ ...mono, fontSize: 10.5, letterSpacing: "0.16em", textTransform: "uppercase", color: STONE, marginBottom: 5 }}>Download center</div>
+          <div style={{ fontSize: 12.5, color: STONE, marginBottom: 10 }}>Everything we've delivered to you{downloads.sessions > 1 ? ", across all " + downloads.sessions + " of your sessions" : ""}, in one place.</div>
+          {downloads.items.map((it, i) => (
+            <div key={i} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 0", borderTop: `1px solid ${LINE}` }}>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 13.5, color: INK, fontWeight: 500 }}>{it.label}</div>
+                <div style={{ ...mono, fontSize: 10, color: FAINT, marginTop: 2 }}>{it.session}{it.note ? " \u00b7 " + it.note : ""}</div>
+              </div>
+              {it.direct ? <button onClick={() => openFinal(it.href)} style={{ ...btnSolid, background: grp.color }}><Download size={13} /> Download</button>
+                : it.open ? (it.sessionId === session.id ? <span style={{ ...mono, fontSize: 10, color: STONE }}>Above in this session</span> : <button onClick={() => onOpenSession && onOpenSession(it.sessionId)} style={btnGhost}>View</button>)
+                : <a href={it.href} target="_blank" rel="noopener noreferrer" style={{ ...btnGhost, textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 6 }}><ExternalLink size={13} /> Open</a>}
+            </div>
+          ))}
         </div>
       )}
 
