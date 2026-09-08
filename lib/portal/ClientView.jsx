@@ -154,6 +154,9 @@ export function ClientView({ session, sessions, clientId, setClientId, addCommen
   const [reschedOpen, setReschedOpen] = useState(false);
   const [reschedDate, setReschedDate] = useState("");
   const [reschedInfo, setReschedInfo] = useState(null);
+  const [prepNotes, setPrepNotes] = useState("");
+  useEffect(() => { let stop = false; setPrepNotes(""); if (session.prepNotes) { setPrepNotes(session.prepNotes); return; } if (!session.serviceId) return; fetch("/api/services").then((r) => r.json()).then((d) => { if (stop) return; const sv = (d.services || []).find((x) => String(x.id) === String(session.serviceId)); if (sv && sv.prepNotes) setPrepNotes(sv.prepNotes); }).catch(() => {}); return () => { stop = true; }; }, [session.id, session.serviceId, session.prepNotes]);
+  const daysToSession = (() => { if (!session.date) return null; const [y, m, d] = String(session.date).slice(0, 10).split("-").map(Number); const t = new Date(y, m - 1, d); const n = new Date(); const a = new Date(n.getFullYear(), n.getMonth(), n.getDate()); return Math.round((t - a) / 86400000); })();
   const [reschedTime, setReschedTime] = useState("");
   const [reschedBusy, setReschedBusy] = useState(false);
   const [reschedErr, setReschedErr] = useState("");
@@ -269,6 +272,21 @@ export function ClientView({ session, sessions, clientId, setClientId, addCommen
               <button onClick={() => downloadIcs(session)} style={{ ...btnGhost, display: "inline-flex", alignItems: "center", gap: 7 }}><CalendarPlus size={15} /> Apple Calendar</button>
             </div>
           )}
+        </div>
+      )}
+
+      {daysToSession !== null && daysToSession >= 0 && (session.status || "active") === "active" && stage < 6 && (
+        <div style={{ background: PAPER, border: `1px solid ${LINE}`, borderLeft: `4px solid ${grp.color}`, borderRadius: 10, padding: "16px 18px", marginBottom: 18 }}>
+          <div style={{ display: "flex", alignItems: "baseline", gap: 12, flexWrap: "wrap" }}>
+            <div style={{ ...display, fontWeight: 700, fontSize: 24, color: INK, lineHeight: 1 }}>{daysToSession === 0 ? "Today" : daysToSession === 1 ? "Tomorrow" : daysToSession + " days"}</div>
+            <div style={{ ...mono, fontSize: 10.5, letterSpacing: "0.1em", textTransform: "uppercase", color: STONE }}>{daysToSession <= 1 ? "your " + session.type + " is " + (daysToSession === 0 ? "today" : "tomorrow") : "until your " + session.type}{session.time ? " \u00b7 " + fmtTime(session.time) : ""}</div>
+          </div>
+          {prepNotes ? (
+            <div style={{ marginTop: 12 }}>
+              <div style={{ ...mono, fontSize: 10, letterSpacing: "0.14em", textTransform: "uppercase", color: grp.color, marginBottom: 6 }}>How to prepare</div>
+              <div style={{ fontSize: 13.5, color: BODY, lineHeight: 1.6, whiteSpace: "pre-wrap" }}>{prepNotes}</div>
+            </div>
+          ) : null}
         </div>
       )}
 
