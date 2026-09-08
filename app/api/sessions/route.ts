@@ -4,6 +4,7 @@ import { sql } from "@/lib/db";
 import { verifyToken, verifyClientToken, ADMIN_COOKIE, CLIENT_COOKIE, makeInviteToken } from "@/lib/auth";
 import { hasStudio } from "@/lib/studioGuard";
 import { sendPush, formatWhen } from "@/lib/push";
+import { ensureReferralSchema, creditDollars } from "@/lib/referral";
 import { sendEmail, sendToClient, bookingStudioEmail, bookingClientEmail, stageClientEmail, messageEmail, stageLabelFor, briefStudioEmail, cancelClientEmail, internalBookingEmail, galleryEmail, videoEmail, deliveryEmail, reviewEmail, inviteEmail, isFinalStage } from "@/lib/email";
 import { GOOGLE_REVIEW_URL } from "@/lib/portal/constants";
 
@@ -64,6 +65,19 @@ export async function POST(request: Request) {
   if (ins[0] && (ins[0] as any).inserted && !s.imported) {
     await sendEmail({ to: s.notifyEmail || "contact@dot1.media", subject: "New booking: " + (s.type || "session") + " for " + (s.clientName || "a client"), html: bookingStudioEmail(s), replyTo: s.clientEmail });
     try { await sendPush("New booking", [(s.clientName || "A client"), (s.type || "session"), formatWhen(s.date, s.time)].filter(Boolean).join(" \u00b7 "), "/"); } catch (e) {}
+    if (s.referredBy) { try {
+      await ensureReferralSchema();
+      const rc = ((await sql`SELECT client_email FROM referral_codes WHERE code = ${String(s.referredBy)} LIMIT 1`) as any[])[0];
+      const referred = String(s.clientEmail || "").toLowerCase();
+      if (rc && rc.client_email && rc.client_email !== referred) {
+        const dup = ((await sql`SELECT 1 FROM referrals WHERE referred_email = ${referred} LIMIT 1`) as any[])[0];
+        if (!dup) {
+          await sql`INSERT INTO referrals (id, code, referrer_email, referred_email, session_id, credit_cents) VALUES (${"rf_" + Math.random().toString(36).slice(2, 10)}, ${String(s.referredBy)}, ${rc.client_email}, ${referred}, ${String(s.id)}, ${creditDollars() * 100})`;
+          try { await sendPush("New referral", rc.client_email + " referred " + (s.clientName || "a new client"), "/"); } catch (e) {}
+          try { await sendEmail({ to: s.notifyEmail || "contact@dot1.media", subject: "Referral: " + (s.clientName || "a new client") + " booked via " + rc.client_email, html: `<div style="font-family:Arial,sans-serif;font-size:14px;color:#33322d"><p><b>${rc.client_email}</b> referred <b>${s.clientName || "a new client"}</b>, who just booked a ${s.type || "session"}.</p><p>Referral credit to honor: <b>$${creditDollars()}</b>.</p></div>` }); } catch (e) {}
+        }
+      }
+    } catch (e) {} }
     if (s.internal) {
       await sendEmail({ to: s.clientEmail, subject: "Your Dot One Media session is reserved", html: internalBookingEmail(s), replyTo: "contact@dot1.media" });
     } else {

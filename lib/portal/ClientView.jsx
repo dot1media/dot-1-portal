@@ -155,6 +155,9 @@ export function ClientView({ session, sessions, clientId, setClientId, addCommen
   const [reschedDate, setReschedDate] = useState("");
   const [reschedInfo, setReschedInfo] = useState(null);
   const [prepNotes, setPrepNotes] = useState("");
+  const [referral, setReferral] = useState(null);
+  const [refCopied, setRefCopied] = useState(false);
+  useEffect(() => { fetch("/api/referral").then((r) => r.json()).then((d) => { if (d && d.link) setReferral(d); }).catch(() => {}); }, [session.id]);
   useEffect(() => { let stop = false; setPrepNotes(""); if (session.prepNotes) { setPrepNotes(session.prepNotes); return; } if (!session.serviceId) return; fetch("/api/services").then((r) => r.json()).then((d) => { if (stop) return; const sv = (d.services || []).find((x) => String(x.id) === String(session.serviceId)); if (sv && sv.prepNotes) setPrepNotes(sv.prepNotes); }).catch(() => {}); return () => { stop = true; }; }, [session.id, session.serviceId, session.prepNotes]);
   const daysToSession = (() => { if (!session.date) return null; const [y, m, d] = String(session.date).slice(0, 10).split("-").map(Number); const t = new Date(y, m - 1, d); const n = new Date(); const a = new Date(n.getFullYear(), n.getMonth(), n.getDate()); return Math.round((t - a) / 86400000); })();
   const [reschedTime, setReschedTime] = useState("");
@@ -520,6 +523,18 @@ export function ClientView({ session, sessions, clientId, setClientId, addCommen
             })}
           </div>
           <div style={{ ...mono, fontSize: 9.5, color: FAINT, marginTop: 8, lineHeight: 1.5 }}>These are the agreements on file for your account. Keep this for your records.</div>
+        </div>
+      )}
+
+      {referral && (
+        <div style={{ ...card, marginTop: 18, padding: "22px 24px", borderLeft: `4px solid ${grp.color}` }}>
+          <div style={{ ...mono, fontSize: 10.5, letterSpacing: "0.16em", textTransform: "uppercase", color: STONE, marginBottom: 5 }}>Refer a friend</div>
+          <div style={{ fontSize: 13, color: BODY, lineHeight: 1.55, marginBottom: 12 }}>Know someone who'd love a session? Share your link. When they book, you earn <b>${referral.credit}</b> toward your next session.{referral.count > 0 ? ` You've referred ${referral.count} so far, ${money(referral.earned)} earned.` : ""}</div>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+            <div style={{ ...mono, fontSize: 11.5, color: INK, background: CREAM, border: `1px solid ${LINE}`, borderRadius: 8, padding: "9px 12px", flex: "1 1 220px", minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{referral.link}</div>
+            <button onClick={async () => { try { await navigator.clipboard.writeText(referral.link); setRefCopied(true); setTimeout(() => setRefCopied(false), 1600); } catch (e) {} }} style={{ ...btnSolid, background: grp.color }}>{refCopied ? "Copied" : "Copy link"}</button>
+            {typeof navigator !== "undefined" && navigator.share ? <button onClick={() => { navigator.share({ title: "Dot One Media", text: "Book a session with Dot One Media", url: referral.link }).catch(() => {}); }} style={btnGhost}>Share</button> : null}
+          </div>
         </div>
       )}
 

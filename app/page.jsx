@@ -110,6 +110,7 @@ export default function App() {
   const [directContext, setDirectContext] = useState(null);
   const [preServiceId, setPreServiceId] = useState("");
   const [preServiceSlug, setPreServiceSlug] = useState("");
+  const [refCode, setRefCode] = useState(() => { try { return localStorage.getItem("dot1_ref") || ""; } catch (e) { return ""; } });
   const [toast, setToast] = useState(null);
   const [confirm, setConfirm] = useState(null);
   const [inquiries, setInquiries] = useState([]);
@@ -209,6 +210,7 @@ export default function App() {
     if (rt) { setResetToken(rt); setView("resetpw"); }
     const it = params.get("invite");
     if (it) { setInviteToken(it); setView("invite"); }
+    const ref = params.get("ref"); if (ref) { setRefCode(ref); try { localStorage.setItem("dot1_ref", ref); } catch (e) {} }
     const sid = params.get("s");
     if (sid) { setPreServiceId(sid); setView("book"); }
     const path = window.location.pathname || "";
@@ -365,7 +367,7 @@ export default function App() {
     const notifyEmail = NOTIFY_EMAILS[grp] || "contact@dot1.media";
     const newSession = { id, clientName: booking.name, clientEmail: booking.email, clientImage: "", notifyEmail, type: booking.serviceName, serviceLine: grp, photographer: grp === "photo" ? "Brittany Matthews" : "Dennis Matthews", date: booking.date, time: booking.time, location: booking.location || "", locationUrl: booking.locationUrl || "", confirmationMessage: booking.confirmationMessage || "", status: "active", durationMin: booking.duration || 60, apptMin: booking.apptMin || booking.duration || 60, padBefore: booking.padBefore || 0, padAfter: booking.padAfter || 0, currentStage: 0, stageTimes: { 0: "just now" }, comments: [], selectedAddons: booking.addons, total: booking.total, payChoice: booking.payChoice, paymentStatus: (booking.payAmount || 0) > 0 ? "pending" : "none", payAmount: booking.payAmount || 0, reviewLink: "", deliveryVideo: "", deliveryPhoto: "", deliveryMusic: "", deliveryGov: "" };
     setState((s) => ({ ...s, sessions: [...s.sessions, newSession] }));
-    fetch("/api/sessions", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ session: newSession }) }).catch(() => {});
+    fetch("/api/sessions", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ session: { ...newSession, referredBy: refCode || undefined } }) }).then(() => { try { localStorage.removeItem("dot1_ref"); } catch (e) {} }).catch(() => {});
     if (booking.linkId) { consumeDirectLink(booking.linkId); fetch("/api/direct-link", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ token: booking.linkId }) }).catch(() => {}); }
     setDirectContext(null); setClientId(id); setClientAuth({ name: booking.name, email: (booking.email || "").toLowerCase() }); try { localStorage.setItem("dot1_view_pref", "client"); } catch (e) {}
     if ((booking.payAmount || 0) > 0) { payForBooking(id, booking.payAmount, booking.serviceName || GROUPS[grp].label, booking.payChoice); }
@@ -425,7 +427,7 @@ export default function App() {
     const notifyEmail = NOTIFY_EMAILS[grp] || "contact@dot1.media";
     const newSession = { id, clientName: b.name, clientEmail: (b.email || "").toLowerCase(), clientImage: "", notifyEmail, type: b.serviceName, serviceLine: grp, photographer: grp === "photo" ? "Brittany Matthews" : "Dennis Matthews", date: b.date, time: b.time, location: "", status: "active", durationMin: Number(b.duration) || 60, apptMin: Number(b.duration) || 60, padBefore: 0, padAfter: 0, currentStage: 0, stageTimes: { 0: "just now" }, comments: [], selectedAddons: [], total: Number(b.total) || 0, payChoice: "deposit", paymentStatus: "none", payAmount: 0, reviewLink: "", deliveryVideo: "", deliveryPhoto: "", deliveryMusic: "", deliveryGov: "", internal: true };
     setState((s) => ({ ...s, sessions: [...s.sessions, newSession] }));
-    await fetch("/api/sessions", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ session: newSession }) }).catch(() => {});
+    await fetch("/api/sessions", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ session: { ...newSession, referredBy: refCode || undefined } }) }).then(() => { try { localStorage.removeItem("dot1_ref"); } catch (e) {} }).catch(() => {});
     if ((Number(b.deposit) || 0) > 0) { await requestSendCharge(newSession, b.serviceName + " payment", Number(b.deposit)); }
     if (b.invite && newSession.clientEmail) { await fetch("/api/sessions", { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ id: newSession.id, patch: {}, sendInvite: true }) }).catch(() => {}); }
     setAdminId(id);
