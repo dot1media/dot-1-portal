@@ -6,6 +6,7 @@ import { GROUPS, GROUP_KEYS } from "./groups";
 import { fmtDate, fmtTime, money, sessionBucket } from "./format";
 import { BRIEF_FIELDS } from "./constants";
 import { GalleryUploader } from "./GalleryUploader";
+import { ClientNotes } from "./ClientNotes";
 import { VideoUploader } from "./VideoUploader";
 import { VideoReview } from "./VideoReview";
 import { stagesFor, curStage } from "./stages";
@@ -234,6 +235,7 @@ export function AdminSessions({ state, adminId, setAdminId, requestSetStage, add
           ) : <div style={{ fontSize: 12.5, color: FAINT, fontStyle: "italic" }}>The client hasn't filled out their production brief yet.</div>}
         </div>
 
+        <ClientNotes email={session.clientEmail} showToast={showToast} />
         <GalleryUploader sessionId={session.id} />
         <VideoUploader sessionId={session.id} />
         <VideoReview sessionId={session.id} isStudio />
