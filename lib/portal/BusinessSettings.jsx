@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from "react";
 import { Download, FileText, Mail, RefreshCw, Settings, Upload } from "lucide-react";
 import { RED, INK, BODY, STONE, FAINT, LINE, PAPER, CREAM, OK, WARN, display, mono, card, cardDense, inputStyle, btnGhost, btnSolid } from "./theme";
+import { StoragePanel } from "./StoragePanel";
 import { GROUPS, GROUP_KEYS } from "./groups";
 import { money, compactMoney, monthShort, payKindLabel, payCardLabel, payMoney, payDateShort } from "./format";
 import { parseCsvRows, parseAcuityStart, importServiceLine } from "./csv";
@@ -312,6 +313,7 @@ export function BusinessSettings({ sessions, showToast, onImport }) {
         <a href={"/api/export?kind=payments" + (start ? "&start=" + start : "") + (end ? "&end=" + end : "")} style={{ ...btnGhost, display: "inline-flex", alignItems: "center", gap: 7, textDecoration: "none" }}><Download size={14} /> Export payments ledger (CSV)</a>
         <button onClick={exportAnalytics} style={{ ...btnGhost, display: "inline-flex", alignItems: "center", gap: 7 }}><Download size={14} /> Export analytics (CSV)</button>
       </div>
+      <StoragePanel showToast={showToast} />
       <div style={{ ...mono, fontSize: 10, color: FAINT, marginTop: 12, lineHeight: 1.5, maxWidth: 560 }}>The sessions export uses the date range above (all-time if blank). Each row lists the total, what you collected, and payment status, ready for bookkeeping and taxes.</div>
     </div>
   );

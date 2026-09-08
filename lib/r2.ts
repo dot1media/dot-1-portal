@@ -1,4 +1,4 @@
-import { S3Client, PutObjectCommand, GetObjectCommand, HeadBucketCommand, DeleteObjectCommand, CreateMultipartUploadCommand, UploadPartCommand, CompleteMultipartUploadCommand, AbortMultipartUploadCommand } from "@aws-sdk/client-s3";
+import { S3Client, PutObjectCommand, GetObjectCommand, HeadBucketCommand, DeleteObjectCommand, CreateMultipartUploadCommand, UploadPartCommand, CompleteMultipartUploadCommand, AbortMultipartUploadCommand, ListObjectsV2Command } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
 const ACCOUNT = process.env.R2_ACCOUNT_ID;
@@ -47,6 +47,16 @@ export async function completeMultipart(key: string, uploadId: string, parts: { 
 }
 export async function abortMultipart(key: string, uploadId: string): Promise<void> {
   try { await client().send(new AbortMultipartUploadCommand({ Bucket: BUCKET, Key: key, UploadId: uploadId })); } catch {}
+}
+export async function listPrefix(prefix: string): Promise<{ key: string; size: number; modified?: Date }[]> {
+  const out: { key: string; size: number; modified?: Date }[] = [];
+  let token: string | undefined;
+  do {
+    const r = await client().send(new ListObjectsV2Command({ Bucket: BUCKET, Prefix: prefix, ContinuationToken: token, MaxKeys: 1000 }));
+    for (const o of r.Contents || []) out.push({ key: o.Key || "", size: Number(o.Size) || 0, modified: o.LastModified });
+    token = r.IsTruncated ? r.NextContinuationToken : undefined;
+  } while (token);
+  return out;
 }
 export async function checkR2(): Promise<{ configured: boolean; ok: boolean; bucket?: string; error?: string }> {
   if (!r2Configured()) return { configured: false, ok: false, error: "R2_ACCOUNT_ID / R2_BUCKET / R2_ACCESS_KEY_ID / R2_SECRET_ACCESS_KEY not all set" };
