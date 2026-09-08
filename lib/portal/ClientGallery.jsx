@@ -1,6 +1,6 @@
 "use client";
 import React, { useEffect, useState, useCallback } from "react";
-import { Heart, Download, X, ChevronLeft, ChevronRight, Check } from "lucide-react";
+import { Heart, Download, X, ChevronLeft, ChevronRight, Check, Share2 } from "lucide-react";
 import { mono, display, INK, BODY, LINE, STONE, FAINT, CREAM } from "./theme";
 
 const A = "#4a90d9";
@@ -21,6 +21,12 @@ export function ClientGallery({ sessionId }) {
   const [dl, setDl] = useState(false);
   const [requested, setRequested] = useState(false);
   const [release, setRelease] = useState(null);
+  const [shareLink, setShareLink] = useState("");
+  const [shareCopied, setShareCopied] = useState(false);
+  async function sharePicks() {
+    try { const r = await fetch("/api/gallery/share", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ galleryId: g.id }) }).then((x) => x.json()); if (r.link) { setShareLink(r.link); try { await navigator.clipboard.writeText(r.link); setShareCopied(true); setTimeout(() => setShareCopied(false), 1800); } catch (e) {} } } catch (e) {}
+  }
+  async function stopSharing() { try { await fetch("/api/gallery/share?galleryId=" + encodeURIComponent(g.id), { method: "DELETE" }); setShareLink(""); } catch (e) {} }
   const [releaseLocked, setReleaseLocked] = useState(false);
   const [savingRelease, setSavingRelease] = useState(false);
 
@@ -93,6 +99,7 @@ export function ClientGallery({ sessionId }) {
         <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
           {included != null && <div style={{ ...mono, fontSize: 13, color: atLimit ? A : STONE }}>{selectedCount} / {included}</div>}
           <button onClick={downloadSelected} disabled={dl || !selectedCount} style={{ ...mono, fontSize: 11, letterSpacing: "0.06em", textTransform: "uppercase", padding: "11px 18px", borderRadius: 9, cursor: selectedCount ? "pointer" : "default", border: "none", background: selectedCount ? A : LINE, color: selectedCount ? "#fff" : FAINT, display: "inline-flex", alignItems: "center", gap: 8 }}><Download size={14} /> {dl ? "Preparing…" : "Download selected"}</button>
+          <button onClick={sharePicks} disabled={!selectedCount} title="Share a view-only link to your favorites" style={{ ...mono, fontSize: 11, letterSpacing: "0.06em", textTransform: "uppercase", padding: "11px 14px", borderRadius: 9, cursor: selectedCount ? "pointer" : "default", border: `1px solid ${selectedCount ? A : LINE}`, background: PAPER, color: selectedCount ? A : FAINT, display: "inline-flex", alignItems: "center", gap: 8 }}><Share2 size={14} /> {shareCopied ? "Link copied" : "Share picks"}</button>
         </div>
       </div>
       {limitMsg && <div style={{ background: "#fff6f5", border: "1px solid #f2cdc9", borderRadius: 9, padding: "11px 14px", marginBottom: 16, fontSize: 12.5, color: "#b3261e", lineHeight: 1.5 }}>{limitMsg}</div>}
@@ -110,6 +117,17 @@ export function ClientGallery({ sessionId }) {
           <div style={{ fontSize: 13, color: STONE, lineHeight: 1.55, marginBottom: 15, maxWidth: 420, marginLeft: "auto", marginRight: "auto" }}>Your package includes {included} images. If you love more of them, we can add the extras to your gallery.</div>
           {requested ? <div style={{ ...mono, fontSize: 12, color: A }}>Request sent. We'll be in touch shortly.</div>
             : <button onClick={requestMore} style={{ ...mono, fontSize: 11, letterSpacing: "0.06em", textTransform: "uppercase", padding: "12px 22px", borderRadius: 9, cursor: "pointer", border: `1px solid ${A}`, background: "#fff", color: A }}>Request additional images</button>}
+        </div>
+      )}
+      {shareLink && (
+        <div style={{ marginTop: 18, background: CREAM, border: `1px solid ${LINE}`, borderRadius: 12, padding: "14px 18px" }}>
+          <div style={{ ...mono, fontSize: 10, letterSpacing: "0.14em", textTransform: "uppercase", color: STONE, marginBottom: 6 }}>Sharing your favorites</div>
+          <div style={{ fontSize: 12.5, color: BODY, marginBottom: 8, lineHeight: 1.5 }}>Anyone with this link can view the photos you've selected, at preview size only. It updates as you change your picks.</div>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+            <div style={{ ...mono, fontSize: 11.5, color: INK, background: PAPER, border: `1px solid ${LINE}`, borderRadius: 8, padding: "9px 12px", flex: "1 1 240px", minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{shareLink}</div>
+            <button onClick={async () => { try { await navigator.clipboard.writeText(shareLink); setShareCopied(true); setTimeout(() => setShareCopied(false), 1800); } catch (e) {} }} style={{ ...mono, fontSize: 11, letterSpacing: "0.06em", textTransform: "uppercase", padding: "10px 14px", borderRadius: 9, cursor: "pointer", border: "none", background: A, color: "#fff" }}>{shareCopied ? "Copied" : "Copy"}</button>
+            <button onClick={stopSharing} style={{ ...mono, fontSize: 10.5, letterSpacing: "0.05em", textTransform: "uppercase", padding: "10px 12px", borderRadius: 9, cursor: "pointer", border: `1px solid ${LINE}`, background: PAPER, color: STONE }}>Stop sharing</button>
+          </div>
         </div>
       )}
       <div style={{ marginTop: 26, background: CREAM, border: `1px solid ${LINE}`, borderRadius: 12, padding: "18px 20px" }}>
