@@ -11,8 +11,9 @@ export function ClientNotes({ email, showToast }) {
   const [count, setCount] = useState(0);
   const [tagIn, setTagIn] = useState("");
   const [loaded, setLoaded] = useState(false);
+  const [prefs, setPrefs] = useState(null);
   const em = String(email || "").toLowerCase();
-  useEffect(() => { setLoaded(false); if (!em) return; fetch("/api/clients/notes?email=" + encodeURIComponent(em)).then((r) => r.json()).then((d) => { setTags(d.tags || []); setNote(d.note || ""); setCount(d.sessionCount || 0); setLoaded(true); }).catch(() => setLoaded(true)); }, [em]);
+  useEffect(() => { setLoaded(false); if (!em) return; fetch("/api/profile?email=" + encodeURIComponent(em)).then((r) => r.json()).then((d) => setPrefs(d && d.profile && Object.values(d.profile).some(Boolean) ? d.profile : null)).catch(() => {}); fetch("/api/clients/notes?email=" + encodeURIComponent(em)).then((r) => r.json()).then((d) => { setTags(d.tags || []); setNote(d.note || ""); setCount(d.sessionCount || 0); setLoaded(true); }).catch(() => setLoaded(true)); }, [em]);
   async function persist(nextTags, nextNote) {
     try { await fetch("/api/clients/notes", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ email: em, tags: nextTags, note: nextNote }) }); } catch (e) { if (showToast) showToast("Could not save client notes."); }
   }
@@ -33,6 +34,12 @@ export function ClientNotes({ email, showToast }) {
           {tagIn && <button onClick={() => addTag(tagIn)} style={{ background: "none", border: "none", cursor: "pointer", padding: 0, color: STONE, display: "inline-flex" }}><Plus size={13} /></button>}
         </span>
       </div>
+      {prefs && (
+        <div style={{ background: PAPER, border: `1px solid ${LINE}`, borderRadius: 8, padding: "10px 12px", marginBottom: 10 }}>
+          <div style={{ ...mono, fontSize: 9.5, letterSpacing: "0.14em", textTransform: "uppercase", color: STONE, marginBottom: 6 }}>Client's own preferences</div>
+          {[["locations", "Locations"], ["style", "Style & outfits"], ["people", "People"], ["accessibility", "Comfort"], ["notes", "Notes"]].filter(([k]) => prefs[k]).map(([k, l]) => <div key={k} style={{ fontSize: 12.5, color: BODY, marginBottom: 4, lineHeight: 1.45 }}><span style={{ ...mono, fontSize: 9.5, color: FAINT, marginRight: 6 }}>{l}:</span>{prefs[k]}</div>)}
+        </div>
+      )}
       <textarea value={note} onChange={(e) => setNote(e.target.value)} onBlur={() => persist(tags, note)} rows={2} placeholder="Private notes about this client (preferences, history, anything the team should know). Never shown to the client." style={{ width: "100%", border: `1px solid ${LINE}`, borderRadius: 8, padding: "8px 10px", fontSize: 12.5, fontFamily: "inherit", resize: "vertical", background: PAPER, color: BODY, boxSizing: "border-box" }} />
     </div>
   );

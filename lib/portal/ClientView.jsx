@@ -158,6 +158,11 @@ export function ClientView({ session, sessions, clientId, setClientId, addCommen
   const [referral, setReferral] = useState(null);
   const [downloads, setDownloads] = useState(null);
   const [shotIn, setShotIn] = useState("");
+  const [profile, setProfile] = useState(null);
+  const [profileSaved, setProfileSaved] = useState(false);
+  useEffect(() => { fetch("/api/profile").then((r) => r.json()).then((d) => { if (d && d.profile) setProfile(d.profile); }).catch(() => {}); }, [session.clientEmail]);
+  async function saveProfile() { if (!profile) return; try { const r = await fetch("/api/profile", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ profile }) }).then((x) => x.json()); if (r.ok) { setProfileSaved(true); setTimeout(() => setProfileSaved(false), 1600); } } catch (e) {} }
+  const PROFILE_FIELDS = [["locations", "Favorite locations", "Places you love or want to shoot at"], ["style", "Style & outfits", "Colors, moods, looks you're drawn to, or want to avoid"], ["people", "People to include", "Names and ages, so we get them right (kids, parents, pets)"], ["accessibility", "Comfort & accessibility", "Mobility, sensory, or anything that helps us plan"], ["notes", "Anything else", "Allergies to locations, timing, traditions, surprises"]];
   const shotList = Array.isArray(session.shotList) ? session.shotList : [];
   const saveShots = (list) => patchSession(session.id, { shotList: list });
   const addShot = () => { const t = shotIn.trim(); if (!t) return; saveShots([...shotList, { id: "sh_" + Math.random().toString(36).slice(2, 8), text: t, done: false }]); setShotIn(""); };
@@ -566,6 +571,23 @@ export function ClientView({ session, sessions, clientId, setClientId, addCommen
                 : <a href={it.href} target="_blank" rel="noopener noreferrer" style={{ ...btnGhost, textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 6 }}><ExternalLink size={13} /> Open</a>}
             </div>
           ))}
+        </div>
+      )}
+
+      {profile && (
+        <div style={{ ...card, marginTop: 18, padding: "22px 24px" }}>
+          <div style={{ ...mono, fontSize: 10.5, letterSpacing: "0.16em", textTransform: "uppercase", color: STONE, marginBottom: 5 }}>Your profile</div>
+          <div style={{ fontSize: 12.5, color: STONE, marginBottom: 12 }}>Tell us once, and every future session starts with this in hand.</div>
+          {PROFILE_FIELDS.map(([k, label, hint]) => (
+            <div key={k} style={{ marginBottom: 10 }}>
+              <div style={{ ...mono, fontSize: 9.5, letterSpacing: "0.14em", textTransform: "uppercase", color: STONE, marginBottom: 4 }}>{label}</div>
+              <textarea value={profile[k] || ""} onChange={(e) => setProfile({ ...profile, [k]: e.target.value })} onBlur={saveProfile} rows={2} placeholder={hint} style={{ width: "100%", border: `1px solid ${LINE}`, borderRadius: 8, padding: "9px 11px", fontSize: 13, fontFamily: "inherit", resize: "vertical", background: PAPER, color: BODY, boxSizing: "border-box" }} />
+            </div>
+          ))}
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <button onClick={saveProfile} style={{ ...btnSolid, background: grp.color }}>{profileSaved ? "Saved" : "Save profile"}</button>
+            <span style={{ ...mono, fontSize: 10, color: FAINT }}>Also saves automatically when you leave a field.</span>
+          </div>
         </div>
       )}
 
