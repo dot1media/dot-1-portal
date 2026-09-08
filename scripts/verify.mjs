@@ -10,7 +10,6 @@ const bad = (m) => {
 console.log("\n1. Required files");
 for (const f of [
   "lib/db.ts",
-  "app/api/avatar/route.ts",
   "app/page.tsx",
   "app/uploader.tsx",
   "package.json",
