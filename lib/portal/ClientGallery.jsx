@@ -1,7 +1,7 @@
 "use client";
 import React, { useEffect, useState, useCallback } from "react";
 import { Heart, Download, X, ChevronLeft, ChevronRight, Check, Share2 } from "lucide-react";
-import { mono, display, INK, BODY, LINE, STONE, FAINT, CREAM } from "./theme";
+import { mono, display, INK, BODY, LINE, STONE, FAINT, PAPER, CREAM } from "./theme";
 
 const A = "#4a90d9";
 const RELEASE_OPTS = [
