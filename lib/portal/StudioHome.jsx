@@ -54,6 +54,23 @@ export function StudioHome({ state, setAdminId, setAdminTab, dark }) {
   const recent = live.filter((s) => s.date && s.date >= d90 && s.date <= todayStr).length;
   const perMonth = recent / 3;
   const goTo = (id) => { setAdminId(id); setAdminTab("sessions"); };
+  // Agenda: today, the next 7 days, and what needs attention.
+  const dayOffset = (d) => { const [y, m, dd] = String(d).slice(0, 10).split("-").map(Number); const t = new Date(y, m - 1, dd); const n = new Date(); const a = new Date(n.getFullYear(), n.getMonth(), n.getDate()); return Math.round((t - a) / 86400000); };
+  const byWhen = (a, b) => (String(a.date) + (a.time || "")).localeCompare(String(b.date) + (b.time || ""));
+  const activeDated = sessions.filter((s) => (s.status || "active") !== "cancelled" && !s.internal && s.date);
+  const agToday = activeDated.filter((s) => dayOffset(s.date) === 0).sort(byWhen);
+  const agWeek = activeDated.filter((s) => { const o = dayOffset(s.date); return o >= 1 && o <= 7; }).sort(byWhen);
+  const agWeekDays = Array.from(new Set(agWeek.map((s) => String(s.date).slice(0, 10))));
+  const agUnread = sessions.filter((s) => (s.comments || []).some((c) => c && c.author === "client" && !c.read));
+  const agBalances = activeDated.filter((s) => { const total = Number(s.total) || 0; const paid = s.paymentStatus === "paid" ? (Number(s.payAmount) || 0) : 0; return total - paid > 0 && s.paymentStatus === "paid" && s.balanceStatus !== "paid" && dayOffset(s.date) <= 7; });
+  const agRow = (s, showDate) => { const g = GROUPS[s.serviceLine] || GROUPS.video; return (
+    <button key={s.id} onClick={() => goTo(s.id)} style={{ width: "100%", display: "flex", alignItems: "center", gap: 10, padding: "9px 2px", background: "transparent", border: "none", borderTop: `1px solid ${LINE}`, cursor: "pointer", textAlign: "left" }}>
+      <span style={{ width: 8, height: 8, borderRadius: "50%", background: g.color, flexShrink: 0 }} />
+      <span style={{ ...mono, fontSize: 11, color: INK, minWidth: showDate ? 92 : 62, flexShrink: 0 }}>{showDate ? fmtDate(s.date) + " " : ""}{s.time ? fmtTime(s.time) : "TBD"}</span>
+      <span style={{ flex: 1, minWidth: 0, fontSize: 13.5, color: INK, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.clientName || "Client"} <span style={{ color: STONE }}>\u00b7 {s.type}</span></span>
+      <ChevronRight size={14} color={FAINT} />
+    </button>
+  ); };
   const stat = (val, label, color, onClick) => (
     <div onClick={onClick} className={onClick ? "d1-lift" : undefined} title={onClick ? "See unpaid appointments" : undefined} style={{ ...cardDense, padding: "16px 18px", cursor: onClick ? "pointer" : "default" }}>
       <div style={{ ...display, fontSize: 26, color: color || INK }}>{val}</div>
@@ -75,6 +92,26 @@ export function StudioHome({ state, setAdminId, setAdminTab, dark }) {
         {stat(activeCount, "Active bookings")}
         {stat(money(Math.round(collected)), "Collected", OK)}
         {stat(money(Math.round(outstanding)), "Outstanding", outstanding > 0 ? WARN : INK, owedList.length > 0 ? () => setShowUnpaid(true) : undefined)}
+      </div>
+      <div style={{ ...cardDense, padding: "18px 20px", marginBottom: 18 }}>
+        <div style={{ ...mono, fontSize: 10.5, letterSpacing: "0.16em", textTransform: "uppercase", color: STONE, marginBottom: 12 }}>Agenda</div>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 22 }}>
+          <div>
+            <div style={{ ...display, fontWeight: 600, fontSize: 15, color: INK, marginBottom: 6 }}>Today <span style={{ ...mono, fontSize: 11, color: FAINT, fontWeight: 400 }}>{agToday.length}</span></div>
+            {agToday.length ? agToday.map((s) => agRow(s, false)) : <div style={{ ...mono, fontSize: 10.5, color: FAINT, padding: "8px 0", borderTop: `1px solid ${LINE}` }}>Nothing on the calendar today.</div>}
+          </div>
+          <div>
+            <div style={{ ...display, fontWeight: 600, fontSize: 15, color: INK, marginBottom: 6 }}>Next 7 days <span style={{ ...mono, fontSize: 11, color: FAINT, fontWeight: 400 }}>{agWeek.length}</span></div>
+            {agWeek.length ? agWeekDays.map((d) => (<div key={d}>{agWeek.filter((s) => String(s.date).slice(0, 10) === d).map((s) => agRow(s, true))}</div>)) : <div style={{ ...mono, fontSize: 10.5, color: FAINT, padding: "8px 0", borderTop: `1px solid ${LINE}` }}>No sessions in the next week.</div>}
+          </div>
+          {(agUnread.length > 0 || agBalances.length > 0) && (
+            <div>
+              <div style={{ ...display, fontWeight: 600, fontSize: 15, color: INK, marginBottom: 6 }}>Needs attention</div>
+              {agUnread.map((s) => (<button key={"u" + s.id} onClick={() => goTo(s.id)} style={{ width: "100%", display: "flex", alignItems: "center", gap: 10, padding: "9px 2px", background: "transparent", border: "none", borderTop: `1px solid ${LINE}`, cursor: "pointer", textAlign: "left" }}><span style={{ width: 8, height: 8, borderRadius: "50%", background: RED, flexShrink: 0 }} /><span style={{ flex: 1, fontSize: 13.5, color: INK }}>Unread message from {s.clientName || "a client"}</span><ChevronRight size={14} color={FAINT} /></button>))}
+              {agBalances.map((s) => { const due = (Number(s.total) || 0) - (Number(s.payAmount) || 0); return (<button key={"b" + s.id} onClick={() => goTo(s.id)} style={{ width: "100%", display: "flex", alignItems: "center", gap: 10, padding: "9px 2px", background: "transparent", border: "none", borderTop: `1px solid ${LINE}`, cursor: "pointer", textAlign: "left" }}><span style={{ width: 8, height: 8, borderRadius: "50%", background: WARN, flexShrink: 0 }} /><span style={{ flex: 1, fontSize: 13.5, color: INK }}>{s.clientName || "Client"} <span style={{ color: STONE }}>\u00b7 {money(due)} balance due{s.date ? " \u00b7 " + fmtDate(s.date) : ""}</span></span><ChevronRight size={14} color={FAINT} /></button>); })}
+            </div>
+          )}
+        </div>
       </div>
       <div style={{ ...cardDense, padding: "18px 20px", marginBottom: 18 }}>
         <div style={{ ...mono, fontSize: 10.5, letterSpacing: "0.16em", textTransform: "uppercase", color: STONE, marginBottom: 4 }}>Business insights</div>
