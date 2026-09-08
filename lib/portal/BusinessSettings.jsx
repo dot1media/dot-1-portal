@@ -115,6 +115,8 @@ function ImportSessions({ existing, onImport, showToast }) {
 
 export function BusinessSettings({ sessions, showToast, onImport }) {
   const isMobile = useIsMobile();
+  const [expTotal, setExpTotal] = useState(null);
+  useEffect(() => { fetch("/api/expenses").then((r) => r.json()).then((d) => setExpTotal(typeof d.total === "number" ? d.total : 0)).catch(() => setExpTotal(0)); }, []);
   const [start, setStart] = useState("");
   const [end, setEnd] = useState("");
   const [status, setStatus] = useState(null);
@@ -313,6 +315,7 @@ export function BusinessSettings({ sessions, showToast, onImport }) {
         <a href={"/api/export?kind=payments" + (start ? "&start=" + start : "") + (end ? "&end=" + end : "")} style={{ ...btnGhost, display: "inline-flex", alignItems: "center", gap: 7, textDecoration: "none" }}><Download size={14} /> Export payments ledger (CSV)</a>
         <button onClick={exportAnalytics} style={{ ...btnGhost, display: "inline-flex", alignItems: "center", gap: 7 }}><Download size={14} /> Export analytics (CSV)</button>
       </div>
+      {expTotal !== null && expTotal > 0 && <div style={{ ...mono, fontSize: 10.5, color: STONE, marginTop: 10 }}>Logged expenses across all sessions: <b style={{ color: INK }}>{money(expTotal)}</b>. Net is shown per session in each session's Expenses & profit panel.</div>}
       <StoragePanel showToast={showToast} />
       <div style={{ ...mono, fontSize: 10, color: FAINT, marginTop: 12, lineHeight: 1.5, maxWidth: 560 }}>The sessions export uses the date range above (all-time if blank). Each row lists the total, what you collected, and payment status, ready for bookkeeping and taxes.</div>
     </div>

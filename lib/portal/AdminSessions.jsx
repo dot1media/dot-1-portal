@@ -7,6 +7,7 @@ import { fmtDate, fmtTime, money, sessionBucket } from "./format";
 import { BRIEF_FIELDS } from "./constants";
 import { GalleryUploader } from "./GalleryUploader";
 import { ClientNotes } from "./ClientNotes";
+import { SessionExpenses } from "./SessionExpenses";
 import { VideoUploader } from "./VideoUploader";
 import { VideoReview } from "./VideoReview";
 import { stagesFor, curStage } from "./stages";
@@ -247,6 +248,7 @@ export function AdminSessions({ state, adminId, setAdminId, requestSetStage, add
         </div>
 
         <ClientNotes email={session.clientEmail} showToast={showToast} />
+        <SessionExpenses sessionId={session.id} revenue={Number(session.total) || 0} />
         <GalleryUploader sessionId={session.id} />
         <VideoUploader sessionId={session.id} />
         <VideoReview sessionId={session.id} isStudio />
