@@ -140,7 +140,7 @@ export default function App() {
     // honor that choice instead of bouncing to the studio on every refresh.
     // A domain account lands on the suite hub by default. If they were last inside the studio,
     // honor that so a refresh keeps them there rather than bouncing back to the chooser.
-    if (adminOk && !(clientOk && pref === "client")) { setView(pref === "admin" ? "admin" : "hub"); const sd = await fetch("/api/sessions").then((r) => r.json()).catch(() => ({})); if (sd && sd.sessions) setState((s) => ({ ...s, sessions: sd.sessions })); return; }
+    if (adminOk && !(clientOk && pref === "client")) { setView(pref === "admin" ? "admin" : "hub"); const sd = await fetch("/api/sessions").then((r) => r.json()).catch(() => ({})); if (sd && sd.sessions) setState((s) => ({ ...s, sessions: sd.sessions })); const dl = await fetch("/api/direct-links").then((r) => r.json()).catch(() => ({})); if (dl && Array.isArray(dl.links)) setState((s) => ({ ...s, directLinks: dl.links })); return; }
     if (clientOk) { setClientAuth({ name: "", email: c.email }); const sd = await fetch("/api/sessions").then((r) => r.json()).catch(() => ({})); const myCEmail = (c.email || "").toLowerCase(); const sess = ((sd && sd.sessions) || []).filter((x) => (x.clientEmail || "").toLowerCase() === myCEmail); if (sess.length) { setClientAuth({ name: sess[0].clientName || "", email: c.email }); setState((s) => ({ ...s, sessions: sess })); setClientId(sess[0].id); setView("client"); } }
   } catch (e) {} finally { setAuthChecked(true); } })(); }, []);
   useEffect(() => { (async () => { try { const res = await fetch("/api/availability"); const data = await res.json(); if (res.ok) setState((s) => ({ ...s, availability: data.availability || [] })); } catch (e) {} })(); }, []);
@@ -347,11 +347,14 @@ export default function App() {
 
   const createDirectLink = (payload) => {
     if (slotTaken(payload.date, payload.time)) return { ok: false, error: "That date and time is already reserved. Choose another slot." };
-    const link = { id: uid("dl"), token: "dl_" + Math.random().toString(36).slice(2, 9).toUpperCase(), status: "active", createdAt: Date.now(), ...payload };
+    const token = "dl_" + Math.random().toString(36).slice(2, 9).toUpperCase();
+    const link = { id: token, token, status: "active", createdAt: Date.now(), ...payload };
     setState((s) => ({ ...s, directLinks: [link, ...s.directLinks] }));
+    // persist so the client's /book/<token> can resolve it
+    fetch("/api/direct-links", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ token, data: payload }) }).catch(() => {});
     return { ok: true, link };
   };
-  const revokeDirectLink = (id) => setState((s) => ({ ...s, directLinks: s.directLinks.filter((l) => l.id !== id) }));
+  const revokeDirectLink = (id) => { setState((s) => ({ ...s, directLinks: s.directLinks.filter((l) => l.id !== id) })); fetch("/api/direct-links?token=" + encodeURIComponent(id), { method: "DELETE" }).catch(() => {}); };
   const consumeDirectLink = (id) => setState((s) => ({ ...s, directLinks: s.directLinks.map((l) => (l.id === id ? { ...l, status: "used" } : l)) }));
   const openDirectLink = (link) => { setDirectContext(link); setView("book"); };
 
