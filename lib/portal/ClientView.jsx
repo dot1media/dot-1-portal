@@ -1,6 +1,7 @@
 import { ClientGallery } from "./ClientGallery";
 import { VideoReview } from "./VideoReview";
 import { BookingCalendar } from "./BookingFlow";
+import { InspirationBoard } from "./InspirationBoard";
 // Dot One Media portal - client project dashboard (timeline, payments, deliverables, messages, brief, usage rights) + private ProgressBar, SummaryCell, StatusBadge, Timeline, ClientActionPanel. resizeImage is an App-level prop.
 import React, { useState, useEffect, useRef } from "react";
 import { AlertTriangle, CalendarClock, CalendarPlus, Camera, CheckCircle2, ChevronDown, Clock, Download, ExternalLink, FileCheck, FileText, Film, Image as ImageIcon, MessageSquare, Play, Send, Star, Upload, User, X, Paperclip} from "lucide-react";
@@ -573,6 +574,8 @@ export function ClientView({ session, sessions, clientId, setClientId, addCommen
           ))}
         </div>
       )}
+
+      {stage < 6 && (session.status || "active") === "active" && <InspirationBoard sessionId={session.id} editable accent={grp.color} />}
 
       {profile && (
         <div style={{ ...card, marginTop: 18, padding: "22px 24px" }}>
