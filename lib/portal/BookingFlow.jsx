@@ -25,7 +25,7 @@ export function AgreementBox({ title, text, pdf, A }) {
   );
 }
 
-function BookingCalendar({ availDates, value, onPick, A }) {
+export function BookingCalendar({ availDates, value, onPick, A }) {
   const avail = new Set(availDates || []);
   const sorted = (availDates || []).slice().sort();
   const start = value || sorted[0] || (() => { const t = new Date(); return t.getFullYear() + "-" + String(t.getMonth() + 1).padStart(2, "0") + "-01"; })();

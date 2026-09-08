@@ -1,5 +1,6 @@
 import { ClientGallery } from "./ClientGallery";
 import { VideoReview } from "./VideoReview";
+import { BookingCalendar } from "./BookingFlow";
 // Dot One Media portal - client project dashboard (timeline, payments, deliverables, messages, brief, usage rights) + private ProgressBar, SummaryCell, StatusBadge, Timeline, ClientActionPanel. resizeImage is an App-level prop.
 import React, { useState, useEffect, useRef } from "react";
 import { AlertTriangle, CalendarClock, CalendarPlus, Camera, CheckCircle2, ChevronDown, Clock, Download, FileCheck, FileText, Film, Image as ImageIcon, MessageSquare, Play, Send, Star, Upload, User, X, Paperclip} from "lucide-react";
@@ -152,6 +153,21 @@ export function ClientView({ session, sessions, clientId, setClientId, addCommen
   };
   const [reschedOpen, setReschedOpen] = useState(false);
   const [reschedDate, setReschedDate] = useState("");
+  const [reschedInfo, setReschedInfo] = useState(null);
+  const [reschedTime, setReschedTime] = useState("");
+  const [reschedBusy, setReschedBusy] = useState(false);
+  const [reschedErr, setReschedErr] = useState("");
+  useEffect(() => { if (!reschedOpen) { setReschedInfo(null); return; } setReschedErr(""); setReschedTime(""); fetch("/api/sessions/reschedule?sessionId=" + encodeURIComponent(session.id)).then((r) => r.json()).then((d) => setReschedInfo(d && d.slots ? d : { dates: [], slots: {}, withinCutoff: true, cutoffHours: 48 })).catch(() => setReschedInfo({ dates: [], slots: {}, withinCutoff: true, cutoffHours: 48 })); }, [reschedOpen, session.id]);
+  async function doReschedule() {
+    if (!reschedDate || !reschedTime || reschedBusy) return;
+    setReschedBusy(true); setReschedErr("");
+    try {
+      const r = await fetch("/api/sessions/reschedule", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ sessionId: session.id, date: reschedDate, time: reschedTime }) }).then((x) => x.json());
+      if (r.ok) { patchSession(session.id, { date: r.date, time: r.time, ...(r.session ? { total: r.session.total, rescheduleFee: r.session.rescheduleFee, comments: r.session.comments } : {}) }); if (showToast) showToast("Moved to " + fmtDate(r.date) + " at " + fmtTime(r.time) + "."); setReschedOpen(false); setReschedDate(""); setReschedTime(""); }
+      else setReschedErr(r.error || "Could not move the session.");
+    } catch (e) { setReschedErr("Network error. Please try again."); }
+    setReschedBusy(false);
+  }
   const fileRef = useRef(null);
   useEffect(() => { if (!session) return; setReschedDate(session.date || ""); setReschedOpen(false); setMsg(""); setPendingImg(""); setBrief(session.brief || {}); setBriefMsg(""); }, [clientId]);
   const [docs, setDocs] = useState([]);
@@ -381,14 +397,40 @@ export function ClientView({ session, sessions, clientId, setClientId, addCommen
         {!reschedOpen ? (
           <button onClick={() => setReschedOpen(true)} style={{ ...mono, fontSize: 10.5, letterSpacing: "0.06em", color: STONE, background: "transparent", border: `1px solid ${LINE}`, borderRadius: 7, padding: "8px 12px", cursor: "pointer", display: "flex", alignItems: "center", gap: 7 }}><CalendarClock size={13} /> Need to reschedule?</button>
         ) : (
-          <div style={{ background: CREAM, border: `1px solid ${LINE}`, borderRadius: 9, padding: "14px 16px", maxWidth: 460 }}>
-            <div style={{ ...mono, fontSize: 10, letterSpacing: "0.12em", textTransform: "uppercase", color: STONE, marginBottom: 8 }}>Request a new date</div>
-            <div style={{ fontSize: 12.5, color: fee > 0 ? DANGER : OK, marginBottom: 10, lineHeight: 1.45 }}>{fee > 0 ? `A ${money(fee)} reschedule fee applies for video sessions.` : "Photography reschedules are free with reasonable notice."}</div>
-            <input type="date" value={reschedDate} onChange={(e) => setReschedDate(e.target.value)} style={{ ...inputStyle, marginBottom: 10 }} />
-            <div style={{ display: "flex", gap: 8 }}>
-              <button onClick={() => { if (!reschedDate) return; onRescheduleRequest(session, reschedDate); setReschedOpen(false); }} style={{ ...btnSolid, background: grp.color }}><Send size={13} /> Send request</button>
-              <button onClick={() => setReschedOpen(false)} style={btnGhost}>Cancel</button>
-            </div>
+          <div style={{ background: CREAM, border: `1px solid ${LINE}`, borderRadius: 9, padding: "14px 16px", maxWidth: 520 }}>
+            {!reschedInfo ? (
+              <div style={{ ...mono, fontSize: 11, color: STONE }}>Checking open times…</div>
+            ) : reschedInfo.withinCutoff ? (
+              <>
+                <div style={{ ...mono, fontSize: 10, letterSpacing: "0.12em", textTransform: "uppercase", color: STONE, marginBottom: 8 }}>Request a new date</div>
+                <div style={{ fontSize: 12.5, color: BODY, marginBottom: 10, lineHeight: 1.45 }}>Your session is within {reschedInfo.cutoffHours} hours, so let's handle this together. Tell us a date that works and we'll confirm.</div>
+                <input type="date" value={reschedDate} onChange={(e) => setReschedDate(e.target.value)} style={{ ...inputStyle, marginBottom: 10 }} />
+                <div style={{ display: "flex", gap: 8 }}>
+                  <button onClick={() => { if (!reschedDate) return; onRescheduleRequest(session, reschedDate); setReschedOpen(false); }} style={{ ...btnSolid, background: grp.color }}><Send size={13} /> Send request</button>
+                  <button onClick={() => setReschedOpen(false)} style={btnGhost}>Cancel</button>
+                </div>
+              </>
+            ) : (
+              <>
+                <div style={{ ...mono, fontSize: 10, letterSpacing: "0.12em", textTransform: "uppercase", color: STONE, marginBottom: 8 }}>Pick a new time</div>
+                <div style={{ fontSize: 12.5, color: fee > 0 ? DANGER : OK, marginBottom: 12, lineHeight: 1.45 }}>{fee > 0 ? `A ${money(fee)} reschedule fee will be added to your balance.` : "Rescheduling is free with reasonable notice. Pick any open time and it moves instantly."}</div>
+                {reschedInfo.dates.length === 0 ? <div style={{ fontSize: 12.5, color: STONE }}>No open times right now. Send us a request and we'll find one together.</div> : (
+                  <>
+                    <BookingCalendar availDates={reschedInfo.dates} value={reschedDate} onPick={(d) => { setReschedDate(d); setReschedTime(""); }} A={grp.color} />
+                    {reschedDate && (reschedInfo.slots[reschedDate] || []).length > 0 && (
+                      <div style={{ display: "flex", flexWrap: "wrap", gap: 7, marginTop: 12 }}>
+                        {(reschedInfo.slots[reschedDate] || []).map((t) => <button key={t} onClick={() => setReschedTime(t)} style={{ ...mono, fontSize: 11.5, padding: "8px 12px", borderRadius: 8, cursor: "pointer", border: `1.5px solid ${reschedTime === t ? grp.color : LINE}`, background: reschedTime === t ? grp.color : PAPER, color: reschedTime === t ? "#fff" : INK }}>{fmtTime(t)}</button>)}
+                      </div>
+                    )}
+                  </>
+                )}
+                {reschedErr && <div style={{ fontSize: 12, color: DANGER, marginTop: 10 }}>{reschedErr}</div>}
+                <div style={{ display: "flex", gap: 8, marginTop: 14 }}>
+                  <button onClick={doReschedule} disabled={!reschedDate || !reschedTime || reschedBusy} style={{ ...btnSolid, background: reschedDate && reschedTime ? grp.color : FAINT }}><CalendarClock size={13} /> {reschedBusy ? "Moving…" : "Move my session"}</button>
+                  <button onClick={() => setReschedOpen(false)} style={btnGhost}>Cancel</button>
+                </div>
+              </>
+            )}
           </div>
         )}
       </div>
