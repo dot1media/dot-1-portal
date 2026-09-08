@@ -132,7 +132,7 @@ function ClientActionPanel({ session, grp, draft, setDraft, onSubmit }) {
   return <div style={{ display: "flex", alignItems: "center", gap: 9, color: STONE, fontSize: 13, marginTop: 4, background: CREAM, border: `1px dashed ${LINE}`, borderRadius: 10, padding: "13px 16px" }}><Clock size={15} color="#9a988f" /> We'll email you the moment your next update is ready.</div>;
 }
 
-export function ClientView({ session, sessions, clientId, setClientId, addComment, onRescheduleRequest, markMessagesRead, patchSession, resizeImage, uploadMessageImage, showToast, onOpenSession }) {
+export function ClientView({ session, sessions, clientId, setClientId, addComment, onRescheduleRequest, markMessagesRead, patchSession, resizeImage, uploadMessageImage, showToast, onOpenSession, onRebook }) {
   const isMobile = useIsMobile();
   const [draft, setDraft] = useState("");
   const [msg, setMsg] = useState("");
@@ -554,6 +554,13 @@ export function ClientView({ session, sessions, clientId, setClientId, addCommen
             <input value={shotIn} onChange={(e) => setShotIn(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") addShot(); }} placeholder="e.g. Grandma holding the baby, the ring close-up" style={{ ...inputStyle, flex: 1 }} />
             <button onClick={addShot} disabled={!shotIn.trim()} style={{ ...btnSolid, background: shotIn.trim() ? grp.color : FAINT }}>Add</button>
           </div>
+        </div>
+      )}
+
+      {(stage >= 6 || session.status === "closed") && session.serviceId && onRebook && (
+        <div style={{ ...card, marginTop: 18, padding: "20px 24px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 14, flexWrap: "wrap", borderLeft: `4px solid ${grp.color}` }}>
+          <div><div style={{ ...display, fontWeight: 600, fontSize: 16, color: INK }}>Loved this one?</div><div style={{ fontSize: 12.5, color: STONE, marginTop: 2 }}>Book another {session.type} in a few taps. Your details carry over.</div></div>
+          <button onClick={() => onRebook(session.serviceId)} style={{ ...btnSolid, background: grp.color }}><CalendarPlus size={14} /> Book again</button>
         </div>
       )}
 
