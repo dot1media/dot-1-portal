@@ -66,6 +66,15 @@ export function BookingFlow({ state, direct, slotTaken, onCancel, onComplete, on
   const [step, setStep] = useState(direct ? 3 : preService ? 1 : 0); // 0 welcome, 1 choose, 2 date, 3 account, 4 confirm
   const [group, setGroup] = useState(preService?.group || direct?.group || "video");
   const [serviceId, setServiceId] = useState(preService?.id || direct?.serviceId || null);
+  const [wlOpen, setWlOpen] = useState(false);
+  const [wl, setWl] = useState({ date: "", name: "", email: "" });
+  const [wlDone, setWlDone] = useState("");
+  async function joinWaitlist() {
+    const svc = (state.services || []).find((x) => String(x.id) === String(serviceId));
+    const email = (wl.email || acct.email || "").trim(), name = (wl.name || acct.name || "").trim();
+    if (!wl.date || !email) { setWlDone("Please add the date and your email."); return; }
+    try { const r = await fetch("/api/waitlist", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ date: wl.date, email, name, serviceId, serviceName: svc ? svc.name : "" }) }).then((x) => x.json()); setWlDone(r.ok ? "You're on the list. We'll email you the moment that day opens." : (r.error || "Could not join the waitlist.")); } catch (e) { setWlDone("Network error. Please try again."); }
+  }
   const [addonIds, setAddonIds] = useState([]);
   const [openCats, setOpenCats] = useState({});
   const [openDesc, setOpenDesc] = useState({});
@@ -347,6 +356,25 @@ export function BookingFlow({ state, direct, slotTaken, onCancel, onComplete, on
             ) : (
               <BookingCalendar availDates={availDates} value={date} onPick={(d) => { setDate(d); setTime(""); releaseHold(); }} A={A} />
             )}
+            <div style={{ marginTop: 14 }}>
+              {!wlOpen ? (
+                <button onClick={() => { setWlOpen(true); setWlDone(""); }} style={{ background: "none", border: "none", cursor: "pointer", padding: 0, ...mono, fontSize: 10.5, letterSpacing: "0.05em", color: STONE, textDecoration: "underline" }}>Don't see your date? Join the waitlist</button>
+              ) : (
+                <div style={{ border: `1px solid ${LINE}`, borderRadius: 9, padding: "12px 14px", background: PAPER, maxWidth: 460 }}>
+                  <div style={{ ...mono, fontSize: 10, letterSpacing: "0.12em", textTransform: "uppercase", color: STONE, marginBottom: 8 }}>Waitlist for a full day</div>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                    <input type="date" value={wl.date} onChange={(e) => setWl({ ...wl, date: e.target.value })} style={{ ...inputStyle, gridColumn: "1 / -1" }} />
+                    <input value={wl.name || acct.name} onChange={(e) => setWl({ ...wl, name: e.target.value })} placeholder="Your name" style={inputStyle} />
+                    <input type="email" value={wl.email || acct.email} onChange={(e) => setWl({ ...wl, email: e.target.value })} placeholder="Email" style={inputStyle} />
+                  </div>
+                  {wlDone && <div style={{ fontSize: 12.5, color: STONE, marginTop: 8 }}>{wlDone}</div>}
+                  <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+                    <button onClick={joinWaitlist} style={{ ...btnSolid, background: A }}>Join waitlist</button>
+                    <button onClick={() => setWlOpen(false)} style={btnGhost}>Close</button>
+                  </div>
+                </div>
+              )}
+            </div>
             {date && (
               <div style={{ marginTop: 18 }}>
                 <FieldLabel>Choose a time</FieldLabel>

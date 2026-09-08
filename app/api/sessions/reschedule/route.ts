@@ -4,6 +4,7 @@ import { hasStudio } from "@/lib/studioGuard";
 import { currentClientEmail } from "@/lib/gallery";
 import { sendEmail } from "@/lib/email";
 import { sendPush, formatWhen } from "@/lib/push";
+import { notifyWaitlist } from "@/lib/waitlist";
 export const runtime = "nodejs";
 
 // Mirrors PAYMENT_RULES[line].reschedFee in lib/portal/stages.js (kept here to avoid importing icon modules server-side).
@@ -76,5 +77,6 @@ export async function POST(req: Request) {
     try { await sendEmail({ to: d.notifyEmail || "contact@dot1.media", subject: "Rescheduled: " + (d.clientName || "a client") + " \u00b7 " + (d.type || "session"), html: `<div style="font-family:Arial,sans-serif;font-size:14px;color:#33322d"><p><b>${d.clientName || "A client"}</b> moved their <b>${d.type || "session"}</b>.</p><p>${oldWhen} &rarr; <b>${newWhen}</b>${fee ? `<br/>A $${fee} reschedule fee was added to their balance.` : ""}</p></div>`, replyTo: r.client_email || undefined }); } catch (e) {}
     try { await sendPush("Rescheduled", [(d.clientName || "A client"), (d.type || "session"), newWhen].join(" \u00b7 "), "/"); } catch (e) {}
   }
+  if (curDate && curDate !== date) { try { await notifyWaitlist(curDate); } catch (e) {} }
   return NextResponse.json({ ok: true, date, time, fee, session: nd });
 }

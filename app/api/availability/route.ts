@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import { sql } from "@/lib/db";
 import { verifyToken, ADMIN_COOKIE } from "@/lib/auth";
 import { hasStudio } from "@/lib/studioGuard";
+import { notifyWaitlist } from "@/lib/waitlist";
 
 export const runtime = "nodejs";
 
@@ -30,7 +31,8 @@ export async function GET() {
 
 // Admin: open a day with a window.
 export async function POST(request: Request) {
-  if (!(await isAdmin())) return NextResponse.json({ error: "Not authorized." }, { status: 401 });
+  if (!(await isAdmin())) try { if (typeof date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(date)) await notifyWaitlist(date); } catch (e) {}
+    return NextResponse.json({ error: "Not authorized." }, { status: 401 });
   const b = await request.json().catch(() => ({}));
   const date = String(b.date || "").trim();
   const start = String(b.start || "").trim();
