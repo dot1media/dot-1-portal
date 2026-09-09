@@ -196,7 +196,18 @@ export function ClientView({ session, sessions, clientId, setClientId, addCommen
   const [briefOpen, setBriefOpen] = useState(false);
   const [brief, setBrief] = useState({});
   const [briefMsg, setBriefMsg] = useState("");
-  useEffect(() => { (async () => { try { const r = await fetch("/api/agreements"); const d = await r.json(); if (r.ok) setDocs(Array.isArray(d.agreements) ? d.agreements : []); } catch (e) {} })(); }, []);
+  useEffect(() => { (async () => { try { const r = await fetch("/api/agreements"); const d = await r.json(); if (r.ok) setDocs(Array.isArray(d.agreements) ? d.agreements : []); } catch (e) {} })(); }, [resignDone]);
+  const [versions, setVersions] = useState(null);
+  const [resignDone, setResignDone] = useState(0);
+  const [resign, setResign] = useState({ name: "", agree: false, busy: false, err: "" });
+  useEffect(() => { fetch("/api/agreements/versions").then((r) => r.json()).then((d) => setVersions(d.versions || null)).catch(() => {}); }, [resignDone]);
+  const needsResign = (() => { if (!versions || !docs.length) return []; const latest = {}; for (const d of docs) { const k = d.agreement_type; if (!latest[k] || new Date(d.signed_at) > new Date(latest[k].signed_at)) latest[k] = d; } return Object.keys(latest).filter((k) => versions[k] && String(latest[k].version) !== String(versions[k].version)).map((k) => ({ type: k, signed: latest[k].version, current: versions[k].version, note: versions[k].note, usage: latest[k].usage_option })); })();
+  async function doResign() {
+    if (!resign.agree || !resign.name.trim()) { setResign({ ...resign, err: "Type your full legal name and check the box to sign." }); return; }
+    setResign({ ...resign, busy: true, err: "" });
+    try { const r = await fetch("/api/agreements", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ email: session.clientEmail, signedName: resign.name.trim(), agreements: needsResign.map((n) => ({ type: n.type, version: n.current, usageOption: n.usage || undefined })) }) }); if (!r.ok) { const d = await r.json().catch(() => ({})); throw new Error(d.error || "Could not record your signature."); } setResign({ name: "", agree: false, busy: false, err: "" }); setResignDone((n) => n + 1); if (showToast) showToast("Thank you. Your updated agreement is on file."); }
+    catch (e) { setResign({ ...resign, busy: false, err: e.message }); }
+  }
   useEffect(() => { (async () => { try { const r = await fetch("/api/email-prefs"); const d = await r.json(); if (r.ok && d.prefs) setEmailPrefs({ updates: d.prefs.updates !== false, messages: d.prefs.messages !== false, payments: d.prefs.payments !== false }); } catch (e) {} })(); }, [clientId]);
   const toggleEmailPref = (cat) => { const next = { ...emailPrefs, [cat]: !emailPrefs[cat] }; setEmailPrefs(next); fetch("/api/email-prefs", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ prefs: next }) }).catch(() => {}); };
   if (!session) return <div style={{ ...mono, fontSize: 13, color: STONE, padding: "48px 4px", textAlign: "center" }}>No session to show yet. When you book, it will appear here.</div>;
@@ -514,6 +525,22 @@ export function ClientView({ session, sessions, clientId, setClientId, addCommen
         </div>
       ) : null}
 
+      {needsResign.length > 0 && (
+        <div style={{ ...card, marginTop: 18, padding: "20px 24px", borderLeft: `4px solid ${WARN}` }}>
+          <div style={{ ...mono, fontSize: 10.5, letterSpacing: "0.16em", textTransform: "uppercase", color: STONE, marginBottom: 5 }}>Updated agreement to sign</div>
+          {needsResign.map((n) => (
+            <div key={n.type} style={{ marginBottom: 10 }}>
+              <div style={{ fontSize: 14, color: INK, fontWeight: 600 }}>{(DOC_META[n.type] || {}).label || n.type} <span style={{ ...mono, fontSize: 10, color: FAINT, fontWeight: 400 }}>v{n.signed} \u2192 v{n.current}</span></div>
+              {n.note && <div style={{ fontSize: 13, color: BODY, lineHeight: 1.5, marginTop: 3 }}>What changed: {n.note}</div>}
+              {(DOC_META[n.type] || {}).pdf && <a href={DOC_META[n.type].pdf} target="_blank" rel="noopener noreferrer" style={{ ...mono, fontSize: 10.5, color: grp.color }}>Read the updated document</a>}
+            </div>
+          ))}
+          <input value={resign.name} onChange={(e) => setResign({ ...resign, name: e.target.value })} placeholder="Type your full legal name to sign" style={{ ...inputStyle, marginTop: 6, maxWidth: 360 }} />
+          <label style={{ display: "flex", alignItems: "flex-start", gap: 8, fontSize: 12.5, color: BODY, marginTop: 10, cursor: "pointer" }}><input type="checkbox" checked={resign.agree} onChange={(e) => setResign({ ...resign, agree: e.target.checked })} style={{ marginTop: 2 }} /> I have read the updated agreement{needsResign.length > 1 ? "s" : ""} and agree to {needsResign.length > 1 ? "them" : "it"}.</label>
+          {resign.err && <div style={{ fontSize: 12, color: DANGER, marginTop: 8 }}>{resign.err}</div>}
+          <button onClick={doResign} disabled={resign.busy} style={{ ...btnSolid, background: grp.color, marginTop: 12 }}>{resign.busy ? "Signing…" : "Sign updated agreement"}</button>
+        </div>
+      )}
       {docs.length > 0 && (
         <div style={{ marginTop: 28 }}>
           <div style={{ ...mono, fontSize: 10.5, letterSpacing: "0.16em", textTransform: "uppercase", color: STONE, marginBottom: 12 }}>Your documents</div>
