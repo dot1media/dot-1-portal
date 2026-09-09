@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { ensureReferralSchema, newCode } from "@/lib/referral";
 import { sql } from "@/lib/db";
 import { hashPassword, makeClientToken, CLIENT_COOKIE } from "@/lib/auth";
 
@@ -24,6 +25,7 @@ export async function POST(request: Request) {
           password_hash = COALESCE(EXCLUDED.password_hash, users.password_hash)
     RETURNING id, name, email, phone, role, avatar_url
   `;
+  try { await ensureReferralSchema(); const em = String(email || "").toLowerCase(); if (em) { const has = ((await sql`SELECT 1 FROM referral_codes WHERE client_email = ${em} LIMIT 1`) as any[])[0]; if (!has) for (let i = 0; i < 5; i++) { try { await sql`INSERT INTO referral_codes (code, client_email) VALUES (${newCode()}, ${em})`; break; } catch {} } } } catch {}
   const res = NextResponse.json({ user: rows[0] });
   res.cookies.set(CLIENT_COOKIE, makeClientToken(email), { httpOnly: true, secure: true, sameSite: "lax", path: "/", maxAge: 60 * 60 * 24 * 7 });
   return res;
