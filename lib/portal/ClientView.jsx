@@ -296,7 +296,8 @@ export function ClientView({ session, sessions, clientId, setClientId, addCommen
           {session.date && session.time && (
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
               <a href={gcalLink(session)} target="_blank" rel="noopener noreferrer" style={{ ...btnSolid, background: grp.color, textDecoration: "none", display: "inline-flex" }}><CalendarPlus size={15} /> Google Calendar</a>
-              <button onClick={() => downloadIcs(session)} style={{ ...btnGhost, display: "inline-flex", alignItems: "center", gap: 7 }}><CalendarPlus size={15} /> Apple Calendar</button>
+              <a href={"/api/calendar/ics?sessionId=" + encodeURIComponent(session.id)} style={{ ...btnGhost, display: "inline-flex", alignItems: "center", gap: 7, textDecoration: "none" }}><CalendarPlus size={15} /> Apple Calendar</a>
+              {status === "active" && stage < 6 && <button onClick={() => { setReschedOpen(true); setTimeout(() => { const el = document.getElementById("reschedule-panel"); if (el) el.scrollIntoView({ behavior: "smooth", block: "center" }); }, 50); }} style={{ ...btnSolid, background: PAPER, color: grp.color, border: `1.5px solid ${grp.color}`, display: "inline-flex", alignItems: "center", gap: 7 }}><CalendarClock size={15} /> Need to reschedule?</button>}
             </div>
           )}
         </div>
@@ -438,9 +439,9 @@ export function ClientView({ session, sessions, clientId, setClientId, addCommen
         </div>
       )}
 
-      <div style={{ marginBottom: 26 }}>
+      <div id="reschedule-panel" style={{ marginBottom: 26 }}>
         {!reschedOpen ? (
-          <button onClick={() => setReschedOpen(true)} style={{ ...mono, fontSize: 10.5, letterSpacing: "0.06em", color: STONE, background: "transparent", border: `1px solid ${LINE}`, borderRadius: 7, padding: "8px 12px", cursor: "pointer", display: "flex", alignItems: "center", gap: 7 }}><CalendarClock size={13} /> Need to reschedule?</button>
+          <button onClick={() => setReschedOpen(true)} style={{ ...btnSolid, background: grp.color, display: "inline-flex", alignItems: "center", gap: 8, padding: "13px 20px", fontSize: 12 }}><CalendarClock size={16} /> Need to reschedule? Pick a new time</button>
         ) : (
           <div style={{ background: CREAM, border: `1px solid ${LINE}`, borderRadius: 9, padding: "14px 16px", maxWidth: 520 }}>
             {!reschedInfo ? (
