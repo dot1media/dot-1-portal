@@ -231,7 +231,7 @@ export function chargeRequestEmail(s: any, charge: any, link: string): string {
       ["Amount", amt],
     ]) +
     button(brand, link, "Pay this request") +
-    para("You can also pay it any time from your client portal. Once it\u2019s paid, we\u2019ll email you a receipt.");
+    para("You can also pay it any time from your client portal. Once it’s paid, we’ll email you a receipt.");
   return shell(brand, "Payment Request", "You have a payment request", body);
 }
 
@@ -254,7 +254,7 @@ export function receiptEmail(p: any): string {
   if (partial && totalC > 0 && remainC > 0) {
     rows2.push(["Balance remaining", "$" + (remainC / 100).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })]);
   }
-  const body = para("Thank you, " + esc(p.client_name || "there") + ". We\u2019ve received your payment. Your receipt is below, and a PDF copy is attached for your records.")
+  const body = para("Thank you, " + esc(p.client_name || "there") + ". We’ve received your payment. Your receipt is below, and a PDF copy is attached for your records.")
     + detailRows(rows2);
   return shell(BRAND_MAIN, "Payment Receipt", "Payment received", body);
 }
@@ -287,7 +287,7 @@ export function paymentStudioEmail(s: any, info: { amountCents: number; kind: st
 
 export function cancelClientEmail(s: any): string {
   const brand = brandFor(s);
-  const body = para(`Your <strong style="color:${INK};">${esc(s.type) || "session"}</strong>${s.date ? " on " + esc(s.date) : ""} has been cancelled.`) + para("If this wasn\u2019t expected, or you\u2019d like to find a new date, just reply to this email or reach us at contact@dot1.media and we\u2019ll take care of you.");
+  const body = para(`Your <strong style="color:${INK};">${esc(s.type) || "session"}</strong>${s.date ? " on " + esc(s.date) : ""} has been cancelled.`) + para("If this wasn’t expected, or you’d like to find a new date, just reply to this email or reach us at contact@dot1.media and we’ll take care of you.");
   return shell(brand, "Booking Update", "Your booking was cancelled", body);
 }
 

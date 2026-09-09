@@ -20,7 +20,7 @@ export function SessionExpenses({ sessionId, revenue }) {
     <div style={{ background: CREAM, border: `1px solid ${LINE}`, borderRadius: 10, padding: "14px 16px", marginBottom: 18 }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, flexWrap: "wrap" }}>
         <div style={{ ...mono, fontSize: 10, letterSpacing: "0.16em", textTransform: "uppercase", color: STONE, display: "flex", alignItems: "center", gap: 7 }}><Receipt size={13} /> Expenses & profit</div>
-        <div style={{ ...mono, fontSize: 11, color: INK }}>{money(Number(revenue) || 0)} booked <span style={{ color: FAINT }}>\u2212</span> {money(total)} costs <span style={{ color: FAINT }}>=</span> <b style={{ color: net >= 0 ? OK : WARN }}>{money(net)} net</b>{revenue > 0 ? <span style={{ color: FAINT }}> · {Math.round((net / revenue) * 100)}% margin</span> : null}</div>
+        <div style={{ ...mono, fontSize: 11, color: INK }}>{money(Number(revenue) || 0)} booked <span style={{ color: FAINT }}>−</span> {money(total)} costs <span style={{ color: FAINT }}>=</span> <b style={{ color: net >= 0 ? OK : WARN }}>{money(net)} net</b>{revenue > 0 ? <span style={{ color: FAINT }}> · {Math.round((net / revenue) * 100)}% margin</span> : null}</div>
       </div>
       {items.length > 0 && <div style={{ marginTop: 10 }}>{items.map((e) => (
         <div key={e.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "7px 0", borderTop: `1px solid ${LINE}` }}>

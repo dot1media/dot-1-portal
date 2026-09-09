@@ -255,7 +255,7 @@ export default function App() {
     (targets.length ? targets : [session]).forEach((t) => patchSession(t.id, patch));
     const g = GROUPS[group] || GROUPS.video;
     const n = targets.length || 1;
-    showToast(n > 1 ? ("Set " + n + " \u201c" + type + "\u201d sessions to " + g.label + ".") : ("Session type set to " + g.label + "."));
+    showToast(n > 1 ? ("Set " + n + " “" + type + "” sessions to " + g.label + ".") : ("Session type set to " + g.label + "."));
   };
 
   const doSetStage = (id, idx, notify) => { const cur = stateRef.current.sessions.find((x) => x.id === id); if (!cur) return; const times = { ...cur.stageTimes }; if (times[idx] === undefined) times[idx] = "just now"; patchSession(id, { currentStage: idx, stageTimes: times }, notify === false ? { notifyStage: false } : undefined); };
@@ -416,11 +416,11 @@ export default function App() {
   const requestReset = async (email) => { try { await fetch("/api/reset-request", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ email: (email || "").trim() }) }); } catch (e) {} };
   const requestSendBalance = async (session) => { try { const res = await fetch("/api/pay-balance", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ sessionId: session.id }) }); const data = await res.json().catch(() => ({})); if (res.ok) { showToast("Balance payment link emailed to " + session.clientEmail + "."); setState((s) => ({ ...s, sessions: s.sessions.map((x) => x.id === session.id ? { ...x, balanceStatus: "sent" } : x) })); } else { showToast(data.error || "Could not send the balance link."); } } catch (e) { showToast("Network error."); } };
   const checkChargePayment = async (session, charge) => {
-    showToast("Checking Square for this payment\u2026");
+    showToast("Checking Square for this payment…");
     try {
       const r = await fetch("/api/pay/verify?sid=" + encodeURIComponent(session.id) + "&kind=charge&charge=" + encodeURIComponent(charge.id)).then((x) => x.json()).catch(() => ({}));
       try { const sd = await fetch("/api/sessions").then((x) => x.json()).catch(() => ({})); if (sd && sd.sessions) setState((s) => ({ ...s, sessions: sd.sessions })); } catch (e) {}
-      showToast(r && r.paid ? "Confirmed with Square \u2014 marked as paid." : "Square shows no completed payment for this charge yet.");
+      showToast(r && r.paid ? "Confirmed with Square — marked as paid." : "Square shows no completed payment for this charge yet.");
     } catch (e) { showToast("Could not reach Square. Please try again."); }
   };
   const createInternalBooking = async (b) => {
@@ -943,7 +943,7 @@ function ServiceCatalog({ state, addService, updateService, deleteService, addAd
           </div>
           {svcForm && <ServiceForm form={svcForm} setForm={setSvcForm} onSave={saveService} onCancel={() => setSvcForm(null)} group={group} groupAddons={groupAddons} packages={cameraPackages} />}
           {groupServices.length === 0 && !svcForm && <EmptyState icon={g.Icon} title={"No " + g.label.toLowerCase() + " services yet"} text={'Click "New service" to create your first appointment type.'} style={{ padding: "32px 16px" }} />}
-          {groupServices.map((s) => <ServiceCard key={s.id} svc={s} packages={cameraPackages} groupAddons={groupAddons} onEdit={() => setSvcForm({ ...s, addonIds: s.addonIds || [] })} onDelete={() => setConfirm({ title: "Delete this appointment type?", message: "\u201c" + s.name + "\u201d will be permanently removed as a bookable appointment type. This cannot be undone.", confirmLabel: "Delete", danger: true, onYes: async () => { setConfirm(null); const r = await deleteService(s.id); if (r && r.ok) showToast("Appointment type deleted."); else showToast((r && r.error) || "Could not delete the service."); } })} onToggleVisible={async () => { const r = await updateService(s.id, { visible: s.visible === false }); if (r && !r.ok) showToast(r.error || "Could not update."); }} />)}
+          {groupServices.map((s) => <ServiceCard key={s.id} svc={s} packages={cameraPackages} groupAddons={groupAddons} onEdit={() => setSvcForm({ ...s, addonIds: s.addonIds || [] })} onDelete={() => setConfirm({ title: "Delete this appointment type?", message: "“" + s.name + "” will be permanently removed as a bookable appointment type. This cannot be undone.", confirmLabel: "Delete", danger: true, onYes: async () => { setConfirm(null); const r = await deleteService(s.id); if (r && r.ok) showToast("Appointment type deleted."); else showToast((r && r.error) || "Could not delete the service."); } })} onToggleVisible={async () => { const r = await updateService(s.id, { visible: s.visible === false }); if (r && !r.ok) showToast(r.error || "Could not update."); }} />)}
         </div>
         <div>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
@@ -952,7 +952,7 @@ function ServiceCatalog({ state, addService, updateService, deleteService, addAd
           </div>
           {addonForm && <AddonForm form={addonForm} setForm={setAddonForm} onSave={saveAddon} onCancel={() => setAddonForm(null)} accent={g.color} />}
           {groupAddons.length === 0 && !addonForm && <EmptyState icon={Package} title={"No " + g.label.toLowerCase() + " add-ons yet"} text={"Add-ons you create here can attach to any " + g.label.toLowerCase() + " service."} style={{ padding: "30px 16px" }} />}
-          {groupAddons.map((a) => <AddonCard key={a.id} addon={a} onEdit={() => setAddonForm({ ...a })} onDelete={() => setConfirm({ title: "Delete this add-on?", message: "\u201c" + a.name + "\u201d will be permanently removed. This cannot be undone.", confirmLabel: "Delete", danger: true, onYes: async () => { setConfirm(null); const r = await deleteAddon(a.id); if (r && r.ok) showToast("Add-on deleted."); else showToast((r && r.error) || "Could not delete the add-on."); } })} onToggleVisible={async () => { const r = await updateAddon(a.id, { visible: a.visible === false }); if (r && !r.ok) showToast(r.error || "Could not update."); }} />)}
+          {groupAddons.map((a) => <AddonCard key={a.id} addon={a} onEdit={() => setAddonForm({ ...a })} onDelete={() => setConfirm({ title: "Delete this add-on?", message: "“" + a.name + "” will be permanently removed. This cannot be undone.", confirmLabel: "Delete", danger: true, onYes: async () => { setConfirm(null); const r = await deleteAddon(a.id); if (r && r.ok) showToast("Add-on deleted."); else showToast((r && r.error) || "Could not delete the add-on."); } })} onToggleVisible={async () => { const r = await updateAddon(a.id, { visible: a.visible === false }); if (r && !r.ok) showToast(r.error || "Could not update."); }} />)}
         </div>
       </div>
     </div>
@@ -1164,14 +1164,14 @@ function PortalSplash() {
 function LegalPage({ kind, onBack }) {
   const today = "August 13, 2026";
   const terms = [
-    ["Agreement to these terms", "By booking a session, using this portal, or engaging Dot One Media (\u201cwe,\u201d \u201cus,\u201d or \u201cDot One\u201d) for services, you agree to these Terms. If you do not agree, please do not use the portal or book a session. Specific projects may also be governed by a separate written agreement, which controls if it conflicts with these Terms."],
+    ["Agreement to these terms", "By booking a session, using this portal, or engaging Dot One Media (“we,” “us,” or “Dot One”) for services, you agree to these Terms. If you do not agree, please do not use the portal or book a session. Specific projects may also be governed by a separate written agreement, which controls if it conflicts with these Terms."],
     ["Our services", "Dot One Media is a veteran-owned media and production studio based in Wasilla, Alaska, offering photography, videography, music, and related creative and production services. The specific deliverables, timeline, and price for your project are described at booking and in any project agreement."],
     ["Booking, deposits, and payment", "Some sessions require a deposit or payment to reserve your date; your booking is confirmed once that payment is received. Any remaining balance is due as stated for your project, typically before or at delivery. Payments are processed securely through Square; we do not store your full card details. Deposits reserve time we cannot offer to other clients and are non-refundable unless stated otherwise in writing."],
     ["Rescheduling and cancellation", "We understand plans change. You may request to reschedule through this portal; depending on the service and how much notice you give, a reschedule fee may apply, as shown when you request the change. Cancellations may forfeit deposits. We reserve the right to reschedule in cases of illness, emergency, or unsafe conditions, and will work with you to find a new date."],
     ["Deliverables and usage rights", "You receive the finished deliverables agreed for your project. Unless your written agreement says otherwise, Dot One retains copyright in the work and grants you a license to use the delivered images and films for your personal or agreed-upon use. We may feature work we create in our portfolio, website, and social media unless you ask us in writing not to."],
     ["Your responsibilities", "You agree to provide accurate booking information, communicate in a timely way, secure any locations or permissions needed for your session, and make payments when due. Please keep your portal sign-in details private."],
-    ["Limitation of liability", "We take great care in our work, but our services and this portal are provided \u201cas is.\u201d To the fullest extent permitted by law, Dot One\u2019s total liability for any claim relating to a project is limited to the amount you paid for that project. We are not liable for indirect or consequential losses."],
-    ["Changes to these terms", "We may update these Terms from time to time. The \u201clast updated\u201d date below reflects the current version, and continued use of the portal after changes means you accept them."],
+    ["Limitation of liability", "We take great care in our work, but our services and this portal are provided “as is.” To the fullest extent permitted by law, Dot One’s total liability for any claim relating to a project is limited to the amount you paid for that project. We are not liable for indirect or consequential losses."],
+    ["Changes to these terms", "We may update these Terms from time to time. The “last updated” date below reflects the current version, and continued use of the portal after changes means you accept them."],
   ];
   const privacy = [
     ["Overview", "This Privacy Policy explains what information Dot One Media collects through this portal and our services, how we use it, and the choices you have. We collect only what we need to serve you well."],
@@ -1180,10 +1180,10 @@ function LegalPage({ kind, onBack }) {
     ["How we share your information", "We do not sell your personal information. We share it only with the service providers that help us operate, such as Square (payments), our email provider, and our hosting and database providers, and only as needed to run the portal and deliver your project. We may disclose information if required by law."],
     ["Data retention", "We keep your information for as long as needed to provide your services and meet legal, tax, and business requirements. You may ask us to delete information we are not required to keep."],
     ["Your choices", "You can ask us to access, correct, or delete your personal information, and you can manage which emails you receive from the preferences in your portal (your project details still appear in the portal either way). To make a request, contact us using the details below."],
-    ["Cookies and local storage", "The portal uses your browser\u2019s local storage to keep you signed in and remember preferences like your chosen theme. It does not use advertising trackers."],
+    ["Cookies and local storage", "The portal uses your browser’s local storage to keep you signed in and remember preferences like your chosen theme. It does not use advertising trackers."],
     ["Security", "We use reasonable measures to protect your information, and payments are handled by Square using bank-level security. No system is perfectly secure, but we take safeguarding your data seriously."],
-    ["Children\u2019s privacy", "The portal is intended for adults booking our services and is not directed to children under 13. We do not knowingly collect personal information from children."],
-    ["Changes to this policy", "We may update this policy from time to time. The \u201clast updated\u201d date below reflects the current version."],
+    ["Children’s privacy", "The portal is intended for adults booking our services and is not directed to children under 13. We do not knowingly collect personal information from children."],
+    ["Changes to this policy", "We may update this policy from time to time. The “last updated” date below reflects the current version."],
   ];
   const isTerms = kind === "terms";
   const sections = isTerms ? terms : privacy;
@@ -1288,7 +1288,7 @@ function NotificationBell({ mode, sessions, clientId, onOpenSession, onMarkRead,
               {count === 0 ? (
                 <div style={{ padding: "34px 20px", textAlign: "center" }}>
                   <Bell size={20} color={FAINT} />
-                  <div style={{ fontSize: 13, color: STONE, marginTop: 9 }}>{"You\u2019re all caught up."}</div>
+                  <div style={{ fontSize: 13, color: STONE, marginTop: 9 }}>{"You’re all caught up."}</div>
                 </div>
               ) : items.map((it) => {
                 const Ico = it.Icon;

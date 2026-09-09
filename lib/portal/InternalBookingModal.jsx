@@ -66,7 +66,7 @@ export function InternalBookingModal({ state, showToast, onClose, onCreate }) {
           <input type="checkbox" checked={invite} onChange={(e) => setInvite(e.target.checked)} style={{ marginTop: 2, width: 15, height: 15, accentColor: RED, cursor: "pointer", flexShrink: 0 }} />
           <span style={{ fontSize: 12.5, color: STONE, lineHeight: 1.5 }}><span style={{ fontWeight: 600, color: INK }}>Invite this client to the portal.</span> They get a link to set a password, and this session appears in their account to track, message, and pay through.</span>
         </label>
-        <button onClick={submit} disabled={busy} style={{ ...btnSolid, background: busy ? FAINT : RED, width: "100%", justifyContent: "center", marginTop: 16, padding: "11px" }}>{busy ? "Creating\u2026" : (invite ? "Create booking & send invite" : "Create booking & notify client")}</button>
+        <button onClick={submit} disabled={busy} style={{ ...btnSolid, background: busy ? FAINT : RED, width: "100%", justifyContent: "center", marginTop: 16, padding: "11px" }}>{busy ? "Creating…" : (invite ? "Create booking & send invite" : "Create booking & notify client")}</button>
       </div>
     </div>
   );

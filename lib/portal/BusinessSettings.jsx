@@ -108,7 +108,7 @@ function ImportSessions({ existing, onImport, showToast }) {
               </div>
             ))}
           </div>
-          <button onClick={runImport} disabled={importing || todoCount === 0} style={{ ...btnSolid, background: (importing || todoCount === 0) ? FAINT : RED, width: "100%", justifyContent: "center", marginTop: 14, padding: "11px" }}>{importing ? ("Working " + progress + " of " + todoCount + "\u2026") : (repairCount > 0 && newCount > 0 ? ("Import " + newCount + " " + "·" + " fix " + repairCount) : (repairCount > 0 ? ("Fix " + repairCount + " session" + (repairCount === 1 ? "" : "s")) : ("Import " + newCount + " session" + (newCount === 1 ? "" : "s"))))}</button>
+          <button onClick={runImport} disabled={importing || todoCount === 0} style={{ ...btnSolid, background: (importing || todoCount === 0) ? FAINT : RED, width: "100%", justifyContent: "center", marginTop: 14, padding: "11px" }}>{importing ? ("Working " + progress + " of " + todoCount + "…") : (repairCount > 0 && newCount > 0 ? ("Import " + newCount + " " + "·" + " fix " + repairCount) : (repairCount > 0 ? ("Fix " + repairCount + " session" + (repairCount === 1 ? "" : "s")) : ("Import " + newCount + " session" + (newCount === 1 ? "" : "s"))))}</button>
         </div>
       )}
     </div>
@@ -222,8 +222,8 @@ export function BusinessSettings({ sessions, showToast, onImport }) {
 
       <div style={{ ...mono, fontSize: 10.5, letterSpacing: "0.16em", textTransform: "uppercase", color: STONE, marginBottom: 10 }}>System status</div>
       <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 10, marginBottom: 28 }}>
-        {modeBadge("Payments", status ? (status.squareMode === "production" ? "Live (production)" : status.squareMode === "sandbox" ? "Test (sandbox)" : "Off") : "\u2026", !!(status && status.squareMode === "production"))}
-        {modeBadge("Email", status ? (status.emailOn ? "On" : "Off") : "\u2026", !!(status && status.emailOn))}
+        {modeBadge("Payments", status ? (status.squareMode === "production" ? "Live (production)" : status.squareMode === "sandbox" ? "Test (sandbox)" : "Off") : "…", !!(status && status.squareMode === "production"))}
+        {modeBadge("Email", status ? (status.emailOn ? "On" : "Off") : "…", !!(status && status.emailOn))}
       </div>
 
       <div style={{ ...mono, fontSize: 10.5, letterSpacing: "0.16em", textTransform: "uppercase", color: STONE, marginBottom: 10 }}>Revenue &amp; records by period</div>
@@ -284,7 +284,7 @@ export function BusinessSettings({ sessions, showToast, onImport }) {
 
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginBottom: 12 }}>
         <div style={{ ...mono, fontSize: 10.5, letterSpacing: "0.16em", textTransform: "uppercase", color: STONE }}>Receipts</div>
-        <button onClick={syncReceipts} disabled={syncing} title="Re-check Square for every paid session and record any missing receipts" style={{ ...mono, fontSize: 9, letterSpacing: "0.05em", textTransform: "uppercase", color: STONE, background: "transparent", border: `1px solid ${LINE}`, borderRadius: 7, padding: "7px 11px", cursor: syncing ? "default" : "pointer", opacity: syncing ? 0.6 : 1, display: "inline-flex", alignItems: "center", gap: 6 }}><RefreshCw size={11} /> {syncing ? "Syncing\u2026" : "Sync from Square"}</button>
+        <button onClick={syncReceipts} disabled={syncing} title="Re-check Square for every paid session and record any missing receipts" style={{ ...mono, fontSize: 9, letterSpacing: "0.05em", textTransform: "uppercase", color: STONE, background: "transparent", border: `1px solid ${LINE}`, borderRadius: 7, padding: "7px 11px", cursor: syncing ? "default" : "pointer", opacity: syncing ? 0.6 : 1, display: "inline-flex", alignItems: "center", gap: 6 }}><RefreshCw size={11} /> {syncing ? "Syncing…" : "Sync from Square"}</button>
       </div>
       {!payLoaded ? (
         <div style={{ ...cardDense, overflow: "hidden", marginBottom: 28 }}>{[0, 1, 2].map((i) => (<div key={i} style={{ padding: "14px 16px", borderTop: i === 0 ? "none" : `1px solid ${LINE}`, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}><div style={{ flex: 1 }}><Skeleton w="38%" h={13} style={{ marginBottom: 7 }} /><Skeleton w="62%" h={10} /></div><Skeleton w={64} h={26} r={7} /></div>))}</div>
@@ -303,7 +303,7 @@ export function BusinessSettings({ sessions, showToast, onImport }) {
               </div>
               <div style={{ display: "flex", gap: 7, flexShrink: 0 }}>
                 <a href={"/api/receipt?id=" + encodeURIComponent(p.id)} target="_blank" rel="noopener noreferrer" style={{ ...mono, fontSize: 10, letterSpacing: "0.04em", textTransform: "uppercase", color: INK, textDecoration: "none", border: `1px solid ${LINE}`, borderRadius: 7, padding: "7px 11px", display: "inline-flex", alignItems: "center", gap: 5 }}><FileText size={12} /> Receipt</a>
-                <button onClick={() => emailReceipt(p)} disabled={emailing === p.id} style={{ ...mono, fontSize: 10, letterSpacing: "0.04em", textTransform: "uppercase", color: emailing === p.id ? FAINT : "#fff", background: emailing === p.id ? LINE : OK, border: "none", borderRadius: 7, padding: "7px 11px", cursor: emailing === p.id ? "default" : "pointer", display: "inline-flex", alignItems: "center", gap: 5 }}><Mail size={12} /> {emailing === p.id ? "Sending\u2026" : "Email"}</button>
+                <button onClick={() => emailReceipt(p)} disabled={emailing === p.id} style={{ ...mono, fontSize: 10, letterSpacing: "0.04em", textTransform: "uppercase", color: emailing === p.id ? FAINT : "#fff", background: emailing === p.id ? LINE : OK, border: "none", borderRadius: 7, padding: "7px 11px", cursor: emailing === p.id ? "default" : "pointer", display: "inline-flex", alignItems: "center", gap: 5 }}><Mail size={12} /> {emailing === p.id ? "Sending…" : "Email"}</button>
               </div>
             </div>
           ))}

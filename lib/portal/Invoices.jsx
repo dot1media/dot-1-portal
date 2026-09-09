@@ -215,7 +215,7 @@ export function InvoiceModal({ state, showToast, onClose, onSessionsRefresh }) {
                     <div key={a.id} style={{ display: "inline-flex", alignItems: "center", gap: 7, ...mono, fontSize: 10, padding: "4px 7px 4px 11px", borderRadius: 7, border: `1px solid ${RED}`, background: "#fdf1ee", color: RED }}>
                       <span>{a.name} · {fmt(a.price)}</span>
                       <span style={{ display: "inline-flex", alignItems: "center", borderLeft: "1px solid #f0d4cf", paddingLeft: 6, gap: 2 }}>
-                        <button onClick={() => setQ(q - 1)} aria-label={"Fewer " + a.name} style={qtyBtn}>{"\u2212"}</button>
+                        <button onClick={() => setQ(q - 1)} aria-label={"Fewer " + a.name} style={qtyBtn}>{"−"}</button>
                         <span style={{ minWidth: 24, textAlign: "center", color: INK, fontWeight: 600 }}>x{q}</span>
                         <button onClick={() => setQ(q + 1)} aria-label={"More " + a.name} style={qtyBtn}>+</button>
                       </span>
@@ -247,7 +247,7 @@ export function InvoiceModal({ state, showToast, onClose, onSessionsRefresh }) {
             </div>
             <div style={{ display: "flex", gap: 10 }}>
               <button onClick={() => setPreview(true)} disabled={!items.length} style={{ ...btnSolid, background: "#fff", color: INK, border: `1px solid ${LINE}`, flex: 1, justifyContent: "center" }}><Eye size={14} /> Preview</button>
-              <button onClick={send} disabled={sending} style={{ ...btnSolid, background: RED, flex: 2, justifyContent: "center" }}><Send size={14} /> {sending ? "Sending\u2026" : "Send invoice & payment link"}</button>
+              <button onClick={send} disabled={sending} style={{ ...btnSolid, background: RED, flex: 2, justifyContent: "center" }}><Send size={14} /> {sending ? "Sending…" : "Send invoice & payment link"}</button>
             </div>
             <p style={{ ...mono, fontSize: 9.5, color: FAINT, margin: "10px 0 0", lineHeight: 1.5 }}>Sending books the session for the chosen date, emails the client this invoice as a PDF, and includes a secure Square link for the 50% retainer. Paying drops them into the portal to create their account.</p>
           </div>
@@ -257,7 +257,7 @@ export function InvoiceModal({ state, showToast, onClose, onSessionsRefresh }) {
           <div>
             <button onClick={() => setPreview(false)} style={{ ...mono, fontSize: 10, letterSpacing: "0.08em", textTransform: "uppercase", display: "inline-flex", alignItems: "center", gap: 6, background: "transparent", border: "none", cursor: "pointer", color: STONE, padding: 0, marginBottom: 12 }}><ChevronLeft size={13} /> Back to editing</button>
             <InvoicePreview inv={invDraft} />
-            <button onClick={send} disabled={sending} style={{ ...btnSolid, background: RED, width: "100%", justifyContent: "center", marginTop: 14 }}><Send size={14} /> {sending ? "Sending\u2026" : "Looks right, send it"}</button>
+            <button onClick={send} disabled={sending} style={{ ...btnSolid, background: RED, width: "100%", justifyContent: "center", marginTop: 14 }}><Send size={14} /> {sending ? "Sending…" : "Looks right, send it"}</button>
           </div>
         )}
 

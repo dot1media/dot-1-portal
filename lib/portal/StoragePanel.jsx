@@ -35,7 +35,7 @@ export function StoragePanel({ showToast }) {
       {!data ? <div style={{ ...mono, fontSize: 11, color: FAINT }}>Measuring…</div> : data.error ? <div style={{ ...mono, fontSize: 11, color: RED }}>{data.error}</div> : (
         <>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 10, marginBottom: 14 }}>
-            {[["Total", fmtB(data.total), "\u2248 $" + costPerMonth(data.total).toFixed(2) + "/mo"], ["Photos", fmtB(data.galleryBytes), data.galleries.length + " galleries"], ["Video", fmtB(data.videoBytes), data.videos.length + " cuts"], ["Objects", String(data.objects), "files in R2"]].map(([l, v, sub]) => (
+            {[["Total", fmtB(data.total), "≈ $" + costPerMonth(data.total).toFixed(2) + "/mo"], ["Photos", fmtB(data.galleryBytes), data.galleries.length + " galleries"], ["Video", fmtB(data.videoBytes), data.videos.length + " cuts"], ["Objects", String(data.objects), "files in R2"]].map(([l, v, sub]) => (
               <div key={l} style={{ background: CREAM, border: `1px solid ${LINE}`, borderRadius: 9, padding: "10px 12px" }}><div style={{ ...mono, fontSize: 9.5, letterSpacing: "0.14em", textTransform: "uppercase", color: STONE }}>{l}</div><div style={{ ...display, fontWeight: 700, fontSize: 20, color: INK, marginTop: 2 }}>{v}</div><div style={{ ...mono, fontSize: 9.5, color: FAINT }}>{sub}</div></div>
             ))}
           </div>

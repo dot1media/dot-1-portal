@@ -111,7 +111,7 @@ export function InvoiceOnboarding({ session, onDone }) {
 
         {err && <div style={{ marginTop: 14, fontSize: 12.5, color: DANGER, display: "flex", alignItems: "center", gap: 7 }}><AlertTriangle size={14} /> {err}</div>}
 
-        <button onClick={submit} disabled={submitting} style={{ ...btnSolid, background: A, width: "100%", justifyContent: "center", marginTop: 18, fontSize: 15, padding: "13px 20px" }}>{submitting ? "Finishing\u2026" : "Sign & enter my portal"} <ArrowRight size={16} /></button>
+        <button onClick={submit} disabled={submitting} style={{ ...btnSolid, background: A, width: "100%", justifyContent: "center", marginTop: 18, fontSize: 15, padding: "13px 20px" }}>{submitting ? "Finishing…" : "Sign & enter my portal"} <ArrowRight size={16} /></button>
       </div>
     </div>
   );

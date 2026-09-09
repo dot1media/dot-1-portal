@@ -172,7 +172,7 @@ export function AdminSessions({ state, adminId, setAdminId, requestSetStage, add
             )}
             {status === "active" && (
               <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
-                <input value={chgLabel} onChange={(e) => setChgLabel(e.target.value)} placeholder={"What's it for? (USB of files, overtime\u2026)"} style={{ flex: "1 1 200px", minWidth: 0, border: `1px solid ${LINE}`, borderRadius: 7, padding: "9px 11px", fontSize: 13, color: INK, background: PAPER, fontFamily: "inherit" }} />
+                <input value={chgLabel} onChange={(e) => setChgLabel(e.target.value)} placeholder={"What's it for? (USB of files, overtime…)"} style={{ flex: "1 1 200px", minWidth: 0, border: `1px solid ${LINE}`, borderRadius: 7, padding: "9px 11px", fontSize: 13, color: INK, background: PAPER, fontFamily: "inherit" }} />
                 <input value={chgAmt} onChange={(e) => setChgAmt(e.target.value.replace(/[^0-9.]/g, ""))} inputMode="decimal" placeholder="$0.00" style={{ width: 92, border: `1px solid ${LINE}`, borderRadius: 7, padding: "9px 11px", fontSize: 13, color: INK, background: PAPER, fontFamily: "inherit" }} />
                 <button onClick={async () => { const amt = parseFloat(chgAmt); if (!chgLabel.trim() || !(amt > 0)) { showToast("Add a description and an amount."); return; } await onSendCharge(session, chgLabel.trim(), amt); }} style={{ ...mono, fontSize: 10, letterSpacing: "0.06em", textTransform: "uppercase", color: "#fff", background: RED, border: "none", borderRadius: 7, padding: "9px 14px", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 6 }}><Wallet size={12} /> Send request</button>
               </div>
@@ -313,7 +313,7 @@ export function AdminSessions({ state, adminId, setAdminId, requestSetStage, add
             </div>
           )}
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-            <input value={delivLabel} onChange={(e) => setDelivLabel(e.target.value)} placeholder={"Label (e.g. Social Cut · 1080\u00d71920)"} style={{ border: `1px solid ${LINE}`, borderRadius: 7, padding: "9px 11px", fontSize: 12.5, fontFamily: "inherit", background: PAPER, color: BODY, boxSizing: "border-box" }} />
+            <input value={delivLabel} onChange={(e) => setDelivLabel(e.target.value)} placeholder={"Label (e.g. Social Cut · 1080×1920)"} style={{ border: `1px solid ${LINE}`, borderRadius: 7, padding: "9px 11px", fontSize: 12.5, fontFamily: "inherit", background: PAPER, color: BODY, boxSizing: "border-box" }} />
             <input value={delivUrl} onChange={(e) => setDelivUrl(e.target.value)} placeholder="Download URL" style={{ border: `1px solid ${LINE}`, borderRadius: 7, padding: "9px 11px", fontSize: 12.5, fontFamily: "inherit", background: PAPER, color: BODY, boxSizing: "border-box" }} />
             <input value={delivNote} onChange={(e) => setDelivNote(e.target.value)} placeholder={"Note (optional, e.g. ProRes 422 · 18.7 GB)"} style={{ border: `1px solid ${LINE}`, borderRadius: 7, padding: "9px 11px", fontSize: 12.5, fontFamily: "inherit", background: PAPER, color: BODY, boxSizing: "border-box" }} />
             <button onClick={addDeliverable} disabled={!delivLabel.trim() || !delivUrl.trim()} style={{ ...mono, fontSize: 10, letterSpacing: "0.08em", textTransform: "uppercase", color: "#fff", background: (delivLabel.trim() && delivUrl.trim()) ? sg.color : FAINT, border: "none", borderRadius: 7, padding: "9px 13px", cursor: (delivLabel.trim() && delivUrl.trim()) ? "pointer" : "default", alignSelf: "flex-start", display: "flex", alignItems: "center", gap: 6 }}><Plus size={12} /> Add deliverable</button>
@@ -344,7 +344,7 @@ export function AdminSessions({ state, adminId, setAdminId, requestSetStage, add
             <ImageIcon size={15} />
             <input type="file" accept="image/*" disabled={uploadingImg} onChange={(e) => onPickMsgImage(e, session.id)} style={{ display: "none" }} />
           </label>
-          <button onClick={() => sendStudioMsg(session.id)} disabled={uploadingImg} style={{ ...btnSolid, background: INK, whiteSpace: "nowrap" }}><Send size={14} /> {uploadingImg ? "Uploading\u2026" : "Send"}</button>
+          <button onClick={() => sendStudioMsg(session.id)} disabled={uploadingImg} style={{ ...btnSolid, background: INK, whiteSpace: "nowrap" }}><Send size={14} /> {uploadingImg ? "Uploading…" : "Send"}</button>
         </div>
       </div>
       </div>

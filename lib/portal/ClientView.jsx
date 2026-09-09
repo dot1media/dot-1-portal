@@ -229,7 +229,7 @@ export function ClientView({ session, sessions, clientId, setClientId, addCommen
   const briefHasContent = !!(session.brief && BRIEF_FIELDS.some((f) => (session.brief[f.key] || "").trim()));
   const briefStatusText = briefSubmitted ? "Submitted · thank you" : briefHasContent ? "Draft saved · not yet submitted" : "Tell us about your project so we can prepare";
   const isLastStage = session.currentStage >= stagesFor(session).length - 1;
-  const statusLine = session.status === "cancelled" ? "This booking has been cancelled." : session.status === "closed" ? "This booking has been closed." : isLastStage ? ("Your " + session.type + " is complete. Thank you for creating with Dot One.") : ("Your " + session.type + " is currently at \u201c" + curStage(session).label + ".\u201d We\u2019ll notify you when the next step is ready. No action is needed from you right now.");
+  const statusLine = session.status === "cancelled" ? "This booking has been cancelled." : session.status === "closed" ? "This booking has been closed." : isLastStage ? ("Your " + session.type + " is complete. Thank you for creating with Dot One.") : ("Your " + session.type + " is currently at “" + curStage(session).label + ".” We’ll notify you when the next step is ready. No action is needed from you right now.");
 
   const payBalance = async () => {
     setPayErr(""); setPayingBalance(true);
@@ -246,7 +246,7 @@ export function ClientView({ session, sessions, clientId, setClientId, addCommen
     const now = new Date().toISOString();
     const next = { ...brief, submitted: submit ? true : already, submittedAt: (submit && !already) ? now : ((session.brief && session.brief.submittedAt) || ""), updatedAt: now };
     patchSession(session.id, { brief: next });
-    setBriefMsg(submit ? "Brief submitted · thank you! We\u2019ll be in touch." : "Draft saved.");
+    setBriefMsg(submit ? "Brief submitted · thank you! We’ll be in touch." : "Draft saved.");
   };
   const onPickImage = async (e) => {
     const file = e.target.files && e.target.files[0];
@@ -375,11 +375,11 @@ export function ClientView({ session, sessions, clientId, setClientId, addCommen
             <div style={{ marginTop: 13, display: "flex", alignItems: "center", gap: 8 }}><CheckCircle2 size={15} color="#2e9e5b" /><span style={{ ...mono, fontSize: 11.5, letterSpacing: "0.05em", color: OK }}>{"PAID IN FULL · THANK YOU"}</span></div>
           ) : balanceDue > 0 ? (
             <>
-              <button onClick={payBalance} disabled={payingBalance} style={{ ...btnSolid, background: grp.color, marginTop: 15, width: "100%", justifyContent: "center", opacity: payingBalance ? 0.7 : 1, cursor: payingBalance ? "default" : "pointer" }}>{payingBalance ? "Starting secure checkout\u2026" : "Pay balance securely · " + money(balanceDue)}</button>
+              <button onClick={payBalance} disabled={payingBalance} style={{ ...btnSolid, background: grp.color, marginTop: 15, width: "100%", justifyContent: "center", opacity: payingBalance ? 0.7 : 1, cursor: payingBalance ? "default" : "pointer" }}>{payingBalance ? "Starting secure checkout…" : "Pay balance securely · " + money(balanceDue)}</button>
               {payErr && <div style={{ marginTop: 10, fontSize: 12.5, color: DANGER, display: "flex", alignItems: "center", gap: 7 }}><AlertTriangle size={14} /> {payErr}</div>}
             </>
           ) : paymentPending ? (
-            <div style={{ marginTop: 12, ...mono, fontSize: 11.5, letterSpacing: "0.04em", color: STONE }}>{"We\u2019re confirming your payment. This will update automatically."}</div>
+            <div style={{ marginTop: 12, ...mono, fontSize: 11.5, letterSpacing: "0.04em", color: STONE }}>{"We’re confirming your payment. This will update automatically."}</div>
           ) : null}
           <div style={{ ...mono, fontSize: 9, color: FAINT, marginTop: 11 }}>Payments are processed securely through Square.</div>
         </div>
@@ -516,7 +516,7 @@ export function ClientView({ session, sessions, clientId, setClientId, addCommen
             <ImageIcon size={15} />
             <input type="file" accept="image/*" disabled={uploadingImg} onChange={onPickMsgImage} style={{ display: "none" }} />
           </label>
-          <button onClick={sendMsg} disabled={uploadingImg} style={{ ...btnSolid, background: grp.color, whiteSpace: "nowrap" }}><Send size={14} /> {uploadingImg ? "Uploading\u2026" : "Send"}</button>
+          <button onClick={sendMsg} disabled={uploadingImg} style={{ ...btnSolid, background: grp.color, whiteSpace: "nowrap" }}><Send size={14} /> {uploadingImg ? "Uploading…" : "Send"}</button>
         </div>
       </div>
 
@@ -531,7 +531,7 @@ export function ClientView({ session, sessions, clientId, setClientId, addCommen
           <div style={{ ...mono, fontSize: 10.5, letterSpacing: "0.16em", textTransform: "uppercase", color: STONE, marginBottom: 5 }}>Updated agreement to sign</div>
           {needsResign.map((n) => (
             <div key={n.type} style={{ marginBottom: 10 }}>
-              <div style={{ fontSize: 14, color: INK, fontWeight: 600 }}>{(DOC_META[n.type] || {}).label || n.type} <span style={{ ...mono, fontSize: 10, color: FAINT, fontWeight: 400 }}>v{n.signed} \u2192 v{n.current}</span></div>
+              <div style={{ fontSize: 14, color: INK, fontWeight: 600 }}>{(DOC_META[n.type] || {}).label || n.type} <span style={{ ...mono, fontSize: 10, color: FAINT, fontWeight: 400 }}>v{n.signed} → v{n.current}</span></div>
               {n.note && <div style={{ fontSize: 13, color: BODY, lineHeight: 1.5, marginTop: 3 }}>What changed: {n.note}</div>}
               {(DOC_META[n.type] || {}).pdf && <a href={DOC_META[n.type].pdf} target="_blank" rel="noopener noreferrer" style={{ ...mono, fontSize: 10.5, color: grp.color }}>Read the updated document</a>}
             </div>

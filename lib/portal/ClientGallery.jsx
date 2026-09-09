@@ -50,6 +50,7 @@ export function ClientGallery({ sessionId }) {
   const [savingRelease, setSavingRelease] = useState(false);
 
   const selectedCount = photos.filter((p) => p.favorite).length;
+  const includedIsNull = included == null;
   const included = g && g.included != null ? g.included : null;
   const atLimit = included != null && selectedCount >= included;
 
@@ -85,15 +86,18 @@ export function ClientGallery({ sessionId }) {
   async function downloadOne(photoId, filename) {
     try { const r = await fetch("/api/gallery/asset?size=download&photoId=" + photoId).then((x) => x.json()); if (r.url) { const a = document.createElement("a"); a.href = r.url; a.download = filename || "photo.jpg"; document.body.appendChild(a); a.click(); a.remove(); } } catch (e) {}
   }
-  const [dlParts, setDlParts] = useState(null);
-  function downloadSelected() {
-    const sel = photos.filter((p) => p.favorite); if (!sel.length) return;
-    const size = 20; const parts = [];
-    for (let i = 0; i < sel.length; i += size) parts.push(sel.slice(i, i + size).map((p) => p.id));
-    const urlFor = (ids, part) => "/api/gallery/download?galleryId=" + encodeURIComponent(g.id) + "&ids=" + encodeURIComponent(ids.join(",")) + (parts.length > 1 ? "&part=" + part : "");
-    if (parts.length === 1) { setDl(true); window.location.href = urlFor(parts[0], 1); setTimeout(() => setDl(false), 4000); return; }
-    setDlParts(parts.map((ids, i) => ({ n: i + 1, count: ids.length, url: urlFor(ids, i + 1) })));
+  function triggerDownload(ids) {
+    if (!ids.length || dl) return;
+    setDl(true);
+    const url = "/api/gallery/download?galleryId=" + encodeURIComponent(g.id) + "&ids=" + encodeURIComponent(ids.join(","));
+    // A hidden iframe lets the browser handle the streamed attachment without navigating the page,
+    // which is what iOS Safari needs. A same-tab link is the fallback if the iframe is blocked.
+    try { const f = document.createElement("iframe"); f.style.display = "none"; f.src = url; document.body.appendChild(f); setTimeout(() => { try { f.remove(); } catch (e) {} }, 90000); }
+    catch (e) { const a = document.createElement("a"); a.href = url; document.body.appendChild(a); a.click(); a.remove(); }
+    setTimeout(() => setDl(false), 4000);
   }
+  function downloadSelected() { triggerDownload(photos.filter((p) => p.favorite).map((p) => p.id)); }
+  function downloadAll() { triggerDownload(photos.filter((p) => p.favorite || includedIsNull).map((p) => p.id)); }
   async function requestMore() { try { await fetch("/api/gallery/request-more", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ galleryId: g.id }) }); setRequested(true); } catch (e) {} }
 
   function toggleRelease(key) { if (releaseLocked) return; setRelease((r) => ({ ...(r || {}), [key]: !(r && r[key]) })); }
@@ -111,12 +115,13 @@ export function ClientGallery({ sessionId }) {
       <div style={{ display: "flex", flexWrap: "wrap", alignItems: "flex-end", justifyContent: "space-between", gap: 14, marginBottom: 18 }}>
         <div>
           <div style={{ ...display, fontWeight: 700, fontSize: 26, color: INK, lineHeight: 1.1 }}>{g.title || "Your gallery"}</div>
-          <div style={{ ...mono, fontSize: 10.5, letterSpacing: "0.08em", textTransform: "uppercase", color: STONE, marginTop: 6 }}>{included != null ? "Select up to " + included + " to download" : "Heart your favorites, then download"}</div>
+          <div style={{ ...mono, fontSize: 10.5, letterSpacing: "0.08em", textTransform: "uppercase", color: STONE, marginTop: 6 }}>{included != null ? "Select up to " + included + " favorites, then Download selected" : (selectedCount > 0 ? "Download your selected photos, or download everything below" : "Tap a photo to view it, tap the heart to pick favorites")}</div>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
           {included != null && <div style={{ ...mono, fontSize: 13, color: atLimit ? A : STONE }}>{selectedCount} / {included}</div>}
-          <button onClick={downloadSelected} disabled={dl || !selectedCount} style={{ ...mono, fontSize: 11, letterSpacing: "0.06em", textTransform: "uppercase", padding: "11px 18px", borderRadius: 9, cursor: selectedCount ? "pointer" : "default", border: "none", background: selectedCount ? A : LINE, color: selectedCount ? "#fff" : FAINT, display: "inline-flex", alignItems: "center", gap: 8 }}><Download size={14} /> {dl ? "Starting download…" : "Download selected"}</button>
+          <button onClick={downloadSelected} disabled={dl || !selectedCount} style={{ ...mono, fontSize: 11, letterSpacing: "0.06em", textTransform: "uppercase", padding: "11px 18px", borderRadius: 9, cursor: selectedCount ? "pointer" : "default", border: "none", background: selectedCount ? A : LINE, color: selectedCount ? "#fff" : FAINT, display: "inline-flex", alignItems: "center", gap: 8 }}><Download size={14} /> {dl ? "Starting…" : "Download selected"}</button>
           <button onClick={sharePicks} disabled={!selectedCount} title="Share a view-only link to your favorites" style={{ ...mono, fontSize: 11, letterSpacing: "0.06em", textTransform: "uppercase", padding: "11px 14px", borderRadius: 9, cursor: selectedCount ? "pointer" : "default", border: `1px solid ${selectedCount ? A : LINE}`, background: PAPER, color: selectedCount ? A : FAINT, display: "inline-flex", alignItems: "center", gap: 8 }}><Share2 size={14} /> {shareCopied ? "Link copied" : "Share picks"}</button>
+          {includedIsNull && photos.length > 0 && <button onClick={downloadAll} disabled={dl} title="Download every photo in this gallery" style={{ ...mono, fontSize: 11, letterSpacing: "0.06em", textTransform: "uppercase", padding: "11px 14px", borderRadius: 9, cursor: dl ? "default" : "pointer", border: `1px solid ${LINE}`, background: PAPER, color: STONE, display: "inline-flex", alignItems: "center", gap: 8 }}><Download size={14} /> Download all</button>}
         </div>
       </div>
       {limitMsg && <div style={{ background: "#fff6f5", border: "1px solid #f2cdc9", borderRadius: 9, padding: "11px 14px", marginBottom: 16, fontSize: 12.5, color: "#b3261e", lineHeight: 1.5 }}>{limitMsg}</div>}
@@ -134,16 +139,6 @@ export function ClientGallery({ sessionId }) {
           <div style={{ fontSize: 13, color: STONE, lineHeight: 1.55, marginBottom: 15, maxWidth: 420, marginLeft: "auto", marginRight: "auto" }}>Your package includes {included} images. If you love more of them, we can add the extras to your gallery.</div>
           {requested ? <div style={{ ...mono, fontSize: 12, color: A }}>Request sent. We'll be in touch shortly.</div>
             : <button onClick={requestMore} style={{ ...mono, fontSize: 11, letterSpacing: "0.06em", textTransform: "uppercase", padding: "12px 22px", borderRadius: 9, cursor: "pointer", border: `1px solid ${A}`, background: "#fff", color: A }}>Request additional images</button>}
-        </div>
-      )}
-      {dlParts && (
-        <div style={{ marginTop: 18, background: CREAM, border: `1px solid ${LINE}`, borderRadius: 12, padding: "14px 18px" }}>
-          <div style={{ ...mono, fontSize: 10, letterSpacing: "0.14em", textTransform: "uppercase", color: STONE, marginBottom: 6 }}>Your download, in parts</div>
-          <div style={{ fontSize: 12.5, color: BODY, marginBottom: 10, lineHeight: 1.5 }}>Full-resolution files are large, so your {photos.filter((p) => p.favorite).length} photos come as {dlParts.length} zips. Tap each one.</div>
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-            {dlParts.map((pt) => <a key={pt.n} href={pt.url} style={{ ...mono, fontSize: 11, letterSpacing: "0.06em", textTransform: "uppercase", padding: "10px 14px", borderRadius: 9, textDecoration: "none", background: A, color: "#fff", display: "inline-flex", alignItems: "center", gap: 7 }}><Download size={13} /> Part {pt.n} of {dlParts.length} · {pt.count} photos</a>)}
-            <button onClick={() => setDlParts(null)} style={{ ...mono, fontSize: 10.5, padding: "10px 12px", borderRadius: 9, border: `1px solid ${LINE}`, background: PAPER, color: STONE, cursor: "pointer" }}>Close</button>
-          </div>
         </div>
       )}
       {shareLink && (

@@ -45,7 +45,7 @@ export async function receiptPdf(p: any): Promise<string> {
   rule(); y -= 15;
   t("DESCRIPTION", M, 8, bold, GRAY); tr("AMOUNT", 8, bold, GRAY); y -= 18;
   const amt = receiptMoneyCents(p.amount_cents);
-  t((p.service || "Session") + "  \u2014  " + kindLabel(p.kind), M, 12, helv, INK); tr(amt, 12, helv, INK); y -= 20;
+  t((p.service || "Session") + "  —  " + kindLabel(p.kind), M, 12, helv, INK); tr(amt, 12, helv, INK); y -= 20;
   rule(); y -= 22;
   t("Amount paid", R - 210, 12, bold, INK); tr(amt, 14, bold, RED); y -= 20;
   const totalC = Number(p.total_cents) || 0;
