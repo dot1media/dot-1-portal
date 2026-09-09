@@ -64,7 +64,7 @@ export async function POST(request: Request) {
   `;
   if (ins[0] && (ins[0] as any).inserted && !s.imported) {
     await sendEmail({ to: s.notifyEmail || "contact@dot1.media", subject: "New booking: " + (s.type || "session") + " for " + (s.clientName || "a client"), html: bookingStudioEmail(s), replyTo: s.clientEmail });
-    try { await sendPush("New booking", [(s.clientName || "A client"), (s.type || "session"), formatWhen(s.date, s.time)].filter(Boolean).join(" \u00b7 "), "/"); } catch (e) {}
+    try { await sendPush("New booking", [(s.clientName || "A client"), (s.type || "session"), formatWhen(s.date, s.time)].filter(Boolean).join(" · "), "/"); } catch (e) {}
     if (s.referredBy) { try {
       await ensureReferralSchema();
       const rc = ((await sql`SELECT client_email FROM referral_codes WHERE code = ${String(s.referredBy)} LIMIT 1`) as any[])[0];
@@ -74,7 +74,7 @@ export async function POST(request: Request) {
         if (!dup) {
           await sql`INSERT INTO referrals (id, code, referrer_email, referred_email, session_id, credit_cents) VALUES (${"rf_" + Math.random().toString(36).slice(2, 10)}, ${String(s.referredBy)}, ${rc.client_email}, ${referred}, ${String(s.id)}, ${creditDollars() * 100})`;
           try { await sendPush("New referral", rc.client_email + " referred " + (s.clientName || "a new client"), "/"); } catch (e) {}
-          try { await sendToClient(rc.client_email, "updates", { subject: "Your referral just booked \u00b7 $" + creditDollars() + " credit earned", html: `<div style="font-family:Arial,sans-serif;font-size:14px;color:#33322d;line-height:1.6;max-width:560px"><p>Thank you for sharing Dot One Media.</p><p><b>${(s.clientName || "Someone").split(" ")[0]}</b> just booked using your referral link, so you've earned a <b>$${creditDollars()} credit</b> toward your next session. We'll apply it when you book.</p><p style="font-size:12px;color:#6f6d65">Your link and running total are in your portal at <a href="https://portal.dot1.media" style="color:#e23b2e">portal.dot1.media</a>.</p></div>`, replyTo: "contact@dot1.media" }); } catch (e) {}
+          try { await sendToClient(rc.client_email, "updates", { subject: "Your referral just booked · $" + creditDollars() + " credit earned", html: `<div style="font-family:Arial,sans-serif;font-size:14px;color:#33322d;line-height:1.6;max-width:560px"><p>Thank you for sharing Dot One Media.</p><p><b>${(s.clientName || "Someone").split(" ")[0]}</b> just booked using your referral link, so you've earned a <b>$${creditDollars()} credit</b> toward your next session. We'll apply it when you book.</p><p style="font-size:12px;color:#6f6d65">Your link and running total are in your portal at <a href="https://portal.dot1.media" style="color:#e23b2e">portal.dot1.media</a>.</p></div>`, replyTo: "contact@dot1.media" }); } catch (e) {}
           try { await sendEmail({ to: s.notifyEmail || "contact@dot1.media", subject: "Referral: " + (s.clientName || "a new client") + " booked via " + rc.client_email, html: `<div style="font-family:Arial,sans-serif;font-size:14px;color:#33322d"><p><b>${rc.client_email}</b> referred <b>${s.clientName || "a new client"}</b>, who just booked a ${s.type || "session"}.</p><p>Referral credit to honor: <b>$${creditDollars()}</b>.</p></div>` }); } catch (e) {}
         }
       }
@@ -128,7 +128,7 @@ export async function PATCH(request: Request) {
     if (last && last.author === "client") {
       const subj = last.body ? "New message from " + (merged.clientName || "your client") : (merged.clientName || "Your client") + " sent an image";
       await sendEmail({ to: merged.notifyEmail || "contact@dot1.media", subject: subj, html: messageEmail(merged, true, last.body, last.image), replyTo: merged.clientEmail });
-      try { await sendPush(subj, [(merged.type || "Session"), formatWhen(merged.date, merged.time), last.body ? String(last.body).slice(0, 70) : "sent an image"].filter(Boolean).join(" \u00b7 "), "/"); } catch (e) {}
+      try { await sendPush(subj, [(merged.type || "Session"), formatWhen(merged.date, merged.time), last.body ? String(last.body).slice(0, 70) : "sent an image"].filter(Boolean).join(" · "), "/"); } catch (e) {}
     } else if (last && last.author === "studio") {
       const subj = last.body ? "New reply from Dot One Media" : "Dot One Media sent you an image";
       await sendToClient(merged.clientEmail, "messages", { subject: subj, html: messageEmail(merged, false, last.body, last.image), replyTo: "contact@dot1.media" });
@@ -163,7 +163,7 @@ export async function PATCH(request: Request) {
   }
   if (me.role === "client" && allowed.brief && allowed.brief.submitted && !(old.brief && old.brief.submitted)) {
     await sendEmail({ to: merged.notifyEmail || "contact@dot1.media", subject: (merged.clientName || "A client") + " submitted their production brief", html: briefStudioEmail(merged), replyTo: merged.clientEmail });
-    try { await sendPush("Brief submitted", [(merged.clientName || "A client"), (merged.type || "session"), formatWhen(merged.date, merged.time)].filter(Boolean).join(" \u00b7 "), "/"); } catch (e) {}
+    try { await sendPush("Brief submitted", [(merged.clientName || "A client"), (merged.type || "session"), formatWhen(merged.date, merged.time)].filter(Boolean).join(" · "), "/"); } catch (e) {}
   }
 
   if (me.role === "admin" && merged.status === "cancelled" && (old.status || "active") !== "cancelled") {

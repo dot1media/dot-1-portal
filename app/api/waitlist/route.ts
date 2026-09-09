@@ -19,7 +19,7 @@ export async function POST(req: Request) {
   const dup = ((await sql`SELECT 1 FROM waitlist WHERE email = ${email} AND date = ${date}::date LIMIT 1`) as any[])[0];
   if (!dup) {
     await sql`INSERT INTO waitlist (id, email, name, service_id, service_name, date) VALUES (${"wl_" + Math.random().toString(36).slice(2, 10)}, ${email}, ${name}, ${sid}, ${String(b.serviceName || "").slice(0, 160)}, ${date}::date)`;
-    try { await sendPush("Waitlist", (name || email) + " wants " + date + (b.serviceName ? " \u00b7 " + b.serviceName : ""), "/"); } catch {}
+    try { await sendPush("Waitlist", (name || email) + " wants " + date + (b.serviceName ? " · " + b.serviceName : ""), "/"); } catch {}
   }
   return NextResponse.json({ ok: true });
 }

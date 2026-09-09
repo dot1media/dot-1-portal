@@ -127,7 +127,7 @@ export async function buildInvoicePdf(inv: any): Promise<Uint8Array> {
 
   // footer
   page.drawRectangle({ x: M, y: 64, width: W, height: 0.8, color: LINE });
-  const foot = "Dot One Media  \u00b7  Create with purpose  \u00b7  dot1.media  \u00b7  Wasilla, Alaska  \u00b7  Veteran-Owned";
+  const foot = "Dot One Media  ·  Create with purpose  ·  dot1.media  ·  Wasilla, Alaska  ·  Veteran-Owned";
   page.drawText(foot, { x: (612 - helv.widthOfTextAtSize(foot, 8)) / 2, y: 48, size: 8, font: helv, color: FAINT });
 
   return doc.save();

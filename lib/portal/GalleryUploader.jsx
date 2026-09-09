@@ -37,6 +37,24 @@ export function GalleryUploader({ sessionId, showToast }) {
     try { await fetch("/api/gallery/release", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ galleryId: gid, unlock: true }) }); setReleaseLocked(false); if (showToast) showToast("Release reset. The client can choose again."); } catch (e) {}
   }
 
+  const [regen, setRegen] = useState("");
+  async function regenerate() {
+    if (!gid || regen) return;
+    if (!window.confirm("Rebuild sharper previews for every photo in this gallery from the original files? Originals are untouched.")) return;
+    let offset = 0, total = count || 0, done = 0, failed = 0;
+    try {
+      for (let guard = 0; guard < 200; guard++) {
+        setRegen("Rebuilding previews " + Math.min(offset, total) + " / " + total + "…");
+        const r = await fetch("/api/gallery/regenerate", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ galleryId: gid, offset }) }).then((x) => x.json());
+        if (!r.ok) throw new Error(r.error || "Could not rebuild previews.");
+        done += r.done; failed += r.failed; total = r.total; offset = r.next;
+        if (r.finished) break;
+      }
+      if (showToast) showToast("Previews rebuilt for " + done + " photo" + (done === 1 ? "" : "s") + (failed ? " (" + failed + " failed)" : "") + ". Clients will see the sharper versions now.");
+    } catch (e) { if (showToast) showToast(e.message || "Could not rebuild previews."); }
+    setRegen("");
+  }
+
   async function deleteGallery() {
     if (!gid || !window.confirm("Delete this whole gallery and all its photos from storage? This cannot be undone.")) return;
     try { await fetch("/api/gallery?galleryId=" + gid, { method: "DELETE" }); setCount(0); setGid(""); setIncluded(""); if (showToast) showToast("Gallery deleted."); } catch (e) {}
@@ -53,7 +71,7 @@ export function GalleryUploader({ sessionId, showToast }) {
       const done = [];
       for (let i = 0; i < files.length; i++) {
         const f = files[i], u = res.uploads[i];
-        const thumb = await resize(f, 400, 0.82), proof = await resize(f, 2048, 0.92);
+        const thumb = await resize(f, 900, 0.86), proof = await resize(f, 2048, 0.92);
         await fetch(u.thumbUrl, { method: "PUT", headers: { "Content-Type": "image/jpeg" }, body: thumb });
         await fetch(u.proofUrl, { method: "PUT", headers: { "Content-Type": "image/jpeg" }, body: proof });
         await fetch(u.fullUrl, { method: "PUT", headers: { "Content-Type": f.type || "image/jpeg" }, body: f });
@@ -77,10 +95,11 @@ export function GalleryUploader({ sessionId, showToast }) {
       ) : (
         <label style={{ ...btnSolid, background: RED, cursor: "pointer", display: "inline-flex" }}><Upload size={14} /> {count > 0 ? "Add more photos" : "Upload photos"}<input type="file" accept="image/*" multiple style={{ display: "none" }} onChange={onPick} /></label>
       )}
-      {release ? <div style={{ ...mono, fontSize: 10, color: STONE, marginTop: 12, lineHeight: 1.5 }}>Client usage consent: {[release.portfolio && "Portfolio", release.social && "Social", release.advertising && "Advertising"].filter(Boolean).join(", ") || "none granted"}{releaseLocked ? " \u00b7 locked" : ""}{releaseLocked ? <> \u00b7 <button onClick={resetRelease} style={{ background: "none", border: "none", padding: 0, cursor: "pointer", fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "#b3261e", textDecoration: "underline" }}>let client re-choose</button></> : null}</div> : null}
+      {release ? <div style={{ ...mono, fontSize: 10, color: STONE, marginTop: 12, lineHeight: 1.5 }}>Client usage consent: {[release.portfolio && "Portfolio", release.social && "Social", release.advertising && "Advertising"].filter(Boolean).join(", ") || "none granted"}{releaseLocked ? " · locked" : ""}{releaseLocked ? <> · <button onClick={resetRelease} style={{ background: "none", border: "none", padding: 0, cursor: "pointer", fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "#b3261e", textDecoration: "underline" }}>let client re-choose</button></> : null}</div> : null}
       {(count !== null && count > 0) ? <div style={{ display: "flex", alignItems: "center", gap: 9, marginTop: 14 }}><span style={{ ...mono, fontSize: 10, letterSpacing: "0.1em", textTransform: "uppercase", color: STONE }}>Images included</span><input value={included} onChange={(e) => setIncluded(e.target.value.replace(/[^0-9]/g, ""))} onBlur={(e) => saveIncluded(e.target.value)} placeholder="all" inputMode="numeric" style={{ width: 64, border: `1px solid ${LINE}`, borderRadius: 7, padding: "7px 9px", fontFamily: "'IBM Plex Mono', monospace", fontSize: 12, color: INK, background: "#fff" }} /><span style={{ fontSize: 11, color: STONE }}>the client can select this many to download</span></div> : null}
       {err && <div style={{ ...mono, fontSize: 10.5, color: "#b3261e", marginTop: 8, lineHeight: 1.5 }}>{err}</div>}
       <div style={{ ...mono, fontSize: 9.5, color: STONE, marginTop: 13, lineHeight: 1.55, opacity: 0.85 }}>Prefer CloudSpot or another gallery? Skip this and paste your link under Delivery &amp; review links below. The client sees whichever you use, or both.</div>
+      {(count !== null && count > 0 && gid) ? <button onClick={regenerate} disabled={!!regen} style={{ background: "none", border: "none", cursor: "pointer", padding: 0, marginTop: 11, marginRight: 14, fontFamily: "'IBM Plex Mono', monospace", fontSize: 9.5, color: STONE, textDecoration: "underline" }}>{regen || "Rebuild sharper previews"}</button> : null}
       {(count !== null && count > 0 && gid) ? <button onClick={deleteGallery} style={{ background: "none", border: "none", cursor: "pointer", padding: 0, marginTop: 11, fontFamily: "'IBM Plex Mono', monospace", fontSize: 9.5, color: "#b3261e", textDecoration: "underline" }}>Delete this gallery and all its photos</button> : null}
     </div>
   );

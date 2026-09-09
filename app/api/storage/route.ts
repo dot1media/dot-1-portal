@@ -17,7 +17,7 @@ export async function GET() {
   const rRows = rids.length ? (await sql`SELECT id, title, version, status, session_id, client_email, final_uploaded, created_at FROM video_reviews WHERE id = ANY(${rids})`) as any[] : [];
   const sids = Array.from(new Set([...gRows.map((g) => g.session_id), ...rRows.map((r) => r.session_id)].filter(Boolean)));
   const sRows = sids.length ? (await sql`SELECT id, data FROM portal_sessions WHERE id = ANY(${sids})`) as any[] : [];
-  const sName = (id: string) => { const s = sRows.find((x) => x.id === id); const d = s?.data || {}; return s ? [d.clientName, d.type, d.date].filter(Boolean).join(" \u00b7 ") : ""; };
+  const sName = (id: string) => { const s = sRows.find((x) => x.id === id); const d = s?.data || {}; return s ? [d.clientName, d.type, d.date].filter(Boolean).join(" · ") : ""; };
   const galleries = gids.map((id) => { const g = gRows.find((x) => x.id === id); return { id, title: g?.title || "(orphaned gallery)", orphan: !g, session: g ? sName(g.session_id) : "", client: g?.client_email || "", photos: g?.photos || 0, bytes: byGallery[id].bytes, objects: byGallery[id].objects, newest: byGallery[id].newest }; }).sort((a, b) => b.bytes - a.bytes);
   const videos = rids.map((id) => { const r = rRows.find((x) => x.id === id); return { id, title: r ? (r.title || "Cut " + r.version) : "(orphaned video)", orphan: !r, status: r?.status || "", session: r ? sName(r.session_id) : "", client: r?.client_email || "", reviewBytes: byReview[id].review, finalBytes: byReview[id].final, bytes: byReview[id].review + byReview[id].final, newest: byReview[id].newest }; }).sort((a, b) => b.bytes - a.bytes);
   const total = galleries.reduce((a, g) => a + g.bytes, 0) + videos.reduce((a, v) => a + v.bytes, 0);

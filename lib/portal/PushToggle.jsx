@@ -62,7 +62,7 @@ export default function PushToggle({ accent = "#b81616", line = "#e2ded4", stone
   return (
     <div style={{ padding: "6px 2px 10px" }}>
       <button onClick={on ? disable : enable} disabled={busy} style={{ ...MONO, fontSize: 11, letterSpacing: "0.06em", textTransform: "uppercase", width: "100%", padding: "10px 12px", borderRadius: 8, cursor: "pointer", border: `1px solid ${on ? line : accent}`, background: on ? "transparent" : accent, color: on ? stone : "#fff", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
-        {busy ? "..." : on ? "Phone notifications on \u00b7 tap to turn off" : "Turn on phone notifications"}
+        {busy ? "..." : on ? "Phone notifications on · tap to turn off" : "Turn on phone notifications"}
       </button>
       {msg && <div style={{ ...MONO, fontSize: 10, color: accent, marginTop: 7, lineHeight: 1.5 }}>{msg}</div>}
     </div>

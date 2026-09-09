@@ -66,7 +66,7 @@ export function ServiceForm({ form, setForm, onSave, onCancel, group, groupAddon
       <FieldLabel>Camera package (optional, the gear kit this appointment type needs)</FieldLabel>
       <select value={form.packageId || ""} onChange={(e) => setForm({ ...form, packageId: e.target.value })} style={{ ...inputStyle, cursor: "pointer", marginBottom: (packages && packages.length) ? 12 : 4 }}>
         <option value="">No package</option>
-        {(packages || []).map((p) => <option key={p.id} value={p.id}>{p.name}{multiBiz && p.business_name ? ` \u00b7 ${p.business_name}` : ""}{p.unit_count ? ` \u00b7 ${p.unit_count} items` : ""}</option>)}
+        {(packages || []).map((p) => <option key={p.id} value={p.id}>{p.name}{multiBiz && p.business_name ? ` · ${p.business_name}` : ""}{p.unit_count ? ` · ${p.unit_count} items` : ""}</option>)}
       </select>
       {(!packages || packages.length === 0) && <div style={{ ...mono, fontSize: 10, color: FAINT, margin: "0 0 12px", lineHeight: 1.5 }}>No camera packages found yet. Create them in the assets app.</div>}
       <FieldLabel>Add-on availability</FieldLabel>

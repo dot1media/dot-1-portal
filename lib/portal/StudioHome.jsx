@@ -67,7 +67,7 @@ export function StudioHome({ state, setAdminId, setAdminTab, dark }) {
     <button key={s.id} onClick={() => goTo(s.id)} style={{ width: "100%", display: "flex", alignItems: "center", gap: 10, padding: "9px 2px", background: "transparent", border: "none", borderTop: `1px solid ${LINE}`, cursor: "pointer", textAlign: "left" }}>
       <span style={{ width: 8, height: 8, borderRadius: "50%", background: g.color, flexShrink: 0 }} />
       <span style={{ ...mono, fontSize: 11, color: INK, minWidth: showDate ? 92 : 62, flexShrink: 0 }}>{showDate ? fmtDate(s.date) + " " : ""}{s.time ? fmtTime(s.time) : "TBD"}</span>
-      <span style={{ flex: 1, minWidth: 0, fontSize: 13.5, color: INK, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.clientName || "Client"} <span style={{ color: STONE }}>\u00b7 {s.type}</span></span>
+      <span style={{ flex: 1, minWidth: 0, fontSize: 13.5, color: INK, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.clientName || "Client"} <span style={{ color: STONE }}>· {s.type}</span></span>
       <ChevronRight size={14} color={FAINT} />
     </button>
   ); };
@@ -108,7 +108,7 @@ export function StudioHome({ state, setAdminId, setAdminTab, dark }) {
             <div>
               <div style={{ ...display, fontWeight: 600, fontSize: 15, color: INK, marginBottom: 6 }}>Needs attention</div>
               {agUnread.map((s) => (<button key={"u" + s.id} onClick={() => goTo(s.id)} style={{ width: "100%", display: "flex", alignItems: "center", gap: 10, padding: "9px 2px", background: "transparent", border: "none", borderTop: `1px solid ${LINE}`, cursor: "pointer", textAlign: "left" }}><span style={{ width: 8, height: 8, borderRadius: "50%", background: RED, flexShrink: 0 }} /><span style={{ flex: 1, fontSize: 13.5, color: INK }}>Unread message from {s.clientName || "a client"}</span><ChevronRight size={14} color={FAINT} /></button>))}
-              {agBalances.map((s) => { const due = (Number(s.total) || 0) - (Number(s.payAmount) || 0); return (<button key={"b" + s.id} onClick={() => goTo(s.id)} style={{ width: "100%", display: "flex", alignItems: "center", gap: 10, padding: "9px 2px", background: "transparent", border: "none", borderTop: `1px solid ${LINE}`, cursor: "pointer", textAlign: "left" }}><span style={{ width: 8, height: 8, borderRadius: "50%", background: WARN, flexShrink: 0 }} /><span style={{ flex: 1, fontSize: 13.5, color: INK }}>{s.clientName || "Client"} <span style={{ color: STONE }}>\u00b7 {money(due)} balance due{s.date ? " \u00b7 " + fmtDate(s.date) : ""}</span></span><ChevronRight size={14} color={FAINT} /></button>); })}
+              {agBalances.map((s) => { const due = (Number(s.total) || 0) - (Number(s.payAmount) || 0); return (<button key={"b" + s.id} onClick={() => goTo(s.id)} style={{ width: "100%", display: "flex", alignItems: "center", gap: 10, padding: "9px 2px", background: "transparent", border: "none", borderTop: `1px solid ${LINE}`, cursor: "pointer", textAlign: "left" }}><span style={{ width: 8, height: 8, borderRadius: "50%", background: WARN, flexShrink: 0 }} /><span style={{ flex: 1, fontSize: 13.5, color: INK }}>{s.clientName || "Client"} <span style={{ color: STONE }}>· {money(due)} balance due{s.date ? " · " + fmtDate(s.date) : ""}</span></span><ChevronRight size={14} color={FAINT} /></button>); })}
             </div>
           )}
         </div>
@@ -145,7 +145,7 @@ export function StudioHome({ state, setAdminId, setAdminTab, dark }) {
                 <div style={{ width: 38, height: 38, borderRadius: 9, background: grp.bg, border: `1px solid ${grp.border}`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}><grp.Icon size={17} color={grp.color} /></div>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ ...display, fontWeight: 600, fontSize: 15.5, color: INK }}>{s.clientName}</div>
-                  <div style={{ ...mono, fontSize: 10, color: STONE, marginTop: 2, letterSpacing: "0.04em" }}>{s.type} {"\u00b7"} {curStage(s).label}</div>
+                  <div style={{ ...mono, fontSize: 10, color: STONE, marginTop: 2, letterSpacing: "0.04em" }}>{s.type} {"·"} {curStage(s).label}</div>
                 </div>
                 <div style={{ textAlign: "right", flexShrink: 0 }}>
                   <div style={{ ...mono, fontSize: 11, color: INK, letterSpacing: "0.04em" }}>{fmtDate(s.date)}</div>
@@ -161,7 +161,7 @@ export function StudioHome({ state, setAdminId, setAdminTab, dark }) {
         <div style={{ ...cardDense, padding: "18px 20px", marginBottom: 18 }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14, flexWrap: "wrap", gap: 8 }}>
             <div style={{ ...mono, fontSize: 10.5, letterSpacing: "0.16em", textTransform: "uppercase", color: STONE, display: "inline-flex", alignItems: "center", gap: 8 }}><Wallet size={13} color={WARN} /> Pending payment</div>
-            <div style={{ ...mono, fontSize: 10.5, letterSpacing: "0.04em", color: WARN }}>{pendingPay.length} {pendingPay.length === 1 ? "session" : "sessions"} {"\u00b7"} {money(Math.round(pendingTotal))} owed</div>
+            <div style={{ ...mono, fontSize: 10.5, letterSpacing: "0.04em", color: WARN }}>{pendingPay.length} {pendingPay.length === 1 ? "session" : "sessions"} {"·"} {money(Math.round(pendingTotal))} owed</div>
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             {pendingPay.slice(0, 6).map(({ sq, due, kind }) => { const grp = GROUPS[sq.serviceLine] || GROUPS.video; return (
@@ -169,7 +169,7 @@ export function StudioHome({ state, setAdminId, setAdminTab, dark }) {
                 <div style={{ width: 38, height: 38, borderRadius: 9, background: grp.bg, border: `1px solid ${grp.border}`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}><grp.Icon size={17} color={grp.color} /></div>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ ...display, fontWeight: 600, fontSize: 15.5, color: INK }}>{sq.clientName}</div>
-                  <div style={{ ...mono, fontSize: 10, color: STONE, marginTop: 2, letterSpacing: "0.04em" }}>{sq.type}{sq.date ? " " + "\u00b7" + " " + fmtDate(sq.date) : ""}</div>
+                  <div style={{ ...mono, fontSize: 10, color: STONE, marginTop: 2, letterSpacing: "0.04em" }}>{sq.type}{sq.date ? " " + "·" + " " + fmtDate(sq.date) : ""}</div>
                 </div>
                 <div style={{ textAlign: "right", flexShrink: 0 }}>
                   <div style={{ ...mono, fontSize: 12, color: WARN, letterSpacing: "0.04em" }}>{money(Math.round(due))}</div>
@@ -196,7 +196,7 @@ export function StudioHome({ state, setAdminId, setAdminTab, dark }) {
               <button key={sq.id} className="d1-lift" onClick={() => { goTo(sq.id); setShowUnpaid(false); }} style={{ width: "100%", textAlign: "left", display: "flex", alignItems: "center", gap: 12, padding: "12px 14px", marginBottom: 8, borderRadius: 9, cursor: "pointer", border: `1px solid ${LINE}`, background: CREAM }}>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ ...display, fontWeight: 600, fontSize: 15, color: INK }}>{sq.clientName}</div>
-                  <div style={{ ...mono, fontSize: 10, color: STONE, marginTop: 2, letterSpacing: "0.04em" }}>{sq.type}{sq.date ? " \u00b7 " + fmtDate(sq.date) : ""}</div>
+                  <div style={{ ...mono, fontSize: 10, color: STONE, marginTop: 2, letterSpacing: "0.04em" }}>{sq.type}{sq.date ? " · " + fmtDate(sq.date) : ""}</div>
                 </div>
                 <div style={{ textAlign: "right", flexShrink: 0 }}>
                   <div style={{ ...mono, fontSize: 12, color: WARN, letterSpacing: "0.04em" }}>{money(Math.round(due))}</div>

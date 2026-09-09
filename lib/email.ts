@@ -241,13 +241,13 @@ export function receiptEmail(p: any): string {
   const amt = "$" + ((Number(p.amount_cents) || 0) / 100).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   let dt = "";
   try { dt = new Date(p.paid_at).toLocaleString("en-US", { year: "numeric", month: "long", day: "numeric", hour: "numeric", minute: "2-digit", timeZone: "America/Anchorage" }); } catch (e) {}
-  const card = p.card_brand ? (esc(String(p.card_brand).replace(/_/g, " ").replace(/\b\w/g, (c: string) => c.toUpperCase())) + (p.card_last4 ? " \u00b7\u00b7\u00b7\u00b7 " + esc(p.card_last4) : "")) : "Card";
+  const card = p.card_brand ? (esc(String(p.card_brand).replace(/_/g, " ").replace(/\b\w/g, (c: string) => c.toUpperCase())) + (p.card_last4 ? " ···· " + esc(p.card_last4) : "")) : "Card";
   const totalC = Number(p.total_cents) || 0;
   const remainC = totalC - (Number(p.amount_cents) || 0);
   const partial = ["retainer", "deposit", "half"].indexOf(String(p.kind || "").toLowerCase()) !== -1;
   const rows2: string[][] = [
     ["Amount paid", amt],
-    ["For", esc(p.service || "Session") + " \u00b7 " + kindLabel],
+    ["For", esc(p.service || "Session") + " · " + kindLabel],
     ["Date", esc(dt)],
     ["Payment method", card],
   ];
@@ -280,7 +280,7 @@ export function paymentStudioEmail(s: any, info: { amountCents: number; kind: st
   const amt = "$" + ((Number(info.amountCents) || 0) / 100).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   const KL: Record<string, string> = { retainer: "Retainer", deposit: "Deposit", half: "Deposit", full: "Full payment", balance: "Balance payment", charge: "Add-on" };
   const rows: Array<[string, string]> = [["Client", esc(s.clientName)], ["Service", esc(s.type)], ["Payment", KL[String(info.kind || "").toLowerCase()] || "Payment"], ["Amount", amt]];
-  if (info.cardLast4) rows.push(["Method", (info.cardBrand ? String(info.cardBrand).replace(/_/g, " ") : "Card") + " \u00b7\u00b7\u00b7\u00b7 " + info.cardLast4]);
+  if (info.cardLast4) rows.push(["Method", (info.cardBrand ? String(info.cardBrand).replace(/_/g, " ") : "Card") + " ···· " + info.cardLast4]);
   const body = para(`<strong style="color:${INK};">${esc(s.clientName) || "A client"}</strong> just sent a payment.`) + detailRows(rows) + para("The receipt has been emailed to the client and saved in your Receipts.");
   return shell(brand, "Payment Received", "You got paid", body);
 }

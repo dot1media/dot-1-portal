@@ -15,9 +15,9 @@ export async function GET() {
   }
   const out: any[] = [];
   for (const s of sessions) {
-    const d = s.data || {}; const base = { sessionId: s.id, session: (d.type || "Session") + (d.date ? " \u00b7 " + d.date : ""), date: d.date || null };
-    for (const f of finals.filter((x) => x.session_id === s.id)) out.push({ ...base, kind: "final", label: "Final video" + (f.title ? " \u00b7 " + f.title : ""), note: f.final_filename || "High-quality download", href: "/api/video/final?reviewId=" + f.id, direct: true });
-    for (const g of galleries.filter((x) => x.session_id === s.id)) if (Number(g.n) > 0) out.push({ ...base, kind: "gallery", label: g.title || "Photo gallery", note: g.n + " photo" + (Number(g.n) === 1 ? "" : "s") + " \u00b7 select & download in your gallery", open: true });
+    const d = s.data || {}; const base = { sessionId: s.id, session: (d.type || "Session") + (d.date ? " · " + d.date : ""), date: d.date || null };
+    for (const f of finals.filter((x) => x.session_id === s.id)) out.push({ ...base, kind: "final", label: "Final video" + (f.title ? " · " + f.title : ""), note: f.final_filename || "High-quality download", href: "/api/video/final?reviewId=" + f.id, direct: true });
+    for (const g of galleries.filter((x) => x.session_id === s.id)) if (Number(g.n) > 0) out.push({ ...base, kind: "gallery", label: g.title || "Photo gallery", note: g.n + " photo" + (Number(g.n) === 1 ? "" : "s") + " · select & download in your gallery", open: true });
     if (d.deliveryVideo) out.push({ ...base, kind: "link", label: "Final Film", note: "External link", href: d.deliveryVideo });
     if (d.deliveryPhoto) out.push({ ...base, kind: "link", label: "Full Gallery", note: "External link", href: d.deliveryPhoto });
     if (d.deliveryMusic) out.push({ ...base, kind: "link", label: "Audio", note: "External link", href: d.deliveryMusic });

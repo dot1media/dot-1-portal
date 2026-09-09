@@ -902,7 +902,7 @@ function AvailabilityManager({ availability, addAvailability, removeAvailability
           <div key={a.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, border: `1px solid ${LINE}`, borderRadius: 9, padding: "12px 15px", marginBottom: 8, background: PAPER }}>
             <div>
               <div style={{ ...display, fontWeight: 600, fontSize: 15, color: INK }}>{fmtDate(a.date)}</div>
-              <div style={{ ...mono, fontSize: 11, color: STONE, marginTop: 2 }}>{fmtTime(a.start)} to {fmtTime(a.end)}{(() => { const ids = Array.isArray(a.serviceIds) ? a.serviceIds : []; if (!ids.length) return " \u00b7 All types"; const names = ids.map((id) => ((services || []).find((s) => String(s.id) === String(id)) || {}).name).filter(Boolean); return " \u00b7 " + (names.join(", ") || "Selected types"); })()}</div>
+              <div style={{ ...mono, fontSize: 11, color: STONE, marginTop: 2 }}>{fmtTime(a.start)} to {fmtTime(a.end)}{(() => { const ids = Array.isArray(a.serviceIds) ? a.serviceIds : []; if (!ids.length) return " · All types"; const names = ids.map((id) => ((services || []).find((s) => String(s.id) === String(id)) || {}).name).filter(Boolean); return " · " + (names.join(", ") || "Selected types"); })()}</div>
             </div>
             <IconBtn onClick={async () => { const r = await removeAvailability(a.id); if (r && !r.ok) showToast(r.error || "Could not remove."); }} danger><Trash2 size={13} /></IconBtn>
           </div>
@@ -995,7 +995,7 @@ function ServiceCard({ svc, groupAddons, onEdit, onDelete, onToggleVisible, pack
       </div>
       {svc.description ? <div style={{ fontSize: 12.5, color: BODY, lineHeight: 1.5, marginTop: 5 }}>{svc.description}</div> : null}
       <div style={{ ...mono, fontSize: 9.5, letterSpacing: "0.05em", color: FAINT, marginTop: 9, display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}><Package size={11} /> {svc.addonMode === "group" ? "All group add-ons" : `${attached.length} selected`}{attached.length > 0 && <span style={{ color: STONE }}>· {attached.map((a) => a.name).join(", ")}</span>}</div>
-      {pkg && <div style={{ ...mono, fontSize: 9.5, letterSpacing: "0.05em", color: RED, marginTop: 6, display: "flex", alignItems: "center", gap: 6 }}><Camera size={11} /> {pkg.name}{pkg.unit_count ? ` \u00b7 ${pkg.unit_count} items` : ""}</div>}
+      {pkg && <div style={{ ...mono, fontSize: 9.5, letterSpacing: "0.05em", color: RED, marginTop: 6, display: "flex", alignItems: "center", gap: 6 }}><Camera size={11} /> {pkg.name}{pkg.unit_count ? ` · ${pkg.unit_count} items` : ""}</div>}
     </div>
   );
 }
@@ -1086,7 +1086,7 @@ function CommandPalette({ state, setAdminTab, setAdminId, onClose, onSignOut, on
   const sess = ql ? (state.sessions || []).filter((s) => ((s.clientName || "") + " " + (s.type || "")).toLowerCase().includes(ql)).slice(0, 6) : [];
   const items = [
     ...cmds.map((c) => ({ icon: c.icon, iconColor: null, label: c.label, sub: c.sub, tag: null, run: c.run })),
-    ...sess.map((s) => { const g = GROUPS[s.serviceLine] || GROUPS.video; return { icon: g.Icon, iconColor: g.color, label: s.clientName, sub: s.type + (s.date ? " \u00b7 " + fmtDate(s.date) : ""), tag: "Session", run: () => openSession(s.id) }; }),
+    ...sess.map((s) => { const g = GROUPS[s.serviceLine] || GROUPS.video; return { icon: g.Icon, iconColor: g.color, label: s.clientName, sub: s.type + (s.date ? " · " + fmtDate(s.date) : ""), tag: "Session", run: () => openSession(s.id) }; }),
   ];
   const cur = Math.min(sel, Math.max(0, items.length - 1));
   const onKey = (e) => {
@@ -1214,7 +1214,7 @@ function Footer({ onLegal }) {
   return (
     <footer style={{ borderTop: `1px solid ${LINE}`, background: PAPER }}>
       <div style={{ maxWidth: 1120, margin: "0 auto", padding: "22px 22px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 14, flexWrap: "wrap" }}>
-        <div style={{ ...mono, fontSize: 10, letterSpacing: "0.04em", color: FAINT }}>{"\u00a9 " + year + " Dot One Media \u00b7 Wasilla, Alaska"}</div>
+        <div style={{ ...mono, fontSize: 10, letterSpacing: "0.04em", color: FAINT }}>{"\u00a9 " + year + " Dot One Media · Wasilla, Alaska"}</div>
         <div style={{ display: "flex", alignItems: "center", gap: 20 }}>
           <button onClick={() => onLegal("terms")} style={link}>Terms</button>
           <button onClick={() => onLegal("privacy")} style={link}>Privacy</button>
@@ -1241,14 +1241,14 @@ function NotificationBell({ mode, sessions, clientId, onOpenSession, onMarkRead,
   if (mode === "studio") {
     if (seen) {
       (sessions || []).filter((s) => !s.internal && (s.status || "active") === "active" && !seen.has(s.id)).forEach((s) => {
-        items.push({ key: "b" + s.id, Icon: CalendarClock, title: "New booking \u00b7 " + (s.clientName || "Client"), sub: (s.type || "Session") + (s.date ? " \u00b7 " + fmtDate(s.date) + (s.time ? " " + fmtTime(s.time) : "") : ""), run: () => { markBookingSeen(s.id); onOpenSession && onOpenSession(s.id); } });
+        items.push({ key: "b" + s.id, Icon: CalendarClock, title: "New booking · " + (s.clientName || "Client"), sub: (s.type || "Session") + (s.date ? " · " + fmtDate(s.date) + (s.time ? " " + fmtTime(s.time) : "") : ""), run: () => { markBookingSeen(s.id); onOpenSession && onOpenSession(s.id); } });
       });
     }
     (sessions || []).forEach((s) => {
       (s.comments || []).forEach((c, idx) => {
         if (c && c.author === "client" && !c.read) {
           const resched = /reschedul/i.test(c.text || "");
-          items.push({ key: s.id + ":" + idx, Icon: resched ? CalendarClock : MessageSquare, title: (resched ? "Reschedule request" : "New message") + " \u00b7 " + (s.clientName || "Client"), sub: (c.text || "").slice(0, 70), run: () => onOpenSession && onOpenSession(s.id) });
+          items.push({ key: s.id + ":" + idx, Icon: resched ? CalendarClock : MessageSquare, title: (resched ? "Reschedule request" : "New message") + " · " + (s.clientName || "Client"), sub: (c.text || "").slice(0, 70), run: () => onOpenSession && onOpenSession(s.id) });
         }
       });
     });
@@ -1259,7 +1259,7 @@ function NotificationBell({ mode, sessions, clientId, onOpenSession, onMarkRead,
         if (c && c.author === "studio" && !c.read) items.push({ key: "m" + idx, Icon: MessageSquare, title: "New reply from the studio", sub: (c.text || "").slice(0, 70), run: () => onMarkRead && onMarkRead() });
       });
       if (s.deliveryPhoto) items.push({ key: "gal", Icon: ImageIcon, title: "Your gallery is ready", sub: "View and download your photos", run: () => onOpenTab && onOpenTab() });
-      (Array.isArray(s.charges) ? s.charges : []).forEach((c, idx) => { if (c && c.status !== "paid") items.push({ key: "c" + idx, Icon: Wallet, title: "Payment request", sub: (c.label || "Charge") + " \u00b7 " + money((c.amountCents || 0) / 100) }); });
+      (Array.isArray(s.charges) ? s.charges : []).forEach((c, idx) => { if (c && c.status !== "paid") items.push({ key: "c" + idx, Icon: Wallet, title: "Payment request", sub: (c.label || "Charge") + " · " + money((c.amountCents || 0) / 100) }); });
       const bal = (Number(s.total) || 0) - ((s.paymentStatus === "paid") ? (Number(s.payAmount) || 0) : 0);
       if (s.paymentStatus === "paid" && s.balanceStatus !== "paid" && bal > 0) items.push({ key: "bal", Icon: Wallet, title: "Balance due", sub: money(bal) + " remaining" });
     }

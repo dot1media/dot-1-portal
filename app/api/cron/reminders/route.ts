@@ -40,7 +40,7 @@ export async function GET(req: Request) {
     const type = d.type || "session";
     if (days === 2 && !(await alreadySent(r.id, "48h"))) { try { await sendToClient(email, "updates", { subject: "Your " + type + " is in two days", html: reminderHtml(type, when, d, "in two days"), replyTo: "contact@dot1.media" }); await markSent(r.id, "48h"); sent.h48++; } catch (e) {} }
     if (days === 1) {
-      tomorrow.push([d.clientName || "Client", type, d.time ? formatWhen("", d.time) : ""].filter(Boolean).join(" \u00b7 "));
+      tomorrow.push([d.clientName || "Client", type, d.time ? formatWhen("", d.time) : ""].filter(Boolean).join(" · "));
       if (!(await alreadySent(r.id, "24h"))) { try { await sendToClient(email, "updates", { subject: "See you tomorrow: your " + type, html: reminderHtml(type, when, d, "tomorrow"), replyTo: "contact@dot1.media" }); await markSent(r.id, "24h"); sent.h24++; } catch (e) {} }
     }
     const total = Number(d.total) || 0; const paid = d.paymentStatus === "paid" ? (Number(d.payAmount) || 0) : 0; const due = total - paid;

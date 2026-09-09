@@ -16,7 +16,7 @@ export default function SharePage() {
   return (
     <div style={{ minHeight: "100vh", background: "#fbf8f2", color: INK, fontFamily: "Archivo, -apple-system, sans-serif" }}>
       <div style={{ maxWidth: 1100, margin: "0 auto", padding: "28px 18px 60px" }}>
-        <div style={{ ...mono, fontSize: 10, letterSpacing: "0.18em", textTransform: "uppercase", color: STONE, marginBottom: 6 }}>Dot One Media \u00b7 shared favorites</div>
+        <div style={{ ...mono, fontSize: 10, letterSpacing: "0.18em", textTransform: "uppercase", color: STONE, marginBottom: 6 }}>Dot One Media · shared favorites</div>
         {err ? <div style={{ fontSize: 15, color: STONE, padding: "40px 0" }}>{err}</div> : !data ? <div style={{ ...mono, fontSize: 11, color: STONE }}>Loading…</div> : (
           <>
             <h1 style={{ fontFamily: "'Bodoni Moda', Georgia, serif", fontWeight: 700, fontSize: 30, margin: "0 0 4px" }}>{data.title}</h1>

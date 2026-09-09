@@ -39,7 +39,7 @@ export async function POST(req: Request) {
   const charge = { id: chargeId, label, amountCents: total, status: "pending", kind: "prints", orderId, squareOrderId: sq.payment_link.order_id || "", squareLink: sq.payment_link.url, createdAt: new Date().toISOString() };
   await sql`UPDATE portal_sessions SET data = ${JSON.stringify({ ...data, charges: [...(Array.isArray(data.charges) ? data.charges : []), charge] })}::jsonb, updated_at = now() WHERE id = ${sid}`;
   await sql`INSERT INTO print_orders (id, session_id, gallery_id, client_email, charge_id, items, total_cents, shipping) VALUES (${orderId}, ${sid}, ${gid || null}, ${em}, ${chargeId}, ${JSON.stringify(items)}::jsonb, ${total}, ${JSON.stringify(ship)}::jsonb)`;
-  try { await sendPush("Print order", (data.clientName || em) + " \u00b7 $" + (total / 100).toFixed(2) + " \u00b7 " + items.reduce((a, it) => a + it.qty, 0) + " prints", "/"); } catch {}
+  try { await sendPush("Print order", (data.clientName || em) + " · $" + (total / 100).toFixed(2) + " · " + items.reduce((a, it) => a + it.qty, 0) + " prints", "/"); } catch {}
   try { await sendEmail({ to: data.notifyEmail || "contact@dot1.media", subject: "Print order from " + (data.clientName || em), html: `<div style="font-family:Arial,sans-serif;font-size:14px;color:#33322d"><p><b>${data.clientName || em}</b> ordered prints ($${(total / 100).toFixed(2)}), pending payment:</p><ul>${items.map((it) => `<li>${it.qty}× ${it.name}</li>`).join("")}</ul><p>Ship to: ${ship.name}<br/>${ship.address.replace(/\n/g, "<br/>")}</p></div>` }); } catch {}
   return NextResponse.json({ ok: true, orderId, chargeId, url: sq.payment_link.url, total: total / 100 });
 }

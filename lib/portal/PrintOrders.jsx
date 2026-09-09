@@ -43,7 +43,7 @@ export function PrintOrdersPanel({ sessionId, showToast }) {
       {orders.map((o) => (
         <div key={o.id} style={{ borderTop: `1px solid ${LINE}`, padding: "10px 0" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-            <div style={{ flex: 1, minWidth: 0 }}><div style={{ fontSize: 13.5, color: INK }}>{!sessionId && o.client ? o.client + " \u00b7 " : ""}{money(o.total)} <span style={{ ...mono, fontSize: 9.5, letterSpacing: "0.08em", textTransform: "uppercase", color: o.fulfilledAt ? OK : o.paid ? WARN : FAINT, marginLeft: 6 }}>{o.fulfilledAt ? "fulfilled" : o.paid ? "paid, to fulfil" : "awaiting payment"}</span></div><div style={{ ...mono, fontSize: 10, color: FAINT, marginTop: 2 }}>Ship to {o.shipping.name}, {o.shipping.address}</div></div>
+            <div style={{ flex: 1, minWidth: 0 }}><div style={{ fontSize: 13.5, color: INK }}>{!sessionId && o.client ? o.client + " · " : ""}{money(o.total)} <span style={{ ...mono, fontSize: 9.5, letterSpacing: "0.08em", textTransform: "uppercase", color: o.fulfilledAt ? OK : o.paid ? WARN : FAINT, marginLeft: 6 }}>{o.fulfilledAt ? "fulfilled" : o.paid ? "paid, to fulfil" : "awaiting payment"}</span></div><div style={{ ...mono, fontSize: 10, color: FAINT, marginTop: 2 }}>Ship to {o.shipping.name}, {o.shipping.address}</div></div>
             {o.paid && (o.fulfilledAt ? <button onClick={() => fulfil(o, false)} style={btnGhost}>Undo</button> : <button onClick={() => fulfil(o, true)} style={{ ...btnSolid, background: OK, padding: "8px 12px" }}><Check size={13} /> Mark fulfilled</button>)}
           </div>
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 8 }}>

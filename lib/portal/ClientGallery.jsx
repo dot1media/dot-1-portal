@@ -1,6 +1,7 @@
 "use client";
 import { money } from "./format";
 import React, { useEffect, useState, useCallback } from "react";
+import { createPortal } from "react-dom";
 import { Heart, Download, X, ChevronLeft, ChevronRight, Check, Share2, ShoppingBag, Plus, Minus } from "lucide-react";
 import { mono, display, INK, BODY, LINE, STONE, FAINT, PAPER, CREAM } from "./theme";
 
@@ -17,6 +18,8 @@ export function ClientGallery({ sessionId }) {
   const [loading, setLoading] = useState(true);
   const [lightbox, setLightbox] = useState(-1);
   const [proofUrl, setProofUrl] = useState("");
+  const [proofTried, setProofTried] = useState(0);
+  const [proofErr, setProofErr] = useState("");
   const [busyFav, setBusyFav] = useState("");
   const [limitMsg, setLimitMsg] = useState("");
   const [dl, setDl] = useState(false);
@@ -69,10 +72,10 @@ export function ClientGallery({ sessionId }) {
     setBusyFav("");
   }
   async function openLightbox(i) {
-    setLightbox(i); setProofUrl("");
+    setLightbox(i); setProofUrl(""); setProofTried(0); setProofErr("");
     try { const r = await fetch("/api/gallery/asset?size=proof&photoId=" + photos[i].id).then((x) => x.json()); setProofUrl(r.url || ""); } catch (e) {}
   }
-  const nav = useCallback((d) => { const n = lightbox + d; if (n >= 0 && n < photos.length) { setLightbox(n); setProofUrl(""); fetch("/api/gallery/asset?size=proof&photoId=" + photos[n].id).then((x) => x.json()).then((r) => setProofUrl(r.url || "")).catch(() => {}); } }, [lightbox, photos]);
+  const nav = useCallback((d) => { const n = lightbox + d; if (n >= 0 && n < photos.length) { setLightbox(n); setProofUrl(""); setProofTried(0); setProofErr(""); fetch("/api/gallery/asset?size=proof&photoId=" + photos[n].id).then((x) => x.json()).then((r) => setProofUrl(r.url || "")).catch(() => {}); } }, [lightbox, photos]);
   useEffect(() => {
     if (lightbox < 0) return;
     const h = (e) => { if (e.key === "Escape") setLightbox(-1); if (e.key === "ArrowRight") nav(1); if (e.key === "ArrowLeft") nav(-1); };
@@ -138,7 +141,7 @@ export function ClientGallery({ sessionId }) {
           <div style={{ ...mono, fontSize: 10, letterSpacing: "0.14em", textTransform: "uppercase", color: STONE, marginBottom: 6 }}>Your download, in parts</div>
           <div style={{ fontSize: 12.5, color: BODY, marginBottom: 10, lineHeight: 1.5 }}>Full-resolution files are large, so your {photos.filter((p) => p.favorite).length} photos come as {dlParts.length} zips. Tap each one.</div>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-            {dlParts.map((pt) => <a key={pt.n} href={pt.url} style={{ ...mono, fontSize: 11, letterSpacing: "0.06em", textTransform: "uppercase", padding: "10px 14px", borderRadius: 9, textDecoration: "none", background: A, color: "#fff", display: "inline-flex", alignItems: "center", gap: 7 }}><Download size={13} /> Part {pt.n} of {dlParts.length} \u00b7 {pt.count} photos</a>)}
+            {dlParts.map((pt) => <a key={pt.n} href={pt.url} style={{ ...mono, fontSize: 11, letterSpacing: "0.06em", textTransform: "uppercase", padding: "10px 14px", borderRadius: 9, textDecoration: "none", background: A, color: "#fff", display: "inline-flex", alignItems: "center", gap: 7 }}><Download size={13} /> Part {pt.n} of {dlParts.length} · {pt.count} photos</a>)}
             <button onClick={() => setDlParts(null)} style={{ ...mono, fontSize: 10.5, padding: "10px 12px", borderRadius: 9, border: `1px solid ${LINE}`, background: PAPER, color: STONE, cursor: "pointer" }}>Close</button>
           </div>
         </div>
@@ -175,7 +178,7 @@ export function ClientGallery({ sessionId }) {
           {cart.map((x, i) => { const p = products.find((y) => y.id === x.productId); const ph = photos.find((y) => y.id === x.photoId); return (
             <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 0", borderTop: `1px solid ${LINE}` }}>
               {ph ? <img src={ph.thumb} alt="" style={{ width: 44, height: 44, objectFit: "cover", borderRadius: 6 }} /> : null}
-              <div style={{ flex: 1, fontSize: 13, color: INK }}>{p ? p.name : "Print"} <span style={{ ...mono, fontSize: 10.5, color: FAINT }}>\u00b7 {p ? money(p.price) : ""} each</span></div>
+              <div style={{ flex: 1, fontSize: 13, color: INK }}>{p ? p.name : "Print"} <span style={{ ...mono, fontSize: 10.5, color: FAINT }}>· {p ? money(p.price) : ""} each</span></div>
               <div style={{ display: "inline-flex", alignItems: "center", gap: 6 }}><button onClick={() => bump(i, -1)} style={{ width: 26, height: 26, borderRadius: 13, border: `1px solid ${LINE}`, background: PAPER, cursor: "pointer", display: "inline-flex", alignItems: "center", justifyContent: "center" }}><Minus size={12} /></button><span style={{ ...mono, fontSize: 12, minWidth: 16, textAlign: "center" }}>{x.qty}</span><button onClick={() => bump(i, 1)} style={{ width: 26, height: 26, borderRadius: 13, border: `1px solid ${LINE}`, background: PAPER, cursor: "pointer", display: "inline-flex", alignItems: "center", justifyContent: "center" }}><Plus size={12} /></button></div>
             </div>
           ); })}
@@ -191,15 +194,15 @@ export function ClientGallery({ sessionId }) {
         </div>
       )}
       {products.length > 0 && cart.length > 0 && !cartOpen && (
-        <button onClick={() => setCartOpen(true)} style={{ position: "fixed", right: 18, bottom: 18, zIndex: 40, ...mono, fontSize: 11, letterSpacing: "0.06em", textTransform: "uppercase", padding: "12px 16px", borderRadius: 999, border: "none", background: A, color: "#fff", boxShadow: "0 8px 24px rgba(20,18,16,0.25)", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 8 }}><ShoppingBag size={14} /> {cart.reduce((a, x) => a + x.qty, 0)} print{cart.reduce((a, x) => a + x.qty, 0) === 1 ? "" : "s"} \u00b7 {money(cartTotal)}</button>
+        <button onClick={() => setCartOpen(true)} style={{ position: "fixed", right: 18, bottom: 18, zIndex: 40, ...mono, fontSize: 11, letterSpacing: "0.06em", textTransform: "uppercase", padding: "12px 16px", borderRadius: 999, border: "none", background: A, color: "#fff", boxShadow: "0 8px 24px rgba(20,18,16,0.25)", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 8 }}><ShoppingBag size={14} /> {cart.reduce((a, x) => a + x.qty, 0)} print{cart.reduce((a, x) => a + x.qty, 0) === 1 ? "" : "s"} · {money(cartTotal)}</button>
       )}
-{lightbox >= 0 && (
+      {lightbox >= 0 && typeof document !== "undefined" && createPortal((
         <div onClick={() => setLightbox(-1)} style={{ position: "fixed", inset: 0, background: "rgba(14,14,16,0.95)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: 18 }}>
           <button onClick={() => setLightbox(-1)} style={{ position: "absolute", top: 16, right: 16, width: 44, height: 44, borderRadius: "50%", border: "none", background: "rgba(255,255,255,0.12)", color: "#fff", cursor: "pointer", display: "inline-flex", alignItems: "center", justifyContent: "center" }}><X size={22} /></button>
           {lightbox > 0 && <button onClick={(e) => { e.stopPropagation(); nav(-1); }} style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", width: 46, height: 46, borderRadius: "50%", border: "none", background: "rgba(255,255,255,0.12)", color: "#fff", cursor: "pointer", display: "inline-flex", alignItems: "center", justifyContent: "center" }}><ChevronLeft size={24} /></button>}
           {lightbox < photos.length - 1 && <button onClick={(e) => { e.stopPropagation(); nav(1); }} style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", width: 46, height: 46, borderRadius: "50%", border: "none", background: "rgba(255,255,255,0.12)", color: "#fff", cursor: "pointer", display: "inline-flex", alignItems: "center", justifyContent: "center" }}><ChevronRight size={24} /></button>}
           <div onClick={(e) => e.stopPropagation()} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 16 }}>
-            {proofUrl ? <img src={proofUrl} alt="" style={{ maxWidth: "92vw", maxHeight: "78vh", objectFit: "contain", borderRadius: 3 }} /> : <div style={{ color: "#fff", ...mono, fontSize: 12 }}>Loading…</div>}
+            {proofUrl ? <img src={proofUrl} alt="" onError={async () => { const p = photos[lightbox]; if (!p) return; if (proofTried === 0 && p.favorite) { setProofTried(1); try { const r = await fetch("/api/gallery/asset?size=full&photoId=" + p.id).then((x) => x.json()); if (r.url) { setProofUrl(r.url); return; } } catch (e) {} } if (proofTried <= 1 && p.thumb) { setProofTried(2); setProofUrl(p.thumb); return; } setProofErr("This preview could not be loaded."); }} style={{ maxWidth: "92vw", maxHeight: "78vh", objectFit: "contain", borderRadius: 3, display: "block" }} /> : <div style={{ color: "#fff", ...mono, fontSize: 12 }}>{proofErr || "Loading…"}</div>}
             <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
               <button onClick={() => toggle(photos[lightbox])} style={{ ...mono, fontSize: 11, letterSpacing: "0.06em", textTransform: "uppercase", padding: "11px 18px", borderRadius: 9, cursor: "pointer", border: "none", background: photos[lightbox].favorite ? A : "rgba(255,255,255,0.14)", color: "#fff", display: "inline-flex", alignItems: "center", gap: 8 }}><Heart size={15} fill={photos[lightbox].favorite ? "#fff" : "none"} /> {photos[lightbox].favorite ? "Selected" : "Select"}</button>
               {photos[lightbox].favorite && <button onClick={() => downloadOne(photos[lightbox].id, photos[lightbox].filename)} style={{ ...mono, fontSize: 11, letterSpacing: "0.06em", textTransform: "uppercase", padding: "11px 18px", borderRadius: 9, cursor: "pointer", border: "none", background: "#fff", color: INK, display: "inline-flex", alignItems: "center", gap: 8 }}><Download size={15} /> Download</button>}
@@ -214,7 +217,7 @@ export function ClientGallery({ sessionId }) {
             </div>
           </div>
         </div>
-      )}
+      ), document.body)}
     </div>
   );
 }

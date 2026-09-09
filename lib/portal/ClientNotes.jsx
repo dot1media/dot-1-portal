@@ -23,7 +23,7 @@ export function ClientNotes({ email, showToast }) {
   return (
     <div style={{ background: CREAM, border: `1px solid ${LINE}`, borderRadius: 10, padding: "14px 16px", marginBottom: 18 }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, marginBottom: 10 }}>
-        <div style={{ ...mono, fontSize: 10, letterSpacing: "0.16em", textTransform: "uppercase", color: STONE, display: "flex", alignItems: "center", gap: 7 }}><UserRound size={13} /> Client notes <span style={{ color: FAINT }}>\u00b7 private</span></div>
+        <div style={{ ...mono, fontSize: 10, letterSpacing: "0.16em", textTransform: "uppercase", color: STONE, display: "flex", alignItems: "center", gap: 7 }}><UserRound size={13} /> Client notes <span style={{ color: FAINT }}>· private</span></div>
         <div style={{ ...mono, fontSize: 10, color: FAINT }}>{count} session{count === 1 ? "" : "s"} with this client</div>
       </div>
       <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 8 }}>

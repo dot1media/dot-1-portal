@@ -45,7 +45,7 @@ export function InspirationBoard({ sessionId, editable, accent, compact }) {
       {editable && (
         <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
           <label style={{ ...mono, fontSize: 11, letterSpacing: "0.06em", textTransform: "uppercase", padding: "11px 16px", borderRadius: 9, cursor: busy ? "default" : "pointer", border: "none", background: busy ? LINE : A, color: busy ? FAINT : "#fff", display: "inline-flex", alignItems: "center", gap: 8 }}><ImagePlus size={14} /> {busy || (items.length ? "Add more" : "Add images")}<input type="file" accept="image/*" multiple disabled={!!busy} style={{ display: "none" }} onChange={onPick} /></label>
-          <span style={{ ...mono, fontSize: 10, color: FAINT }}>{items.length}/30 \u00b7 resized before upload, so they're quick</span>
+          <span style={{ ...mono, fontSize: 10, color: FAINT }}>{items.length}/30 · resized before upload, so they're quick</span>
           {err && <span style={{ ...mono, fontSize: 10.5, color: "#b3261e" }}>{err}</span>}
         </div>
       )}

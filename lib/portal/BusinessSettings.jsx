@@ -93,7 +93,7 @@ function ImportSessions({ existing, onImport, showToast }) {
       ) : (
         <div style={{ ...card, padding: "16px 18px" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12, gap: 10 }}>
-            <div style={{ fontSize: 13, color: BODY }}><strong style={{ color: INK }}>{newCount}</strong> to import{repairCount > 0 ? <span style={{ color: WARN }}> {"\u00b7"} {repairCount} to fix</span> : null}{skipCount > 0 ? <span style={{ color: STONE }}> {"\u00b7"} {skipCount} already imported</span> : null}</div>
+            <div style={{ fontSize: 13, color: BODY }}><strong style={{ color: INK }}>{newCount}</strong> to import{repairCount > 0 ? <span style={{ color: WARN }}> {"·"} {repairCount} to fix</span> : null}{skipCount > 0 ? <span style={{ color: STONE }}> {"·"} {skipCount} already imported</span> : null}</div>
             {!importing && <button onClick={() => setDrafts(null)} style={{ ...mono, fontSize: 9, letterSpacing: "0.06em", textTransform: "uppercase", color: STONE, background: "transparent", border: "1px solid " + LINE, borderRadius: 6, padding: "6px 10px", cursor: "pointer" }}>Choose another file</button>}
           </div>
           <div style={{ maxHeight: 260, overflowY: "auto", border: "1px solid " + LINE, borderRadius: 8 }}>
@@ -101,14 +101,14 @@ function ImportSessions({ existing, onImport, showToast }) {
               <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 12px", borderBottom: i < drafts.length - 1 ? "1px solid " + LINE : "none", opacity: d.mode === "skip" ? 0.5 : 1 }}>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontSize: 13, color: INK, fontWeight: 500, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{d.name || "(no name)"}</div>
-                  <div style={{ ...mono, fontSize: 9.5, color: STONE, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{d.type} {"\u00b7"} {d.date || "no date"}</div>
+                  <div style={{ ...mono, fontSize: 9.5, color: STONE, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{d.type} {"·"} {d.date || "no date"}</div>
                 </div>
-                <div style={{ ...mono, fontSize: 11, color: d.paid ? OK : STONE, flexShrink: 0 }}>{d.price ? money(d.price) : ""}{d.paid ? " " + "\u00b7" + " paid" : ""}</div>
+                <div style={{ ...mono, fontSize: 11, color: d.paid ? OK : STONE, flexShrink: 0 }}>{d.price ? money(d.price) : ""}{d.paid ? " " + "·" + " paid" : ""}</div>
                 {d.mode === "skip" ? <span style={{ ...mono, fontSize: 8.5, letterSpacing: "0.06em", textTransform: "uppercase", color: FAINT, flexShrink: 0 }}>imported</span> : (d.mode === "repair" ? <span style={{ ...mono, fontSize: 8.5, letterSpacing: "0.06em", textTransform: "uppercase", color: WARN, flexShrink: 0 }}>fix date</span> : null)}
               </div>
             ))}
           </div>
-          <button onClick={runImport} disabled={importing || todoCount === 0} style={{ ...btnSolid, background: (importing || todoCount === 0) ? FAINT : RED, width: "100%", justifyContent: "center", marginTop: 14, padding: "11px" }}>{importing ? ("Working " + progress + " of " + todoCount + "\u2026") : (repairCount > 0 && newCount > 0 ? ("Import " + newCount + " " + "\u00b7" + " fix " + repairCount) : (repairCount > 0 ? ("Fix " + repairCount + " session" + (repairCount === 1 ? "" : "s")) : ("Import " + newCount + " session" + (newCount === 1 ? "" : "s"))))}</button>
+          <button onClick={runImport} disabled={importing || todoCount === 0} style={{ ...btnSolid, background: (importing || todoCount === 0) ? FAINT : RED, width: "100%", justifyContent: "center", marginTop: 14, padding: "11px" }}>{importing ? ("Working " + progress + " of " + todoCount + "\u2026") : (repairCount > 0 && newCount > 0 ? ("Import " + newCount + " " + "·" + " fix " + repairCount) : (repairCount > 0 ? ("Fix " + repairCount + " session" + (repairCount === 1 ? "" : "s")) : ("Import " + newCount + " session" + (newCount === 1 ? "" : "s"))))}</button>
         </div>
       )}
     </div>
@@ -166,7 +166,7 @@ export function BusinessSettings({ sessions, showToast, onImport }) {
   const monthAgg = {}; arows.forEach((s) => { if (!s.date) return; const k = s.date.slice(0, 7); if (!monthAgg[k]) monthAgg[k] = { key: k, count: 0, revenue: 0 }; monthAgg[k].count++; monthAgg[k].revenue += Number(s.total) || 0; });
   const byMonth = Object.keys(monthAgg).sort().slice(-12).map((k) => monthAgg[k]);
   const lineSegments = byLine.map((l) => ({ label: GROUPS[l.key].label, value: l.revenue, count: l.count, color: GROUPS[l.key].color }));
-  const typeItems = byType.slice(0, 10).map((t) => ({ label: t.label, value: t.count, right: t.count + (t.count === 1 ? " booking" : " bookings") + " \u00b7 " + money(t.revenue), color: (GROUPS[t.line] || GROUPS.video).color }));
+  const typeItems = byType.slice(0, 10).map((t) => ({ label: t.label, value: t.count, right: t.count + (t.count === 1 ? " booking" : " bookings") + " · " + money(t.revenue), color: (GROUPS[t.line] || GROUPS.video).color }));
   const monthItems = byMonth.map((m) => ({ label: monthShort(m.key), value: m.revenue, top: compactMoney(m.revenue), color: RED }));
 
   const exportSessions = () => {
@@ -188,7 +188,7 @@ export function BusinessSettings({ sessions, showToast, onImport }) {
   const exportAnalytics = () => {
     if (arows.length === 0) { showToast("No booking data to export yet."); return; }
     const out = [];
-    out.push(["Dot One Media \u00b7 Booking analytics"]);
+    out.push(["Dot One Media · Booking analytics"]);
     out.push(["Period", (start || "all time") + (end ? " to " + end : (start ? " onward" : ""))]);
     out.push(["Bookings", String(arows.length), "Booked revenue ($)", bookedRevenue.toFixed(2), "Avg per booking ($)", avgValue.toFixed(2), "Collected ($)", collected.toFixed(2), "Outstanding ($)", outstanding.toFixed(2)]);
     out.push([]);
@@ -254,7 +254,7 @@ export function BusinessSettings({ sessions, showToast, onImport }) {
                   <div key={seg.label} style={{ display: "flex", alignItems: "center", gap: 10 }}>
                     <span style={{ width: 11, height: 11, borderRadius: 3, background: seg.color, flexShrink: 0 }} />
                     <span style={{ ...display, fontSize: 13, color: INK, flex: 1 }}>{seg.label}</span>
-                    <span style={{ ...mono, fontSize: 11, color: STONE }}>{money(seg.value)}{" \u00b7 "}{pct}%</span>
+                    <span style={{ ...mono, fontSize: 11, color: STONE }}>{money(seg.value)}{" · "}{pct}%</span>
                   </div>
                 ); })}
               </div>
@@ -264,7 +264,7 @@ export function BusinessSettings({ sessions, showToast, onImport }) {
           <div style={{ ...cardDense, padding: "16px 18px" }}>
             <div style={{ ...mono, fontSize: 10, letterSpacing: "0.12em", textTransform: "uppercase", color: STONE, marginBottom: 16 }}>Bookings by session type</div>
             <HBars items={typeItems} />
-            {byType.length > typeItems.length && <div style={{ ...mono, fontSize: 9.5, color: FAINT, marginTop: 12 }}>Showing top {typeItems.length} of {byType.length} types{" \u00b7 "}full list in the analytics export.</div>}
+            {byType.length > typeItems.length && <div style={{ ...mono, fontSize: 9.5, color: FAINT, marginTop: 12 }}>Showing top {typeItems.length} of {byType.length} types{" · "}full list in the analytics export.</div>}
           </div>
 
           {byMonth.length >= 2 && (
@@ -299,7 +299,7 @@ export function BusinessSettings({ sessions, showToast, onImport }) {
                   <span style={{ ...display, fontSize: 14, fontWeight: 600, color: INK }}>{p.client_name || "Client"}</span>
                   <span style={{ ...mono, fontSize: 13, color: RED, fontWeight: 500 }}>{payMoney(p.amount_cents)}</span>
                 </div>
-                <div style={{ ...mono, fontSize: 10, color: STONE, marginTop: 3, letterSpacing: "0.02em" }}>{payDateShort(p.paid_at)}{" \u00b7 "}{p.service || "Session"}{" \u00b7 "}{payKindLabel(p.kind)}{" \u00b7 "}{payCardLabel(p)}</div>
+                <div style={{ ...mono, fontSize: 10, color: STONE, marginTop: 3, letterSpacing: "0.02em" }}>{payDateShort(p.paid_at)}{" · "}{p.service || "Session"}{" · "}{payKindLabel(p.kind)}{" · "}{payCardLabel(p)}</div>
               </div>
               <div style={{ display: "flex", gap: 7, flexShrink: 0 }}>
                 <a href={"/api/receipt?id=" + encodeURIComponent(p.id)} target="_blank" rel="noopener noreferrer" style={{ ...mono, fontSize: 10, letterSpacing: "0.04em", textTransform: "uppercase", color: INK, textDecoration: "none", border: `1px solid ${LINE}`, borderRadius: 7, padding: "7px 11px", display: "inline-flex", alignItems: "center", gap: 5 }}><FileText size={12} /> Receipt</a>

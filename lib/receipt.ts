@@ -8,7 +8,7 @@ export function receiptMoneyCents(cents: any): string {
 export function cardLabel(p: any): string {
   if (!p || !p.card_brand) return "Card";
   const brand = String(p.card_brand).replace(/_/g, " ").replace(/\b\w/g, (c: string) => c.toUpperCase());
-  return brand + (p.card_last4 ? "  \u00b7\u00b7\u00b7\u00b7  " + p.card_last4 : "");
+  return brand + (p.card_last4 ? "  ····  " + p.card_last4 : "");
 }
 export function receiptDate(iso: any): string {
   try { return new Date(iso).toLocaleString("en-US", { year: "numeric", month: "long", day: "numeric", hour: "numeric", minute: "2-digit", timeZone: "America/Anchorage" }); } catch (e) { return ""; }
@@ -31,7 +31,7 @@ export async function receiptPdf(p: any): Promise<string> {
   const rule = (th = 0.75) => page.drawLine({ start: { x: M, y }, end: { x: R, y }, thickness: th, color: LN });
 
   t("DOT ONE MEDIA", M, 22, bold, INK); y -= 17;
-  t("DOT ONE LLC   \u00b7   Wasilla, Alaska   \u00b7   contact@dot1.media", M, 9, helv, GRAY); y -= 28;
+  t("DOT ONE LLC   ·   Wasilla, Alaska   ·   contact@dot1.media", M, 9, helv, GRAY); y -= 28;
   rule(1); y -= 32;
 
   t("RECEIPT", M, 15, bold, RED); tr(receiptNo(p), 10, helv, GRAY); y -= 15;
@@ -52,7 +52,7 @@ export async function receiptPdf(p: any): Promise<string> {
   const remainC = totalC - (Number(p.amount_cents) || 0);
   const partial = ["retainer", "deposit", "half"].indexOf(String(p.kind || "").toLowerCase()) !== -1;
   if (partial && totalC > 0 && remainC > 0) {
-    t("Session total " + receiptMoneyCents(totalC) + "  \u00b7  balance remaining " + receiptMoneyCents(remainC) + ", due per your service agreement.", M, 8.5, helv, GRAY);
+    t("Session total " + receiptMoneyCents(totalC) + "  ·  balance remaining " + receiptMoneyCents(remainC) + ", due per your service agreement.", M, 8.5, helv, GRAY);
   }
   y -= 24;
 

@@ -70,12 +70,12 @@ export async function POST(req: Request) {
   if (!(slots[date] || []).includes(time)) return NextResponse.json({ error: "That time just became unavailable. Please pick another." }, { status: 409 });
   const fee = admin ? 0 : (RESCHED_FEE[d.serviceLine] || 0);
   const oldWhen = formatWhen(curDate, curTime), newWhen = formatWhen(date, time);
-  const note = "Rescheduled from " + oldWhen + " to " + newWhen + (fee ? " \u00b7 a $" + fee + " reschedule fee was added to the balance" : "");
+  const note = "Rescheduled from " + oldWhen + " to " + newWhen + (fee ? " · a $" + fee + " reschedule fee was added to the balance" : "");
   const nd = { ...d, date, time, total: fee ? (Number(d.total) || 0) + fee : d.total, rescheduleFee: (Number(d.rescheduleFee) || 0) + fee, comments: [...(Array.isArray(d.comments) ? d.comments : []), { author: admin ? "studio" : "client", body: note, time: "just now", read: admin }] };
   await sql`UPDATE portal_sessions SET date = ${date}::date, time = ${time}::time, data = ${JSON.stringify(nd)}::jsonb WHERE id = ${id}`;
   if (!admin) {
-    try { await sendEmail({ to: d.notifyEmail || "contact@dot1.media", subject: "Rescheduled: " + (d.clientName || "a client") + " \u00b7 " + (d.type || "session"), html: `<div style="font-family:Arial,sans-serif;font-size:14px;color:#33322d"><p><b>${d.clientName || "A client"}</b> moved their <b>${d.type || "session"}</b>.</p><p>${oldWhen} &rarr; <b>${newWhen}</b>${fee ? `<br/>A $${fee} reschedule fee was added to their balance.` : ""}</p></div>`, replyTo: r.client_email || undefined }); } catch (e) {}
-    try { await sendPush("Rescheduled", [(d.clientName || "A client"), (d.type || "session"), newWhen].join(" \u00b7 "), "/"); } catch (e) {}
+    try { await sendEmail({ to: d.notifyEmail || "contact@dot1.media", subject: "Rescheduled: " + (d.clientName || "a client") + " · " + (d.type || "session"), html: `<div style="font-family:Arial,sans-serif;font-size:14px;color:#33322d"><p><b>${d.clientName || "A client"}</b> moved their <b>${d.type || "session"}</b>.</p><p>${oldWhen} &rarr; <b>${newWhen}</b>${fee ? `<br/>A $${fee} reschedule fee was added to their balance.` : ""}</p></div>`, replyTo: r.client_email || undefined }); } catch (e) {}
+    try { await sendPush("Rescheduled", [(d.clientName || "A client"), (d.type || "session"), newWhen].join(" · "), "/"); } catch (e) {}
   }
   if (curDate && curDate !== date) { try { await notifyWaitlist(curDate); } catch (e) {} }
   return NextResponse.json({ ok: true, date, time, fee, session: nd });

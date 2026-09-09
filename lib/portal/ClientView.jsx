@@ -227,7 +227,7 @@ export function ClientView({ session, sessions, clientId, setClientId, addCommen
   const fullyPaid = payTotal > 0 && (balancePaid || (depositPaid && payPaid >= payTotal));
   const briefSubmitted = !!(session.brief && session.brief.submitted);
   const briefHasContent = !!(session.brief && BRIEF_FIELDS.some((f) => (session.brief[f.key] || "").trim()));
-  const briefStatusText = briefSubmitted ? "Submitted \u00b7 thank you" : briefHasContent ? "Draft saved \u00b7 not yet submitted" : "Tell us about your project so we can prepare";
+  const briefStatusText = briefSubmitted ? "Submitted · thank you" : briefHasContent ? "Draft saved · not yet submitted" : "Tell us about your project so we can prepare";
   const isLastStage = session.currentStage >= stagesFor(session).length - 1;
   const statusLine = session.status === "cancelled" ? "This booking has been cancelled." : session.status === "closed" ? "This booking has been closed." : isLastStage ? ("Your " + session.type + " is complete. Thank you for creating with Dot One.") : ("Your " + session.type + " is currently at \u201c" + curStage(session).label + ".\u201d We\u2019ll notify you when the next step is ready. No action is needed from you right now.");
 
@@ -246,7 +246,7 @@ export function ClientView({ session, sessions, clientId, setClientId, addCommen
     const now = new Date().toISOString();
     const next = { ...brief, submitted: submit ? true : already, submittedAt: (submit && !already) ? now : ((session.brief && session.brief.submittedAt) || ""), updatedAt: now };
     patchSession(session.id, { brief: next });
-    setBriefMsg(submit ? "Brief submitted \u00b7 thank you! We\u2019ll be in touch." : "Draft saved.");
+    setBriefMsg(submit ? "Brief submitted · thank you! We\u2019ll be in touch." : "Draft saved.");
   };
   const onPickImage = async (e) => {
     const file = e.target.files && e.target.files[0];
@@ -307,7 +307,7 @@ export function ClientView({ session, sessions, clientId, setClientId, addCommen
         <div style={{ background: PAPER, border: `1px solid ${LINE}`, borderLeft: `4px solid ${grp.color}`, borderRadius: 10, padding: "16px 18px", marginBottom: 18 }}>
           <div style={{ display: "flex", alignItems: "baseline", gap: 12, flexWrap: "wrap" }}>
             <div style={{ ...display, fontWeight: 700, fontSize: 24, color: INK, lineHeight: 1 }}>{daysToSession === 0 ? "Today" : daysToSession === 1 ? "Tomorrow" : daysToSession + " days"}</div>
-            <div style={{ ...mono, fontSize: 10.5, letterSpacing: "0.1em", textTransform: "uppercase", color: STONE }}>{daysToSession <= 1 ? "your " + session.type + " is " + (daysToSession === 0 ? "today" : "tomorrow") : "until your " + session.type}{session.time ? " \u00b7 " + fmtTime(session.time) : ""}</div>
+            <div style={{ ...mono, fontSize: 10.5, letterSpacing: "0.1em", textTransform: "uppercase", color: STONE }}>{daysToSession <= 1 ? "your " + session.type + " is " + (daysToSession === 0 ? "today" : "tomorrow") : "until your " + session.type}{session.time ? " · " + fmtTime(session.time) : ""}</div>
           </div>
           {prepNotes ? (
             <div style={{ marginTop: 12 }}>
@@ -372,10 +372,10 @@ export function ClientView({ session, sessions, clientId, setClientId, addCommen
           {payPaid > 0 && balanceDue > 0 && <Row k="Deposit paid" v={money(payPaid)} sub />}
           {balanceDue > 0 && <Row k="Balance due" v={money(balanceDue)} bold red />}
           {fullyPaid ? (
-            <div style={{ marginTop: 13, display: "flex", alignItems: "center", gap: 8 }}><CheckCircle2 size={15} color="#2e9e5b" /><span style={{ ...mono, fontSize: 11.5, letterSpacing: "0.05em", color: OK }}>{"PAID IN FULL \u00b7 THANK YOU"}</span></div>
+            <div style={{ marginTop: 13, display: "flex", alignItems: "center", gap: 8 }}><CheckCircle2 size={15} color="#2e9e5b" /><span style={{ ...mono, fontSize: 11.5, letterSpacing: "0.05em", color: OK }}>{"PAID IN FULL · THANK YOU"}</span></div>
           ) : balanceDue > 0 ? (
             <>
-              <button onClick={payBalance} disabled={payingBalance} style={{ ...btnSolid, background: grp.color, marginTop: 15, width: "100%", justifyContent: "center", opacity: payingBalance ? 0.7 : 1, cursor: payingBalance ? "default" : "pointer" }}>{payingBalance ? "Starting secure checkout\u2026" : "Pay balance securely \u00b7 " + money(balanceDue)}</button>
+              <button onClick={payBalance} disabled={payingBalance} style={{ ...btnSolid, background: grp.color, marginTop: 15, width: "100%", justifyContent: "center", opacity: payingBalance ? 0.7 : 1, cursor: payingBalance ? "default" : "pointer" }}>{payingBalance ? "Starting secure checkout\u2026" : "Pay balance securely · " + money(balanceDue)}</button>
               {payErr && <div style={{ marginTop: 10, fontSize: 12.5, color: DANGER, display: "flex", alignItems: "center", gap: 7 }}><AlertTriangle size={14} /> {payErr}</div>}
             </>
           ) : paymentPending ? (
@@ -393,7 +393,7 @@ export function ClientView({ session, sessions, clientId, setClientId, addCommen
             <div key={c.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, padding: "13px 0", borderTop: `1px solid ${LINE}`, flexWrap: "wrap" }}>
               <div style={{ minWidth: 0, flex: "1 1 auto" }}>
                 <div style={{ fontSize: 14.5, color: c.status === "paid" ? STONE : INK, fontWeight: 600 }}>{c.label}</div>
-                <div style={{ ...mono, fontSize: 10, color: c.status === "paid" ? OK : FAINT, marginTop: 3 }}>{c.status === "paid" ? ("Paid" + (c.cardLast4 ? " \u00b7 " + (c.cardBrand ? String(c.cardBrand).replace(/_/g, " ") : "Card") + " \u00b7\u00b7\u00b7\u00b7 " + c.cardLast4 : "")) : "Requested by Dot One Media"}</div>
+                <div style={{ ...mono, fontSize: 10, color: c.status === "paid" ? OK : FAINT, marginTop: 3 }}>{c.status === "paid" ? ("Paid" + (c.cardLast4 ? " · " + (c.cardBrand ? String(c.cardBrand).replace(/_/g, " ") : "Card") + " ···· " + c.cardLast4 : "")) : "Requested by Dot One Media"}</div>
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: 14, flexShrink: 0 }}>
                 <span style={{ fontSize: 17, color: c.status === "paid" ? STONE : INK, fontWeight: 600 }}>{money((Number(c.amountCents) || 0) / 100)}</span>
@@ -555,7 +555,7 @@ export function ClientView({ session, sessions, clientId, setClientId, addCommen
                   <FileCheck size={16} color={grp.color} style={{ flexShrink: 0 }} />
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ ...display, fontWeight: 600, fontSize: 14, color: INK }}>{meta.label}</div>
-                    <div style={{ ...mono, fontSize: 9.5, color: STONE, marginTop: 2 }}>Signed{when ? " " + when : ""}{d.signed_name ? " by " + d.signed_name : ""}{usage ? " \u00b7 " + usage : ""}</div>
+                    <div style={{ ...mono, fontSize: 9.5, color: STONE, marginTop: 2 }}>Signed{when ? " " + when : ""}{d.signed_name ? " by " + d.signed_name : ""}{usage ? " · " + usage : ""}</div>
                   </div>
                   <span style={{ ...mono, fontSize: 9, letterSpacing: "0.08em", textTransform: "uppercase", color: OK, background: `color-mix(in srgb, ${OK} 15%, var(--d1-paper,#fff))`, border: "1px solid #bfe6cc", borderRadius: 20, padding: "4px 9px", flexShrink: 0 }}>Signed</span>
                   {d.id && <a href={"/api/signed-doc?id=" + encodeURIComponent(d.id)} target="_blank" rel="noopener noreferrer" style={{ ...mono, fontSize: 10.5, letterSpacing: "0.04em", color: grp.color, textDecoration: "none", flexShrink: 0 }}>View</a>}
@@ -600,7 +600,7 @@ export function ClientView({ session, sessions, clientId, setClientId, addCommen
             <div key={i} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 0", borderTop: `1px solid ${LINE}` }}>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontSize: 13.5, color: INK, fontWeight: 500 }}>{it.label}</div>
-                <div style={{ ...mono, fontSize: 10, color: FAINT, marginTop: 2 }}>{it.session}{it.note ? " \u00b7 " + it.note : ""}</div>
+                <div style={{ ...mono, fontSize: 10, color: FAINT, marginTop: 2 }}>{it.session}{it.note ? " · " + it.note : ""}</div>
               </div>
               {it.direct ? <button onClick={() => openFinal(it.href)} style={{ ...btnSolid, background: grp.color }}><Download size={13} /> Download</button>
                 : it.open ? (it.sessionId === session.id ? <span style={{ ...mono, fontSize: 10, color: STONE }}>Above in this session</span> : <button onClick={() => onOpenSession && onOpenSession(it.sessionId)} style={btnGhost}>View</button>)

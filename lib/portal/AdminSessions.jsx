@@ -94,7 +94,7 @@ export function AdminSessions({ state, adminId, setAdminId, requestSetStage, add
                 {unread > 0 && <span style={{ ...mono, background: selected ? "#fff" : RED, color: selected ? grp.color : "#fff", borderRadius: 20, fontSize: 9.5, minWidth: 16, height: 16, padding: "0 5px", display: "inline-flex", alignItems: "center", justifyContent: "center" }}>{unread}</span>}
               </div>
               <div style={{ ...mono, fontSize: 10, letterSpacing: "0.06em", color: selected ? "rgba(255,255,255,0.85)" : STONE, display: "flex", alignItems: "center", gap: 6 }}><grp.Icon size={11} /> {s.internal ? "Internal · " : ""}{s.type} · {(s.status && s.status !== "active") ? (s.status === "cancelled" ? "Cancelled" : "Closed") : curStage(s).label}</div>
-              {s.date && <div style={{ ...mono, fontSize: 9.5, letterSpacing: "0.04em", color: selected ? "rgba(255,255,255,0.72)" : FAINT, marginTop: 3 }}>{fmtDate(s.date)}{s.time ? " \u00b7 " + fmtTime(s.time) : ""}</div>}
+              {s.date && <div style={{ ...mono, fontSize: 9.5, letterSpacing: "0.04em", color: selected ? "rgba(255,255,255,0.72)" : FAINT, marginTop: 3 }}>{fmtDate(s.date)}{s.time ? " · " + fmtTime(s.time) : ""}</div>}
             </button>
           ); };
           if (!(state.sessions || []).length) return null;
@@ -102,7 +102,7 @@ export function AdminSessions({ state, adminId, setAdminId, requestSetStage, add
           return sections.map(([key, label]) => groups[key].length === 0 ? null : (
             <div key={key} style={{ marginBottom: 16 }}>
               <button onClick={() => setCollapsed((c) => ({ ...c, [key]: !c[key] }))} style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, background: "transparent", border: "none", padding: 0, cursor: "pointer", marginBottom: 8 }}>
-                <span style={{ ...mono, fontSize: 9.5, letterSpacing: "0.16em", textTransform: "uppercase", color: key === "today" ? RED : STONE }}>{label} <span style={{ color: FAINT }}>{"\u00b7 "}{groups[key].length}</span></span>
+                <span style={{ ...mono, fontSize: 9.5, letterSpacing: "0.16em", textTransform: "uppercase", color: key === "today" ? RED : STONE }}>{label} <span style={{ color: FAINT }}>{"· "}{groups[key].length}</span></span>
                 <ChevronDown size={13} color={FAINT} style={{ transform: collapsed[key] ? "rotate(-90deg)" : "none", transition: "transform 180ms" }} />
               </button>
               {!collapsed[key] && groups[key].map(renderBtn)}
@@ -159,7 +159,7 @@ export function AdminSessions({ state, adminId, setAdminId, requestSetStage, add
                   <div key={c.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, padding: "8px 0", borderTop: `1px solid ${LINE}` }}>
                     <div style={{ minWidth: 0 }}>
                       <div style={{ fontSize: 13, color: INK, fontWeight: 500 }}>{c.label}</div>
-                      <div style={{ ...mono, fontSize: 9.5, color: FAINT }}>{c.status === "paid" ? ("Paid" + (c.cardLast4 ? " \u00b7 " + (c.cardBrand ? String(c.cardBrand).replace(/_/g, " ") : "Card") + " \u00b7\u00b7\u00b7\u00b7 " + c.cardLast4 : "")) : "Awaiting payment"}</div>
+                      <div style={{ ...mono, fontSize: 9.5, color: FAINT }}>{c.status === "paid" ? ("Paid" + (c.cardLast4 ? " · " + (c.cardBrand ? String(c.cardBrand).replace(/_/g, " ") : "Card") + " ···· " + c.cardLast4 : "")) : "Awaiting payment"}</div>
                     </div>
                     <div style={{ display: "flex", alignItems: "center", gap: 9, flexShrink: 0 }}>
                       <span style={{ fontSize: 13, color: c.status === "paid" ? STONE : INK, fontWeight: 500 }}>{money((Number(c.amountCents) || 0) / 100)}</span>
@@ -229,7 +229,7 @@ export function AdminSessions({ state, adminId, setAdminId, requestSetStage, add
         <div style={{ ...cardDense, padding: "16px 18px", marginBottom: 22 }}>
           {Array.isArray(session.shotList) && session.shotList.length > 0 && (
             <div style={{ marginBottom: 18 }}>
-              <div style={{ ...mono, fontSize: 10, letterSpacing: "0.16em", textTransform: "uppercase", color: STONE, marginBottom: 8 }}>Client shot list <span style={{ color: FAINT }}>\u00b7 {session.shotList.filter((x) => x.done).length}/{session.shotList.length} done</span></div>
+              <div style={{ ...mono, fontSize: 10, letterSpacing: "0.16em", textTransform: "uppercase", color: STONE, marginBottom: 8 }}>Client shot list <span style={{ color: FAINT }}>· {session.shotList.filter((x) => x.done).length}/{session.shotList.length} done</span></div>
               {session.shotList.map((sh) => (
                 <button key={sh.id} onClick={() => patchSession(session.id, { shotList: session.shotList.map((x) => x.id === sh.id ? { ...x, done: !x.done } : x) })} style={{ display: "flex", alignItems: "center", gap: 9, width: "100%", background: "none", border: "none", cursor: "pointer", padding: "6px 0", textAlign: "left" }}>
                   <span style={{ width: 16, height: 16, borderRadius: 4, border: `1.5px solid ${sh.done ? OK : LINE}`, background: sh.done ? OK : "transparent", flexShrink: 0 }} />
@@ -305,7 +305,7 @@ export function AdminSessions({ state, adminId, setAdminId, requestSetStage, add
                 <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, background: CREAM, border: `1px solid ${LINE}`, borderRadius: 8, padding: "9px 12px" }}>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: 13, fontWeight: 600, color: INK }}>{d.label}</div>
-                    <div style={{ ...mono, fontSize: 9.5, color: STONE, marginTop: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{d.note ? d.note + " \u00b7 " : ""}{d.url}</div>
+                    <div style={{ ...mono, fontSize: 9.5, color: STONE, marginTop: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{d.note ? d.note + " · " : ""}{d.url}</div>
                   </div>
                   <button onClick={() => patchSession(session.id, { deliverables: (session.deliverables || []).filter((_, j) => j !== i) })} style={{ ...mono, fontSize: 9.5, letterSpacing: "0.06em", textTransform: "uppercase", color: DANGER, background: "transparent", border: `1px solid ${LINE}`, borderRadius: 6, padding: "5px 9px", cursor: "pointer", flexShrink: 0 }}>Remove</button>
                 </div>
@@ -313,9 +313,9 @@ export function AdminSessions({ state, adminId, setAdminId, requestSetStage, add
             </div>
           )}
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-            <input value={delivLabel} onChange={(e) => setDelivLabel(e.target.value)} placeholder={"Label (e.g. Social Cut \u00b7 1080\u00d71920)"} style={{ border: `1px solid ${LINE}`, borderRadius: 7, padding: "9px 11px", fontSize: 12.5, fontFamily: "inherit", background: PAPER, color: BODY, boxSizing: "border-box" }} />
+            <input value={delivLabel} onChange={(e) => setDelivLabel(e.target.value)} placeholder={"Label (e.g. Social Cut · 1080\u00d71920)"} style={{ border: `1px solid ${LINE}`, borderRadius: 7, padding: "9px 11px", fontSize: 12.5, fontFamily: "inherit", background: PAPER, color: BODY, boxSizing: "border-box" }} />
             <input value={delivUrl} onChange={(e) => setDelivUrl(e.target.value)} placeholder="Download URL" style={{ border: `1px solid ${LINE}`, borderRadius: 7, padding: "9px 11px", fontSize: 12.5, fontFamily: "inherit", background: PAPER, color: BODY, boxSizing: "border-box" }} />
-            <input value={delivNote} onChange={(e) => setDelivNote(e.target.value)} placeholder={"Note (optional, e.g. ProRes 422 \u00b7 18.7 GB)"} style={{ border: `1px solid ${LINE}`, borderRadius: 7, padding: "9px 11px", fontSize: 12.5, fontFamily: "inherit", background: PAPER, color: BODY, boxSizing: "border-box" }} />
+            <input value={delivNote} onChange={(e) => setDelivNote(e.target.value)} placeholder={"Note (optional, e.g. ProRes 422 · 18.7 GB)"} style={{ border: `1px solid ${LINE}`, borderRadius: 7, padding: "9px 11px", fontSize: 12.5, fontFamily: "inherit", background: PAPER, color: BODY, boxSizing: "border-box" }} />
             <button onClick={addDeliverable} disabled={!delivLabel.trim() || !delivUrl.trim()} style={{ ...mono, fontSize: 10, letterSpacing: "0.08em", textTransform: "uppercase", color: "#fff", background: (delivLabel.trim() && delivUrl.trim()) ? sg.color : FAINT, border: "none", borderRadius: 7, padding: "9px 13px", cursor: (delivLabel.trim() && delivUrl.trim()) ? "pointer" : "default", alignSelf: "flex-start", display: "flex", alignItems: "center", gap: 6 }}><Plus size={12} /> Add deliverable</button>
           </div>
         </div>

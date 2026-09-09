@@ -65,7 +65,7 @@ export function QuickBook({ state, onCreated, showToast }) {
       <label style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 10, fontSize: 12.5, color: BODY, cursor: "pointer" }}><input type="checkbox" checked={f.invite} onChange={(e) => set("invite", e.target.checked)} /> Email the client a confirmation and an invite to their portal</label>
       {err && <div style={{ ...mono, fontSize: 10.5, color: "#b3261e", marginTop: 8 }}>{err}</div>}
       <div style={{ display: "flex", gap: 8, marginTop: 14, alignItems: "center" }}>
-        <button onClick={create} disabled={busy} style={{ ...btnSolid, background: RED }}>{busy ? "Booking…" : "Create booking"}{svc ? " \u00b7 " + money(svc.price) : ""}</button>
+        <button onClick={create} disabled={busy} style={{ ...btnSolid, background: RED }}>{busy ? "Booking…" : "Create booking"}{svc ? " · " + money(svc.price) : ""}</button>
         <button onClick={() => setOpen(false)} style={btnGhost}>Cancel</button>
       </div>
     </div>

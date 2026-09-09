@@ -126,13 +126,13 @@ export function MiniCalendar({ sessions, onSelectSession }) {
       </div>
       {openList.length > 0 && (
         <div style={{ marginTop: 11, borderTop: "1px solid " + LINE, paddingTop: 10 }}>
-          <div style={{ ...mono, fontSize: 8.5, letterSpacing: "0.1em", textTransform: "uppercase", color: STONE, marginBottom: 7 }}>{fmtDate(openList[0].date)}{openList.length > 1 ? " " + "\u00b7" + " " + openList.length + " sessions" : ""}</div>
+          <div style={{ ...mono, fontSize: 8.5, letterSpacing: "0.1em", textTransform: "uppercase", color: STONE, marginBottom: 7 }}>{fmtDate(openList[0].date)}{openList.length > 1 ? " " + "·" + " " + openList.length + " sessions" : ""}</div>
           {openList.map((s) => { const gg = GROUPS[s.serviceLine] || GROUPS.video; return (
             <button key={s.id} onClick={() => { if (onSelectSession) onSelectSession(s.id); }} className="d1-lift" style={{ width: "100%", display: "flex", alignItems: "center", gap: 8, padding: "7px 8px", borderRadius: 7, cursor: "pointer", background: CREAM, border: "1px solid " + LINE, marginBottom: 5, textAlign: "left" }}>
               <span style={{ width: 8, height: 8, borderRadius: 2, background: gg.color, flexShrink: 0 }} />
               <span style={{ flex: 1, minWidth: 0 }}>
                 <span style={{ display: "block", fontSize: 11.5, color: INK, fontWeight: 500, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{s.clientName}</span>
-                <span style={{ display: "block", ...mono, fontSize: 8, color: STONE, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{s.time ? fmtTime(s.time) + " " + "\u00b7" + " " : ""}{s.type}</span>
+                <span style={{ display: "block", ...mono, fontSize: 8, color: STONE, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{s.time ? fmtTime(s.time) + " " + "·" + " " : ""}{s.type}</span>
               </span>
               <ChevronRight size={12} color={FAINT} style={{ flexShrink: 0 }} />
             </button>
