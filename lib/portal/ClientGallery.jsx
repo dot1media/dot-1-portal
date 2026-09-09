@@ -82,16 +82,14 @@ export function ClientGallery({ sessionId }) {
   async function downloadOne(photoId, filename) {
     try { const r = await fetch("/api/gallery/asset?size=download&photoId=" + photoId).then((x) => x.json()); if (r.url) { const a = document.createElement("a"); a.href = r.url; a.download = filename || "photo.jpg"; document.body.appendChild(a); a.click(); a.remove(); } } catch (e) {}
   }
-  async function downloadSelected() {
-    const sel = photos.filter((p) => p.favorite); if (!sel.length || dl) return;
-    setDl(true);
-    try {
-      const JSZip = (await import("jszip")).default; const zip = new JSZip();
-      for (const p of sel) { const r = await fetch("/api/gallery/asset?size=download&photoId=" + p.id).then((x) => x.json()); if (r.url) { const blob = await fetch(r.url).then((x) => x.blob()); zip.file(p.filename || (p.id + ".jpg"), blob); } }
-      const out = await zip.generateAsync({ type: "blob" });
-      const a = document.createElement("a"); a.href = URL.createObjectURL(out); a.download = ((g && g.title) ? g.title.replace(/[^a-z0-9]+/gi, "-") : "gallery") + ".zip"; document.body.appendChild(a); a.click(); a.remove();
-    } catch (e) {}
-    setDl(false);
+  const [dlParts, setDlParts] = useState(null);
+  function downloadSelected() {
+    const sel = photos.filter((p) => p.favorite); if (!sel.length) return;
+    const size = 20; const parts = [];
+    for (let i = 0; i < sel.length; i += size) parts.push(sel.slice(i, i + size).map((p) => p.id));
+    const urlFor = (ids, part) => "/api/gallery/download?galleryId=" + encodeURIComponent(g.id) + "&ids=" + encodeURIComponent(ids.join(",")) + (parts.length > 1 ? "&part=" + part : "");
+    if (parts.length === 1) { setDl(true); window.location.href = urlFor(parts[0], 1); setTimeout(() => setDl(false), 4000); return; }
+    setDlParts(parts.map((ids, i) => ({ n: i + 1, count: ids.length, url: urlFor(ids, i + 1) })));
   }
   async function requestMore() { try { await fetch("/api/gallery/request-more", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ galleryId: g.id }) }); setRequested(true); } catch (e) {} }
 
@@ -114,7 +112,7 @@ export function ClientGallery({ sessionId }) {
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
           {included != null && <div style={{ ...mono, fontSize: 13, color: atLimit ? A : STONE }}>{selectedCount} / {included}</div>}
-          <button onClick={downloadSelected} disabled={dl || !selectedCount} style={{ ...mono, fontSize: 11, letterSpacing: "0.06em", textTransform: "uppercase", padding: "11px 18px", borderRadius: 9, cursor: selectedCount ? "pointer" : "default", border: "none", background: selectedCount ? A : LINE, color: selectedCount ? "#fff" : FAINT, display: "inline-flex", alignItems: "center", gap: 8 }}><Download size={14} /> {dl ? "Preparing…" : "Download selected"}</button>
+          <button onClick={downloadSelected} disabled={dl || !selectedCount} style={{ ...mono, fontSize: 11, letterSpacing: "0.06em", textTransform: "uppercase", padding: "11px 18px", borderRadius: 9, cursor: selectedCount ? "pointer" : "default", border: "none", background: selectedCount ? A : LINE, color: selectedCount ? "#fff" : FAINT, display: "inline-flex", alignItems: "center", gap: 8 }}><Download size={14} /> {dl ? "Starting download…" : "Download selected"}</button>
           <button onClick={sharePicks} disabled={!selectedCount} title="Share a view-only link to your favorites" style={{ ...mono, fontSize: 11, letterSpacing: "0.06em", textTransform: "uppercase", padding: "11px 14px", borderRadius: 9, cursor: selectedCount ? "pointer" : "default", border: `1px solid ${selectedCount ? A : LINE}`, background: PAPER, color: selectedCount ? A : FAINT, display: "inline-flex", alignItems: "center", gap: 8 }}><Share2 size={14} /> {shareCopied ? "Link copied" : "Share picks"}</button>
         </div>
       </div>
@@ -133,6 +131,16 @@ export function ClientGallery({ sessionId }) {
           <div style={{ fontSize: 13, color: STONE, lineHeight: 1.55, marginBottom: 15, maxWidth: 420, marginLeft: "auto", marginRight: "auto" }}>Your package includes {included} images. If you love more of them, we can add the extras to your gallery.</div>
           {requested ? <div style={{ ...mono, fontSize: 12, color: A }}>Request sent. We'll be in touch shortly.</div>
             : <button onClick={requestMore} style={{ ...mono, fontSize: 11, letterSpacing: "0.06em", textTransform: "uppercase", padding: "12px 22px", borderRadius: 9, cursor: "pointer", border: `1px solid ${A}`, background: "#fff", color: A }}>Request additional images</button>}
+        </div>
+      )}
+      {dlParts && (
+        <div style={{ marginTop: 18, background: CREAM, border: `1px solid ${LINE}`, borderRadius: 12, padding: "14px 18px" }}>
+          <div style={{ ...mono, fontSize: 10, letterSpacing: "0.14em", textTransform: "uppercase", color: STONE, marginBottom: 6 }}>Your download, in parts</div>
+          <div style={{ fontSize: 12.5, color: BODY, marginBottom: 10, lineHeight: 1.5 }}>Full-resolution files are large, so your {photos.filter((p) => p.favorite).length} photos come as {dlParts.length} zips. Tap each one.</div>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+            {dlParts.map((pt) => <a key={pt.n} href={pt.url} style={{ ...mono, fontSize: 11, letterSpacing: "0.06em", textTransform: "uppercase", padding: "10px 14px", borderRadius: 9, textDecoration: "none", background: A, color: "#fff", display: "inline-flex", alignItems: "center", gap: 7 }}><Download size={13} /> Part {pt.n} of {dlParts.length} \u00b7 {pt.count} photos</a>)}
+            <button onClick={() => setDlParts(null)} style={{ ...mono, fontSize: 10.5, padding: "10px 12px", borderRadius: 9, border: `1px solid ${LINE}`, background: PAPER, color: STONE, cursor: "pointer" }}>Close</button>
+          </div>
         </div>
       )}
       {shareLink && (

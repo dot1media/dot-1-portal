@@ -58,6 +58,10 @@ export async function listPrefix(prefix: string): Promise<{ key: string; size: n
   } while (token);
   return out;
 }
+export async function getObjectStream(key: string): Promise<{ body: NodeJS.ReadableStream; size: number; contentType: string }> {
+  const r = await client().send(new GetObjectCommand({ Bucket: BUCKET, Key: key }));
+  return { body: r.Body as unknown as NodeJS.ReadableStream, size: Number(r.ContentLength) || 0, contentType: r.ContentType || "application/octet-stream" };
+}
 export async function checkR2(): Promise<{ configured: boolean; ok: boolean; bucket?: string; error?: string }> {
   if (!r2Configured()) return { configured: false, ok: false, error: "R2_ACCOUNT_ID / R2_BUCKET / R2_ACCESS_KEY_ID / R2_SECRET_ACCESS_KEY not all set" };
   try { await client().send(new HeadBucketCommand({ Bucket: BUCKET })); return { configured: true, ok: true, bucket: BUCKET }; }
