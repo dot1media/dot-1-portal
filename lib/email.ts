@@ -1,4 +1,5 @@
 import { sql } from "@/lib/db";
+import { makeMagicToken } from "@/lib/auth";
 import { GOOGLE_REVIEW_URL } from "@/lib/portal/constants";
 
 // Transactional email via Resend. Fail-soft: if RESEND_API_KEY is unset, this does nothing.
@@ -22,6 +23,7 @@ const LINE = "#ece8e0";
 const SERIF = "Georgia, 'Times New Roman', serif";
 const SANS = "'Helvetica Neue', Helvetica, Arial, sans-serif";
 const PORTAL = "https://portal.dot1.media";
+function clientPortalLink(s: any): string { try { const email = String((s && (s.clientEmail || s.notifyEmail)) || "").toLowerCase(); if (!email) return PORTAL; return PORTAL + "/api/portal-link?t=" + encodeURIComponent(makeMagicToken(email, s && s.id ? String(s.id) : "")); } catch { return PORTAL; } }
 
 const BRAND_MAIN = { accent: "#e23b2e", logo: PORTAL + "/dot1-logo.png", logoH: 42, tagline: "Create with purpose" };
 const BRAND_PHOTO = { accent: "#2f74c0", logo: PORTAL + "/dot1-photo-logo.png", logoH: 46, tagline: "Timeless Portraits" };
@@ -129,12 +131,12 @@ export function bookingClientEmail(s: any): string {
     ? messageHtml(s.confirmationMessage, brand.accent) +
       detailRows(rows) +
       para("Sign in anytime with your email and password to follow your session and, when it's ready, receive your finished work.") +
-      button(brand, PORTAL, "Open your client portal")
+      button(brand, clientPortalLink(s), "Open your client portal")
     : para(`Thank you for booking with Dot One Media${first ? ", " + first : ""}. Your ${isConsultBooking ? "consultation" : "session"} is confirmed, and we can't wait to create with you.`) +
       detailRows(rows) +
       nextBlock +
       para("Sign in anytime with your email and password to follow your progress and, when it's ready, receive your finished work.") +
-      button(brand, PORTAL, "Open your client portal");
+      button(brand, clientPortalLink(s), "Open your client portal");
   return shell(brand, "Booking Confirmed", isConsultBooking ? "Your consultation is confirmed" : "Your session is confirmed", body);
 }
 
@@ -157,7 +159,7 @@ export function stageClientEmail(s: any, stageIdx: number): string {
       <div style="font-family:${SANS};font-size:10px;letter-spacing:0.16em;text-transform:uppercase;color:${STONE};">Current status</div>
       <div style="font-family:${SERIF};font-size:19px;font-weight:700;color:${INK};margin-top:5px;">${label}</div>
     </div>` +
-    button(brand, PORTAL, "View your session");
+    button(brand, clientPortalLink(s), "View your session");
   return shell(brand, "Session Update", "Your session moved forward", body);
 }
 

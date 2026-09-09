@@ -36,6 +36,15 @@ function verify(token: string | undefined | null, role: string): { email: string
 // makeToken optionally embeds the suite access claims (tier + per-app grants) so other apps can
 // read a person's baseline role without calling back to the portal. Identity still verifies the
 // same way for apps that ignore the extra claims.
+export function makeMagicToken(email: string, sessionId?: string, ttlMs = 1000 * 60 * 60 * 24 * 14): string {
+  return sign({ role: "magic", email, sid: sessionId || "", exp: Date.now() + ttlMs });
+}
+export function verifyMagicToken(token: string | undefined | null): { email: string; sid: string } | null {
+  const v = verify(token, "magic") as any;
+  if (!v) return null;
+  // re-parse to recover sid (verify strips to email/tier/grants)
+  try { const body = String(token).split(".")[0]; const p = JSON.parse(Buffer.from(body, "base64url").toString()); return { email: String(p.email || ""), sid: String(p.sid || "") }; } catch { return null; }
+}
 export function makeToken(email: string, claims?: { tier?: string; grants?: any }): string {
   return sign({ role: "admin", email, tier: claims?.tier, grants: claims?.grants, exp: Date.now() + WEEK_MS });
 }
