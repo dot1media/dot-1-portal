@@ -9,6 +9,7 @@ import { GalleryUploader } from "./GalleryUploader";
 import { ClientNotes } from "./ClientNotes";
 import { SessionExpenses } from "./SessionExpenses";
 import { InspirationBoard } from "./InspirationBoard";
+import { PrintOrdersPanel } from "./PrintOrders";
 import { VideoUploader } from "./VideoUploader";
 import { VideoReview } from "./VideoReview";
 import { stagesFor, curStage } from "./stages";
@@ -251,6 +252,7 @@ export function AdminSessions({ state, adminId, setAdminId, requestSetStage, add
         <ClientNotes email={session.clientEmail} showToast={showToast} />
         <SessionExpenses sessionId={session.id} revenue={Number(session.total) || 0} />
         <InspirationBoard sessionId={session.id} compact />
+        <PrintOrdersPanel sessionId={session.id} showToast={showToast} />
         <GalleryUploader sessionId={session.id} />
         <VideoUploader sessionId={session.id} />
         <VideoReview sessionId={session.id} isStudio />

@@ -1,6 +1,7 @@
 "use client";
+import { money } from "./format";
 import React, { useEffect, useState, useCallback } from "react";
-import { Heart, Download, X, ChevronLeft, ChevronRight, Check, Share2 } from "lucide-react";
+import { Heart, Download, X, ChevronLeft, ChevronRight, Check, Share2, ShoppingBag, Plus, Minus } from "lucide-react";
 import { mono, display, INK, BODY, LINE, STONE, FAINT, PAPER, CREAM } from "./theme";
 
 const A = "#4a90d9";
@@ -22,6 +23,21 @@ export function ClientGallery({ sessionId }) {
   const [requested, setRequested] = useState(false);
   const [release, setRelease] = useState(null);
   const [shareLink, setShareLink] = useState("");
+  const [products, setProducts] = useState([]);
+  const [cart, setCart] = useState([]);
+  const [cartOpen, setCartOpen] = useState(false);
+  const [ship, setShip] = useState({ name: "", address: "" });
+  const [ordering, setOrdering] = useState(false);
+  const [orderErr, setOrderErr] = useState("");
+  useEffect(() => { fetch("/api/prints/products").then((r) => r.json()).then((d) => setProducts((d.products || []).filter((x) => x.active !== false))).catch(() => {}); }, []);
+  const addToCart = (photoId, productId) => { setCart((c) => { const i = c.findIndex((x) => x.photoId === photoId && x.productId === productId); if (i >= 0) return c.map((x, j) => (j === i ? { ...x, qty: x.qty + 1 } : x)); return [...c, { photoId, productId, qty: 1 }]; }); setCartOpen(true); };
+  const bump = (i, d) => setCart((c) => c.map((x, j) => (j === i ? { ...x, qty: Math.max(0, x.qty + d) } : x)).filter((x) => x.qty > 0));
+  const cartTotal = cart.reduce((a, x) => { const p = products.find((y) => y.id === x.productId); return a + (p ? p.price * x.qty : 0); }, 0);
+  async function placeOrder() {
+    setOrdering(true); setOrderErr("");
+    try { const r = await fetch("/api/prints/order", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ sessionId, galleryId: g.id, items: cart, shipping: ship }) }).then((x) => x.json()); if (r.url) { window.location.href = r.url; return; } setOrderErr(r.error || "Could not place the order."); } catch (e) { setOrderErr("Network error."); }
+    setOrdering(false);
+  }
   const [shareCopied, setShareCopied] = useState(false);
   async function sharePicks() {
     try { const r = await fetch("/api/gallery/share", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ galleryId: g.id }) }).then((x) => x.json()); if (r.link) { setShareLink(r.link); try { await navigator.clipboard.writeText(r.link); setShareCopied(true); setTimeout(() => setShareCopied(false), 1800); } catch (e) {} } } catch (e) {}
@@ -142,7 +158,34 @@ export function ClientGallery({ sessionId }) {
         {releaseLocked ? <div style={{ ...mono, fontSize: 10.5, letterSpacing: "0.06em", textTransform: "uppercase", color: A, marginTop: 14, display: "flex", alignItems: "center", gap: 7 }}><Check size={13} /> Saved</div>
           : <button onClick={saveRelease} disabled={savingRelease} style={{ ...mono, fontSize: 11, letterSpacing: "0.06em", textTransform: "uppercase", marginTop: 15, padding: "12px 22px", borderRadius: 9, cursor: "pointer", border: "none", background: A, color: "#fff" }}>{savingRelease ? "Saving…" : "Save my model release"}</button>}
       </div>
-      {lightbox >= 0 && (
+            {products.length > 0 && cart.length > 0 && cartOpen && (
+        <div style={{ marginTop: 18, background: CREAM, border: `1px solid ${LINE}`, borderRadius: 12, padding: "16px 18px" }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, marginBottom: 8 }}>
+            <div style={{ ...mono, fontSize: 10, letterSpacing: "0.14em", textTransform: "uppercase", color: STONE, display: "flex", alignItems: "center", gap: 7 }}><ShoppingBag size={13} /> Print order</div>
+            <button onClick={() => setCartOpen(false)} style={{ background: "none", border: "none", cursor: "pointer", color: STONE, display: "inline-flex" }}><X size={15} /></button>
+          </div>
+          {cart.map((x, i) => { const p = products.find((y) => y.id === x.productId); const ph = photos.find((y) => y.id === x.photoId); return (
+            <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 0", borderTop: `1px solid ${LINE}` }}>
+              {ph ? <img src={ph.thumb} alt="" style={{ width: 44, height: 44, objectFit: "cover", borderRadius: 6 }} /> : null}
+              <div style={{ flex: 1, fontSize: 13, color: INK }}>{p ? p.name : "Print"} <span style={{ ...mono, fontSize: 10.5, color: FAINT }}>\u00b7 {p ? money(p.price) : ""} each</span></div>
+              <div style={{ display: "inline-flex", alignItems: "center", gap: 6 }}><button onClick={() => bump(i, -1)} style={{ width: 26, height: 26, borderRadius: 13, border: `1px solid ${LINE}`, background: PAPER, cursor: "pointer", display: "inline-flex", alignItems: "center", justifyContent: "center" }}><Minus size={12} /></button><span style={{ ...mono, fontSize: 12, minWidth: 16, textAlign: "center" }}>{x.qty}</span><button onClick={() => bump(i, 1)} style={{ width: 26, height: 26, borderRadius: 13, border: `1px solid ${LINE}`, background: PAPER, cursor: "pointer", display: "inline-flex", alignItems: "center", justifyContent: "center" }}><Plus size={12} /></button></div>
+            </div>
+          ); })}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginTop: 10 }}>
+            <input value={ship.name} onChange={(e) => setShip({ ...ship, name: e.target.value })} placeholder="Ship to (name)" style={{ border: `1px solid ${LINE}`, borderRadius: 8, padding: "9px 11px", fontSize: 13, fontFamily: "inherit", background: PAPER, color: INK }} />
+            <input value={ship.address} onChange={(e) => setShip({ ...ship, address: e.target.value })} placeholder="Full mailing address" style={{ border: `1px solid ${LINE}`, borderRadius: 8, padding: "9px 11px", fontSize: 13, fontFamily: "inherit", background: PAPER, color: INK }} />
+          </div>
+          {orderErr && <div style={{ fontSize: 12, color: "#b3261e", marginTop: 8 }}>{orderErr}</div>}
+          <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 12, flexWrap: "wrap" }}>
+            <button onClick={placeOrder} disabled={ordering || !ship.name.trim() || !ship.address.trim()} style={{ ...mono, fontSize: 11, letterSpacing: "0.06em", textTransform: "uppercase", padding: "12px 20px", borderRadius: 9, cursor: "pointer", border: "none", background: ship.name.trim() && ship.address.trim() ? A : LINE, color: ship.name.trim() && ship.address.trim() ? "#fff" : FAINT }}>{ordering ? "Opening checkout…" : "Pay " + money(cartTotal) + " & order"}</button>
+            <span style={{ ...mono, fontSize: 10, color: FAINT }}>Printed from the full-resolution files. Secure checkout by Square.</span>
+          </div>
+        </div>
+      )}
+      {products.length > 0 && cart.length > 0 && !cartOpen && (
+        <button onClick={() => setCartOpen(true)} style={{ position: "fixed", right: 18, bottom: 18, zIndex: 40, ...mono, fontSize: 11, letterSpacing: "0.06em", textTransform: "uppercase", padding: "12px 16px", borderRadius: 999, border: "none", background: A, color: "#fff", boxShadow: "0 8px 24px rgba(20,18,16,0.25)", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 8 }}><ShoppingBag size={14} /> {cart.reduce((a, x) => a + x.qty, 0)} print{cart.reduce((a, x) => a + x.qty, 0) === 1 ? "" : "s"} \u00b7 {money(cartTotal)}</button>
+      )}
+{lightbox >= 0 && (
         <div onClick={() => setLightbox(-1)} style={{ position: "fixed", inset: 0, background: "rgba(14,14,16,0.95)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: 18 }}>
           <button onClick={() => setLightbox(-1)} style={{ position: "absolute", top: 16, right: 16, width: 44, height: 44, borderRadius: "50%", border: "none", background: "rgba(255,255,255,0.12)", color: "#fff", cursor: "pointer", display: "inline-flex", alignItems: "center", justifyContent: "center" }}><X size={22} /></button>
           {lightbox > 0 && <button onClick={(e) => { e.stopPropagation(); nav(-1); }} style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", width: 46, height: 46, borderRadius: "50%", border: "none", background: "rgba(255,255,255,0.12)", color: "#fff", cursor: "pointer", display: "inline-flex", alignItems: "center", justifyContent: "center" }}><ChevronLeft size={24} /></button>}
@@ -152,6 +195,14 @@ export function ClientGallery({ sessionId }) {
             <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
               <button onClick={() => toggle(photos[lightbox])} style={{ ...mono, fontSize: 11, letterSpacing: "0.06em", textTransform: "uppercase", padding: "11px 18px", borderRadius: 9, cursor: "pointer", border: "none", background: photos[lightbox].favorite ? A : "rgba(255,255,255,0.14)", color: "#fff", display: "inline-flex", alignItems: "center", gap: 8 }}><Heart size={15} fill={photos[lightbox].favorite ? "#fff" : "none"} /> {photos[lightbox].favorite ? "Selected" : "Select"}</button>
               {photos[lightbox].favorite && <button onClick={() => downloadOne(photos[lightbox].id, photos[lightbox].filename)} style={{ ...mono, fontSize: 11, letterSpacing: "0.06em", textTransform: "uppercase", padding: "11px 18px", borderRadius: 9, cursor: "pointer", border: "none", background: "#fff", color: INK, display: "inline-flex", alignItems: "center", gap: 8 }}><Download size={15} /> Download</button>}
+              {products.length > 0 && (
+                <span onClick={(e) => e.stopPropagation()} style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                  <select defaultValue="" onChange={(e) => { if (e.target.value) { addToCart(photos[lightbox].id, e.target.value); e.target.value = ""; } }} style={{ ...mono, fontSize: 11, padding: "9px 10px", borderRadius: 8, border: "1px solid rgba(255,255,255,0.25)", background: "rgba(255,255,255,0.12)", color: "#fff", cursor: "pointer" }}>
+                    <option value="" style={{ color: "#141210" }}>Order a print…</option>
+                    {products.map((p) => <option key={p.id} value={p.id} style={{ color: "#141210" }}>{p.name} · {money(p.price)}</option>)}
+                  </select>
+                </span>
+              )}
             </div>
           </div>
         </div>
