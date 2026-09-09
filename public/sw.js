@@ -1,47 +1,52 @@
-const CACHE = "dot1-portal-v25";
-self.addEventListener("install", (e) => {
-  e.waitUntil(caches.open(CACHE).then((c) => c.add("/")).catch(() => {}));
-  self.skipWaiting();
-});
+// Dot One portal service worker.
+// Navigation is ALWAYS network-first with no HTML caching, so a client can never be
+// trapped on a stale or wrong app shell. Only truly static, hashed assets are cached.
+const CACHE = "dot1-portal-v26";
+
+self.addEventListener("install", () => { self.skipWaiting(); });
+
 self.addEventListener("activate", (e) => {
-  e.waitUntil(caches.keys().then((keys) => Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k)))).then(() => self.clients.claim()));
+  e.waitUntil(
+    caches.keys()
+      .then((keys) => Promise.all(keys.map((k) => caches.delete(k)))) // wipe every old cache, including bad HTML
+      .then(() => self.clients.claim())
+  );
 });
+
 self.addEventListener("fetch", (e) => {
   const req = e.request;
   if (req.method !== "GET") return;
   let url;
   try { url = new URL(req.url); } catch (err) { return; }
   if (url.origin !== self.location.origin) return;
-  if (url.pathname.startsWith("/api/")) return; // always fresh, never cache
-  if (req.mode === "navigate") {
-    e.respondWith(
-      fetch(req).then((res) => { const copy = res.clone(); caches.open(CACHE).then((c) => c.put("/", copy)).catch(() => {}); return res; })
-                .catch(() => caches.match("/").then((r) => r || Response.error()))
-    );
+  if (url.pathname.startsWith("/api/")) return; // never touch API
+
+  // HTML / navigations: network only. Never serve cached HTML.
+  if (req.mode === "navigate" || (req.headers.get("accept") || "").includes("text/html")) {
+    e.respondWith(fetch(req).catch(() => new Response(
+      "<!doctype html><meta charset=utf-8><meta name=viewport content='width=device-width,initial-scale=1'><body style='font-family:system-ui;padding:40px;text-align:center;color:#33322d'><p>You appear to be offline. <a href='' onclick='location.reload();return false' style='color:#b81616'>Try again</a>.</p></body>",
+      { headers: { "Content-Type": "text/html" } }
+    )));
     return;
   }
-  e.respondWith(
-    caches.match(req).then((cached) => cached || fetch(req).then((res) => {
-      if (res && res.status === 200 && res.type === "basic") { const copy = res.clone(); caches.open(CACHE).then((c) => c.put(req, copy)).catch(() => {}); }
-      return res;
-    }).catch(() => cached))
-  );
+
+  // Hashed build assets only: cache-first is safe because the filename changes on every deploy.
+  if (url.pathname.startsWith("/_next/static/") || /\.(?:js|css|woff2?|png|jpg|jpeg|svg|webp|ico)$/.test(url.pathname)) {
+    e.respondWith(
+      caches.match(req).then((cached) => cached || fetch(req).then((res) => {
+        if (res && res.status === 200 && res.type === "basic") { const copy = res.clone(); caches.open(CACHE).then((c) => c.put(req, copy)).catch(() => {}); }
+        return res;
+      }).catch(() => cached))
+    );
+  }
+  // everything else: let the browser handle it normally
 });
-
-
 
 self.addEventListener("push", (e) => {
   let d = {};
   try { d = e.data ? e.data.json() : {}; } catch (err) {}
   const title = d.title || "Dot One Studio";
-  e.waitUntil(self.registration.showNotification(title, {
-    body: d.body || "",
-    icon: "/dot1-icon.png",
-    badge: "/dot1-icon.png",
-    data: { url: d.url || "/" },
-    tag: d.tag || undefined,
-    renotify: !!d.tag,
-  }));
+  e.waitUntil(self.registration.showNotification(title, { body: d.body || "", icon: "/dot1-icon.png", badge: "/dot1-icon.png", data: { url: d.url || "/" }, tag: d.tag || undefined, renotify: !!d.tag }));
 });
 self.addEventListener("notificationclick", (e) => {
   e.notification.close();
