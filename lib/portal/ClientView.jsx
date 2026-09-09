@@ -5,7 +5,7 @@ import { InspirationBoard } from "./InspirationBoard";
 // Dot One Media portal - client project dashboard (timeline, payments, deliverables, messages, brief, usage rights) + private ProgressBar, SummaryCell, StatusBadge, Timeline, ClientActionPanel. resizeImage is an App-level prop.
 import React, { useState, useEffect, useRef } from "react";
 import { AlertTriangle, CalendarClock, CalendarPlus, Camera, CheckCircle2, ChevronDown, Clock, Download, ExternalLink, FileCheck, FileText, Film, Image as ImageIcon, MessageSquare, Play, Send, Star, Upload, User, X, Paperclip} from "lucide-react";
-import { RED, INK, BODY, STONE, FAINT, LINE, PAPER, CREAM, OK, DANGER, display, mono, card, inputStyle, btnGhost, btnSolid } from "./theme";
+import { RED, INK, BODY, STONE, FAINT, LINE, PAPER, CREAM, OK, WARN, DANGER, display, mono, card, inputStyle, btnGhost, btnSolid } from "./theme";
 import { GROUPS } from "./groups";
 import { fmtDate, fmtTime, gcalLink, money, timeGreeting } from "./format";
 import { isConsult, GOOGLE_REVIEW_URL, DOC_META, DOC_USAGE, BRIEF_FIELDS } from "./constants";
@@ -196,10 +196,10 @@ export function ClientView({ session, sessions, clientId, setClientId, addCommen
   const [briefOpen, setBriefOpen] = useState(false);
   const [brief, setBrief] = useState({});
   const [briefMsg, setBriefMsg] = useState("");
-  useEffect(() => { (async () => { try { const r = await fetch("/api/agreements"); const d = await r.json(); if (r.ok) setDocs(Array.isArray(d.agreements) ? d.agreements : []); } catch (e) {} })(); }, [resignDone]);
   const [versions, setVersions] = useState(null);
   const [resignDone, setResignDone] = useState(0);
   const [resign, setResign] = useState({ name: "", agree: false, busy: false, err: "" });
+  useEffect(() => { (async () => { try { const r = await fetch("/api/agreements"); const d = await r.json(); if (r.ok) setDocs(Array.isArray(d.agreements) ? d.agreements : []); } catch (e) {} })(); }, [resignDone]);
   useEffect(() => { fetch("/api/agreements/versions").then((r) => r.json()).then((d) => setVersions(d.versions || null)).catch(() => {}); }, [resignDone]);
   const needsResign = (() => { if (!versions || !docs.length) return []; const latest = {}; for (const d of docs) { const k = d.agreement_type; if (!latest[k] || new Date(d.signed_at) > new Date(latest[k].signed_at)) latest[k] = d; } return Object.keys(latest).filter((k) => versions[k] && String(latest[k].version) !== String(versions[k].version)).map((k) => ({ type: k, signed: latest[k].version, current: versions[k].version, note: versions[k].note, usage: latest[k].usage_option })); })();
   async function doResign() {
