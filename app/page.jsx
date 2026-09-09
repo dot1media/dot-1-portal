@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useLayoutEffect, useRef } from "react";
 import { parseCsvRows, ACUITY_MONTHS, parseAcuityStart, importServiceLine } from "../lib/portal/csv";
-import { uid, fmtDate, fmtTime, pad2, calDate, addMinutes, gcalLink, money, compactMoney, MONTH_ABBR, monthShort, payKindLabel, payCardLabel, payMoney, payDateShort, sessionBucket, timeGreeting } from "../lib/portal/format";
+import { uid, fmtDate, fmtTime, money } from "../lib/portal/format";
 import { RED, INK, BODY, STONE, FAINT, LINE, PAPER, CREAM, OK, WARN, DANGER, THEME_VARS, THEMES, ACCENT_SWATCHES, applyTheme, setPhotoTheme, display, mono, card, cardDense, inputStyle, iconBtnStyle, navBtn, shareBtn, btnGhost, btnSolid } from "../lib/portal/theme";
 import { GROUPS, GROUP_KEYS } from "../lib/portal/groups";
 import { DonutChart, HBars, MiniColumns, LinkRow, LinkField, FieldLabel, TextInput, RadioPill, IconBtn, EmptyHint, MiniCalendar, FontLoader, EmptyState, Avatar, Skeleton, Row } from "../lib/portal/ui";
