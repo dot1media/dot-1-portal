@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { Readable, PassThrough } from "stream";
-import archiver from "archiver";
+import * as archiverMod from "archiver";
+const archiver: any = (archiverMod as any).default || archiverMod;
 import { sql } from "@/lib/db";
 import { hasStudio } from "@/lib/studioGuard";
 import { ensureGallerySchema, keyFull, currentClientEmail } from "@/lib/gallery";
