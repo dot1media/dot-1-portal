@@ -3,7 +3,7 @@ import { useEffect } from "react";
 export default function Error({ error, reset }) {
   useEffect(() => {
     try { console.error("Portal error:", error?.message, error?.stack, "digest:", error?.digest); } catch (e) {}
-    try { fetch("/api/clientlog", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ msg: error?.message || String(error), stack: error?.stack || "", url: (typeof location !== "undefined" ? location.href : ""), ua: (typeof navigator !== "undefined" ? navigator.userAgent : "") }) }); } catch (e) {}
+    try { fetch("/api/clientlog", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ msg: error?.message || String(error), stack: (error?.stack || "") + "\n--digest:" + (error?.digest || "none"), url: (typeof location !== "undefined" ? location.href : ""), ua: (typeof navigator !== "undefined" ? navigator.userAgent : "") }) }); } catch (e) {}
   }, [error]);
   return (
     <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#fbf8f2", fontFamily: "Archivo, system-ui, sans-serif", padding: 24 }}>
