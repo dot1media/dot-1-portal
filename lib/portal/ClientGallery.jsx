@@ -50,8 +50,8 @@ export function ClientGallery({ sessionId }) {
   const [savingRelease, setSavingRelease] = useState(false);
 
   const selectedCount = photos.filter((p) => p.favorite).length;
-  const includedIsNull = included == null;
   const included = g && g.included != null ? g.included : null;
+  const includedIsNull = included == null;
   const atLimit = included != null && selectedCount >= included;
 
   const load = useCallback(async () => {

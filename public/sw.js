@@ -1,7 +1,7 @@
 // Dot One portal service worker.
 // Navigation is ALWAYS network-first with no HTML caching, so a client can never be
 // trapped on a stale or wrong app shell. Only truly static, hashed assets are cached.
-const CACHE = "dot1-portal-v29";
+const CACHE = "dot1-portal-v30";
 
 self.addEventListener("install", () => { self.skipWaiting(); });
 
