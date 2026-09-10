@@ -148,7 +148,7 @@ export default function App() {
   } catch (e) {} finally { setAuthChecked(true); } })(); }, []);
   useEffect(() => { (async () => { try { const res = await fetch("/api/availability"); const data = await res.json(); if (res.ok) setState((s) => ({ ...s, availability: data.availability || [] })); } catch (e) {} })(); }, []);
   useEffect(() => {
-    if (typeof navigator !== "undefined" && "serviceWorker" in navigator) { navigator.serviceWorker.register("/sw.js").catch(() => {}); }
+    if (typeof navigator !== "undefined" && "serviceWorker" in navigator) { const ua = navigator.userAgent || ""; const inApp = /(FBAN|FBAV|Instagram|Line|DoorDash|Snapchat|Twitter|Pinterest|GSA|musical_ly|Bytedance|WebView|; wv\))/i.test(ua); const standalone = window.matchMedia && window.matchMedia("(display-mode: standalone)").matches; if (!inApp || standalone) { navigator.serviceWorker.register("/sw.js").catch(() => {}); } }
     if (typeof window === "undefined") return;
     const handler = (e) => { e.preventDefault(); setInstallEvt(e); };
     window.addEventListener("beforeinstallprompt", handler);
