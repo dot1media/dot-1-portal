@@ -215,7 +215,8 @@ export function ClientView({ session, sessions, clientId, setClientId, addCommen
   const grp = GROUPS[session.serviceLine] || GROUPS.video;
   const fee = PAYMENT_RULES[session.serviceLine]?.reschedFee || 0;
   const status = session.status || "active";
-  const unreadReplies = session.comments.filter((c) => c.author === "studio" && !c.read).length;
+  const comments = Array.isArray(session.comments) ? session.comments : [];
+  const unreadReplies = comments.filter((c) => c.author === "studio" && !c.read).length;
   const today = new Date().toISOString().slice(0, 10);
   const sortedSessions = [...(sessions || [])].sort((a, b) => { const ad = a.date || "9999-99", bd = b.date || "9999-99"; const aUp = ad >= today, bUp = bd >= today; if (aUp !== bUp) return aUp ? -1 : 1; if (aUp) return ad.localeCompare(bd); return bd.localeCompare(ad); });
   const payTotal = Number(session.total) || 0;
@@ -488,9 +489,9 @@ export function ClientView({ session, sessions, clientId, setClientId, addCommen
 
       <div style={{ ...card, marginTop: 18, padding: "22px 24px" }}>
         <div style={{ ...mono, fontSize: 10.5, letterSpacing: "0.16em", textTransform: "uppercase", color: STONE, marginBottom: 14 }}>Messages with the studio</div>
-        {session.comments.length === 0 ? (
+        {comments.length === 0 ? (
           <div style={{ marginBottom: 12 }}><EmptyState icon={MessageSquare} title="No messages yet" text="Send a note below and we'll get right back to you." style={{ padding: "22px 14px" }} /></div>
-        ) : session.comments.map((c, i) => {
+        ) : comments.map((c, i) => {
           const isNew = c.author === "studio" && !c.read;
           return (
             <div key={i} style={{ display: "flex", gap: 10, marginBottom: 8 }}>
