@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useLayoutEffect, useRef } from "react";
 import { parseCsvRows, ACUITY_MONTHS, parseAcuityStart, importServiceLine } from "../lib/portal/csv";
 import { uid, fmtDate, fmtTime, money } from "../lib/portal/format";
-import { RED, INK, BODY, STONE, FAINT, LINE, PAPER, CREAM, OK, WARN, DANGER, THEME_VARS, THEMES, ACCENT_SWATCHES, applyTheme, setPhotoTheme, display, mono, card, cardDense, inputStyle, iconBtnStyle, navBtn, shareBtn, btnGhost, btnSolid } from "../lib/portal/theme";
+import { RED, INK, BODY, STONE, FAINT, LINE, PAPER, CREAM, OK, WARN, DANGER, THEME_VARS, THEMES, ACCENT_SWATCHES, applyTheme, setPhotoTheme, setClientTheme, display, mono, card, cardDense, inputStyle, iconBtnStyle, navBtn, shareBtn, btnGhost, btnSolid } from "../lib/portal/theme";
 import { GROUPS, GROUP_KEYS } from "../lib/portal/groups";
 import { DonutChart, HBars, MiniColumns, LinkRow, LinkField, FieldLabel, TextInput, RadioPill, IconBtn, EmptyHint, MiniCalendar, FontLoader, EmptyState, Avatar, Skeleton, Row } from "../lib/portal/ui";
 import { useIsMobile } from "../lib/portal/hooks";
@@ -478,6 +478,7 @@ export default function App() {
   useEffect(() => {
     if (view !== "book" && view !== "client") return; // never touch the studio-side theme
     if (photoCtx) setPhotoTheme();
+    else if (view === "client") setClientTheme(); // client portal = clean black & white
     else { applyTheme(themeKey, customAccent); if (typeof document !== "undefined") document.body.style.background = "#fbf8f2"; }
   }, [view, photoCtx, themeKey, customAccent]);
   const unreadClientTotal = state.sessions.reduce((n, s) => n + s.comments.filter((c) => c.author === "client" && !c.read).length, 0);
