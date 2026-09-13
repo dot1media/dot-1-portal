@@ -3,7 +3,7 @@ import React, { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { ChevronLeft, ChevronRight, X } from "lucide-react";
 
-const INK = "#141210", BONE = "#ffffff", STONE = "#6f6d65", LINE = "#e2ded4";
+const INK = "#141210", BONE = "#f4f0e7", STONE = "#6f6d65", LINE = "#e2ded4";
 const mono = { fontFamily: "'IBM Plex Mono', monospace" };
 
 export default function SharePage() {
@@ -14,7 +14,7 @@ export default function SharePage() {
   useEffect(() => { if (!token) return; fetch("/api/gallery/shared?token=" + encodeURIComponent(String(token))).then((r) => r.json()).then((d) => { if (d.photos) setData(d); else setErr(d.error || "This link is no longer active."); }).catch(() => setErr("Could not load this gallery.")); }, [token]);
   useEffect(() => { if (lb < 0) return; const onKey = (e) => { if (e.key === "Escape") setLb(-1); if (e.key === "ArrowRight") setLb((i) => Math.min(i + 1, data.photos.length - 1)); if (e.key === "ArrowLeft") setLb((i) => Math.max(i - 1, 0)); }; window.addEventListener("keydown", onKey); return () => window.removeEventListener("keydown", onKey); }, [lb, data]);
   return (
-    <div style={{ minHeight: "100vh", background: "#ffffff", color: INK, fontFamily: "Archivo, -apple-system, sans-serif" }}>
+    <div style={{ minHeight: "100vh", background: "#fbf8f2", color: INK, fontFamily: "Archivo, -apple-system, sans-serif" }}>
       <div style={{ maxWidth: 1100, margin: "0 auto", padding: "28px 18px 60px" }}>
         <div style={{ ...mono, fontSize: 10, letterSpacing: "0.18em", textTransform: "uppercase", color: STONE, marginBottom: 6 }}>Dot One Media · shared favorites</div>
         {err ? <div style={{ fontSize: 15, color: STONE, padding: "40px 0" }}>{err}</div> : !data ? <div style={{ ...mono, fontSize: 11, color: STONE }}>Loading…</div> : (

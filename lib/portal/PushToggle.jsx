@@ -12,7 +12,7 @@ function urlB64ToUint8Array(b64) {
   return arr;
 }
 
-export default function PushToggle({ accent = "#111111", line = "#e2ded4", stone = "#6f6d65", ink = "#141210" }) {
+export default function PushToggle({ accent = "#b81616", line = "#e2ded4", stone = "#6f6d65", ink = "#141210" }) {
   const [supported, setSupported] = useState(true);
   const [on, setOn] = useState(false);
   const [busy, setBusy] = useState(false);

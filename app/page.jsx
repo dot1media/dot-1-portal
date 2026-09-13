@@ -478,7 +478,7 @@ export default function App() {
   useEffect(() => {
     if (view !== "book" && view !== "client") return; // never touch the studio-side theme
     if (photoCtx) setPhotoTheme();
-    else { applyTheme(themeKey, customAccent); }
+    else { applyTheme(themeKey, customAccent); if (typeof document !== "undefined") document.body.style.background = "#fbf8f2"; }
   }, [view, photoCtx, themeKey, customAccent]);
   const unreadClientTotal = state.sessions.reduce((n, s) => n + s.comments.filter((c) => c.author === "client" && !c.read).length, 0);
 
@@ -720,7 +720,7 @@ function ThemePicker({ themeKey, customAccent, onPick, onClose }) {
             <button key={c} onClick={() => onPick(themeKey, c)} aria-label={"Accent " + c} style={{ width: 30, height: 30, borderRadius: "50%", background: c, cursor: "pointer", border: sel ? "2px solid #1a1a17" : "2px solid transparent", boxShadow: "inset 0 0 0 1px rgba(0,0,0,0.08)", padding: 0 }} />
           ); })}
           <label style={{ display: "inline-flex", alignItems: "center", gap: 6, cursor: "pointer", ...mono, fontSize: 10.5, color: STONE, border: `1px dashed ${LINE}`, borderRadius: 8, padding: "6px 10px" }}>
-            <input type="color" value={/^#[0-9a-fA-F]{6}$/.test(acc) ? acc : "#111111"} onChange={(e) => onPick(themeKey, e.target.value)} style={{ width: 18, height: 18, border: "none", background: "transparent", padding: 0, cursor: "pointer" }} /> Custom
+            <input type="color" value={/^#[0-9a-fA-F]{6}$/.test(acc) ? acc : "#e23b2e"} onChange={(e) => onPick(themeKey, e.target.value)} style={{ width: 18, height: 18, border: "none", background: "transparent", padding: 0, cursor: "pointer" }} /> Custom
           </label>
         </div>
         <div style={{ display: "flex", gap: 8, marginTop: 22, flexWrap: "wrap" }}>
@@ -890,7 +890,7 @@ function AvailabilityManager({ availability, addAvailability, removeAvailability
         </div>
         {mode === "range" && (
           <label style={{ display: "inline-flex", alignItems: "center", gap: 8, marginTop: 14, cursor: "pointer", fontSize: 12.5, color: BODY }}>
-            <input type="checkbox" checked={weekdaysOnly} onChange={(e) => setWeekdaysOnly(e.target.checked)} style={{ width: 15, height: 15, accentColor: "var(--d1-accent, #111111)", cursor: "pointer" }} /> Weekdays only (skip weekends)
+            <input type="checkbox" checked={weekdaysOnly} onChange={(e) => setWeekdaysOnly(e.target.checked)} style={{ width: 15, height: 15, accentColor: "var(--d1-accent, #e23b2e)", cursor: "pointer" }} /> Weekdays only (skip weekends)
           </label>
         )}
       </div>
