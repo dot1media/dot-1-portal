@@ -9,23 +9,23 @@ import { RED, INK, STONE, LINE, PAPER } from "./theme";
 const GUIDE_CSS = `.dot1-guide{color:#33322d;font-family:'Archivo',system-ui,sans-serif;font-size:15px;line-height:1.65;}
 .dot1-guide h2{font-family:'Bodoni Moda',Georgia,serif;font-weight:700;font-size:24px;color:#1a1a17;margin:30px 0 10px;padding-bottom:7px;border-bottom:2px solid #e2ded4;scroll-margin-top:90px;}
 .dot1-guide h2:first-child{margin-top:4px;}
-.dot1-guide h2 .hn{color:#e23b2e;font-style:italic;margin-right:4px;}
+.dot1-guide h2 .hn{color:#111111;font-style:italic;margin-right:4px;}
 .dot1-guide h3{font-family:'Bodoni Moda',Georgia,serif;font-weight:700;font-size:17px;color:#1a1a17;margin:20px 0 6px;}
 .dot1-guide p{margin:0 0 10px;}
-.dot1-guide a{color:#e23b2e;text-decoration:none;}
-.dot1-guide h2 + ol a{color:#e23b2e;font-weight:500;cursor:pointer;}
+.dot1-guide a{color:#111111;text-decoration:none;}
+.dot1-guide h2 + ol a{color:#111111;font-weight:500;cursor:pointer;}
 .dot1-guide h2 + ol a:hover{text-decoration:underline;}
 .dot1-guide strong{font-weight:600;color:#1a1a17;}
 .dot1-guide ul,.dot1-guide ol{margin:0 0 12px;padding-left:22px;}
 .dot1-guide li{margin:0 0 6px;}
 .dot1-guide h2 + ol li{margin:0 0 8px;}
-.dot1-guide code{font-family:'IBM Plex Mono',monospace;font-size:13px;background:#f4f0e7;padding:1px 5px;border-radius:3px;color:#1a1a17;}
+.dot1-guide code{font-family:'IBM Plex Mono',monospace;font-size:13px;background:#ffffff;padding:1px 5px;border-radius:3px;color:#1a1a17;}
 .dot1-guide table{width:100%;border-collapse:collapse;margin:10px 0 18px;font-size:13.5px;}
 .dot1-guide th{font-family:'IBM Plex Mono',monospace;font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:0.05em;text-align:left;background:#1a1a17;color:#fff;padding:8px 10px;}
 .dot1-guide td{padding:8px 10px;border-bottom:1px solid #e2ded4;vertical-align:top;}
 .dot1-guide tbody tr:nth-child(even) td{background:#faf8f3;}
 .dot1-guide hr{border:none;border-top:1px solid #e2ded4;margin:22px 0;}
-.dot1-guide blockquote{margin:16px 0;padding:10px 14px;background:#f4f0e7;border-left:3px solid #e23b2e;color:#6f6d65;font-size:13.5px;}
+.dot1-guide blockquote{margin:16px 0;padding:10px 14px;background:#ffffff;border-left:3px solid #111111;color:#6f6d65;font-size:13.5px;}
 .dot1-guide blockquote p{margin:0;font-style:italic;}
 .dot1-guide h1{display:none;}
 .dot1-guide em{font-style:italic;}`;

@@ -267,5 +267,5 @@ export function InvoiceModal({ state, showToast, onClose, onSessionsRefresh }) {
   );
 }
 
-const qtyBtn = { width: 20, height: 20, borderRadius: 5, border: "1px solid #f0d4cf", background: "#fff", color: "#e23b2e", cursor: "pointer", fontSize: 12, lineHeight: 1, display: "inline-flex", alignItems: "center", justifyContent: "center", padding: 0 };
-const miniBtn = { display: "inline-flex", alignItems: "center", gap: 6, fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, letterSpacing: "0.04em", padding: "7px 10px", borderRadius: 7, border: "1px solid #e2ded4", background: "#fbf8f2", color: "#6f6d65", cursor: "pointer" };
+const qtyBtn = { width: 20, height: 20, borderRadius: 5, border: "1px solid #f0d4cf", background: "#fff", color: "#111111", cursor: "pointer", fontSize: 12, lineHeight: 1, display: "inline-flex", alignItems: "center", justifyContent: "center", padding: 0 };
+const miniBtn = { display: "inline-flex", alignItems: "center", gap: 6, fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, letterSpacing: "0.04em", padding: "7px 10px", borderRadius: 7, border: "1px solid #e2ded4", background: "#ffffff", color: "#6f6d65", cursor: "pointer" };
