@@ -18,6 +18,7 @@ import { InvoiceOnboarding } from "../lib/portal/InvoiceOnboarding";
 import { ServiceForm } from "../lib/portal/ServiceForm";
 import { DirectLinks } from "../lib/portal/DirectLinks";
 import { ServiceLinks } from "../lib/portal/ServiceLinks";
+import { ThankYou } from "../lib/portal/ThankYou";
 import { WeeklyHours } from "../lib/portal/WeeklyHours";
 import { WaitlistPanel } from "../lib/portal/WaitlistPanel";
 import { QuickBook } from "../lib/portal/QuickBook";
@@ -604,62 +605,6 @@ export default function App() {
 }
 
 /* ============================ LANDING (first-use entry) ============================ */
-function ThankYou({ session, onPortal, brand = { orgName: "Dot One Media", tagline: "Create with purpose." } }) {
-  const grp = session ? (GROUPS[session.serviceLine] || GROUPS.video) : GROUPS.video;
-  const paid = session && session.paymentStatus === "paid";
-  const isPhoto = session && session.serviceLine === "photo";
-  const [firstName] = ((session && session.clientName) || "").trim().split(/\s+/);
-  // The keyframes are injected once; each element uses a staggered delay so the scene "settles" in.
-  return (
-    <div className="d1-ty" style={{ position: "relative", maxWidth: 600, margin: "0 auto", padding: "72px 24px 56px", textAlign: "center", overflow: "hidden" }}>
-      <style>{`
-        @keyframes tyGlow{0%{opacity:0;transform:scale(.6)}100%{opacity:1;transform:scale(1)}}
-        @keyframes tyRing{0%{transform:scale(.4);opacity:0}55%{opacity:.55}100%{transform:scale(2.4);opacity:0}}
-        @keyframes tyDraw{to{stroke-dashoffset:0}}
-        @keyframes tyRise{0%{opacity:0;transform:translateY(16px)}100%{opacity:1;transform:none}}
-        @keyframes tyLetter{0%{opacity:0;transform:translateY(14px);filter:blur(4px)}100%{opacity:1;transform:none;filter:none}}
-        .d1-ty .ty-glow{position:absolute;top:36px;left:50%;width:340px;height:340px;margin-left:-170px;border-radius:50%;background:radial-gradient(circle, color-mix(in srgb, ${grp.color} 12%, transparent) 0%, transparent 68%);animation:tyGlow 1.6s cubic-bezier(.22,1,.36,1) both;pointer-events:none}
-        .d1-ty .ty-mark{position:relative;width:76px;height:76px;margin:0 auto 26px}
-        .d1-ty .ty-ring{position:absolute;inset:0;border-radius:50%;border:2px solid ${grp.color};animation:tyRing 1.5s cubic-bezier(.22,1,.36,1) .35s both}
-        .d1-ty .ty-disc{position:absolute;inset:0;border-radius:50%;background:${grp.bg};border:1.5px solid ${grp.border};display:flex;align-items:center;justify-content:center;animation:tyGlow .8s cubic-bezier(.22,1,.36,1) .15s both}
-        .d1-ty .ty-check{width:38px;height:38px}
-        .d1-ty .ty-check path{stroke:${grp.color};stroke-width:3.2;stroke-linecap:round;stroke-linejoin:round;fill:none;stroke-dasharray:40;stroke-dashoffset:40;animation:tyDraw .7s cubic-bezier(.65,0,.35,1) .6s forwards}
-        .d1-ty .ty-word{display:inline-block;animation:tyLetter .9s cubic-bezier(.22,1,.36,1) both}
-        .d1-ty .ty-eyebrow{animation:tyRise .8s cubic-bezier(.22,1,.36,1) .5s both}
-        .d1-ty .ty-h1{animation:tyRise 1s cubic-bezier(.22,1,.36,1) .7s both}
-        .d1-ty .ty-detail{animation:tyRise 1s cubic-bezier(.22,1,.36,1) 1.0s both}
-        .d1-ty .ty-copy{animation:tyRise 1s cubic-bezier(.22,1,.36,1) 1.25s both}
-        .d1-ty .ty-cta{animation:tyRise 1s cubic-bezier(.22,1,.36,1) 1.5s both}
-        .d1-ty .ty-cta button{transition:transform .5s cubic-bezier(.22,1,.36,1),box-shadow .5s cubic-bezier(.22,1,.36,1)}
-        .d1-ty .ty-cta button:hover{transform:translateY(-2px);box-shadow:0 18px 40px -20px color-mix(in srgb, ${grp.color} 60%, transparent)}
-        .d1-ty .ty-foot{animation:tyRise 1s cubic-bezier(.22,1,.36,1) 1.7s both}
-        @media (prefers-reduced-motion: reduce){ .d1-ty *{animation:none!important} .d1-ty .ty-check path{stroke-dashoffset:0!important} }
-      `}</style>
-      <div className="ty-glow" aria-hidden="true" />
-      <div style={{ marginBottom: 26, position: "relative" }} className="ty-eyebrow"><img src={isPhoto ? "/dot1-photo-logo.png" : "/api/brand/logo"} alt="Dot One Media" style={{ height: isPhoto ? 52 : 44, width: "auto", margin: "0 auto", display: "block" }} /></div>
-      <div className="ty-mark" aria-hidden="true">
-        <span className="ty-ring" /><span className="ty-ring" style={{ animationDelay: ".7s" }} />
-        <span className="ty-disc"><svg className="ty-check" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7" /></svg></span>
-      </div>
-      <div className="ty-eyebrow" style={{ ...mono, fontSize: 11, letterSpacing: "0.22em", textTransform: "uppercase", color: grp.color, marginBottom: 14 }}>Booking Confirmed</div>
-      <h1 className="ty-h1" style={{ ...display, fontWeight: 700, fontSize: 33, color: INK, lineHeight: 1.14, marginBottom: 14 }}>
-        {"Thank you".split("").map((c, i) => <span key={i} className="ty-word" style={{ animationDelay: (0.75 + i * 0.045) + "s", whiteSpace: "pre" }}>{c}</span>)}
-        {firstName ? <>,<br /><span className="ty-word" style={{ animationDelay: "1.15s" }}>{firstName}</span></> : null}
-      </h1>
-      {session && (
-        <div className="ty-detail" style={{ fontSize: 15, color: BODY, lineHeight: 1.6, marginBottom: paid ? 8 : 4 }}>
-          Your <strong style={{ color: INK }}>{session.type}</strong> is booked{session.date ? " for " + fmtDate(session.date) : ""}{session.time ? " at " + fmtTime(session.time) : ""}.
-        </div>
-      )}
-      {paid && <div className="ty-detail" style={{ ...mono, fontSize: 10.5, letterSpacing: "0.12em", textTransform: "uppercase", color: OK, marginBottom: 4 }}>Payment received</div>}
-      <p className="ty-copy" style={{ fontSize: 14, color: BODY, lineHeight: 1.65, maxWidth: 460, margin: "14px auto 30px" }}>
-        We've emailed your confirmation, and your client portal is ready, a calm place to follow your project from this moment through final delivery.
-      </p>
-      <div className="ty-cta"><button onClick={onPortal} style={{ ...btnSolid, background: grp.color, fontSize: 15, padding: "14px 30px", margin: "0 auto" }}>Enter your portal <ArrowRight size={16} /></button></div>
-      <div className="ty-foot" style={{ ...mono, fontSize: 10, letterSpacing: "0.14em", textTransform: "uppercase", color: FAINT, marginTop: 24 }}>portal.dot1.media</div>
-    </div>
-  );
-}
 
 function PortalFooter({ brand = { orgName: "Dot One Media", tagline: "Create with purpose." } }) {
   const link = { color: STONE, textDecoration: "none" };
