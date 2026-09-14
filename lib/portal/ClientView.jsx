@@ -259,6 +259,38 @@ export function ClientView({ session, sessions, clientId, setClientId, addCommen
 
   return (
     <div className="d1-stagger">
+      <style>{`
+        /* ===== Client portal: cohesive premium motion (scoped to .d1-stagger) ===== */
+        .d1-stagger{--e:cubic-bezier(.22,1,.36,1)}
+        /* direct-child cards rise into place once, gently staggered */
+        @keyframes d1cardIn{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:none}}
+        @media (prefers-reduced-motion:no-preference){
+          .d1-stagger > div{animation:d1cardIn .8s var(--e) both}
+          .d1-stagger > div:nth-child(2){animation-delay:0s}
+          .d1-stagger > div:nth-child(3){animation-delay:.10s}
+          .d1-stagger > div:nth-child(4){animation-delay:.16s}
+          .d1-stagger > div:nth-child(5){animation-delay:.22s}
+          .d1-stagger > div:nth-child(6){animation-delay:.28s}
+          .d1-stagger > div:nth-child(7){animation-delay:.34s}
+          .d1-stagger > div:nth-child(n+8){animation-delay:.40s}
+        }
+        /* cards: quiet lift + deeper shadow bloom + hairline warm on hover */
+        .d1-stagger > div{transition:transform .55s var(--e),box-shadow .55s var(--e),border-color .4s ease}
+        .d1-stagger > div:hover{transform:translateY(-3px);box-shadow:0 2px 4px rgba(20,20,20,.03),0 22px 50px -26px rgba(20,20,20,.22)}
+        /* buttons & links: unhurried, tactile */
+        .d1-stagger button,.d1-stagger a{transition:transform .5s var(--e),background-color .4s ease,color .4s ease,border-color .4s ease,box-shadow .4s ease}
+        .d1-stagger button:not(:disabled):hover{transform:translateY(-1.5px)}
+        .d1-stagger button:not(:disabled):active{transform:translateY(0);transition-duration:.1s}
+        /* inputs & textareas: soft accent focus ring */
+        .d1-stagger input:focus,.d1-stagger textarea:focus,.d1-stagger select:focus{outline:none;border-color:var(--d1-accent,#111)!important;box-shadow:0 0 0 3px color-mix(in srgb,var(--d1-accent,#111) 14%,transparent)}
+        /* images settle in */
+        .d1-stagger img{transition:opacity .7s ease,transform 1.1s var(--e)}
+        /* gentle interactive scale on gallery/thumb tiles handled by their own hover; keep global calm */
+        @media (prefers-reduced-motion:reduce){
+          .d1-stagger > div{animation:none!important}
+          .d1-stagger *{transition-duration:.001ms!important}
+        }
+      `}</style>
       {session.serviceLine === "photo" && <div style={{ textAlign: "center", margin: "8px auto 34px", maxWidth: 460 }}><img src="/dot1-photo-logo.png" alt="Dot One Photography" style={{ height: 62, width: "auto", display: "block", margin: "0 auto 14px" }} /><div style={{ ...display, fontStyle: "italic", fontSize: 18, color: GROUPS.photo.color, letterSpacing: "0.01em" }}>Timeless portraits</div><div style={{ ...mono, fontSize: 8.5, letterSpacing: "0.3em", textTransform: "uppercase", color: FAINT, marginTop: 9 }}>Every stage of life, every season of light</div></div>}
       {sortedSessions.length > 1 && (
         <div style={{ marginBottom: 24 }}>
