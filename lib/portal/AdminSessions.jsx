@@ -21,6 +21,53 @@ function ServicePill({ line }) {
   return <span style={{ ...mono, fontSize: 9.5, letterSpacing: "0.14em", textTransform: "uppercase", padding: "3px 9px", borderRadius: 20, background: g.color, color: "#fff", display: "inline-flex", alignItems: "center", gap: 5 }}><g.Icon size={11} /> {g.label}</span>;
 }
 
+// "Gear for this shoot": if the session's service type has a camera package attached (in the
+// assets app), show the kit and a one-tap "Check out in Assets" button. Silent when there's no
+// package, or when the portal→assets link isn't configured.
+function GearCard({ session, services }) {
+  const svc = (services || []).find((s) => s && s.name === session.type);
+  const packageId = svc && svc.packageId != null ? svc.packageId : null;
+  const [data, setData] = useState(null);
+  useEffect(() => {
+    if (packageId == null) { setData(null); return; }
+    let live = true;
+    fetch("/api/camera-packages/" + packageId).then((r) => r.json()).then((d) => { if (live) setData(d); }).catch(() => {});
+    return () => { live = false; };
+  }, [packageId]);
+  if (packageId == null || !data || !data.configured || !data.package) return null;
+  const pkg = data.package;
+  const items = data.items || [];
+  const types = String(pkg.session_types || "").split(",").map((t) => t.trim()).filter(Boolean);
+  const label = [session.clientName || "", fmtDate(session.date) || ""].filter(Boolean).join(" · ");
+  const href = "https://assets.dot1.media/?checkout=" + encodeURIComponent(pkg.id) + (label ? "&for=" + encodeURIComponent(label) : "");
+  return (
+    <div style={{ ...card, marginTop: 18, padding: "18px 20px" }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+        <div style={{ ...mono, fontSize: 10.5, letterSpacing: "0.16em", textTransform: "uppercase", color: STONE, display: "flex", alignItems: "center", gap: 8 }}><PackageCheck size={14} /> Gear for this shoot</div>
+        <a href={href} target="_blank" rel="noopener noreferrer" style={{ ...mono, fontSize: 10.5, letterSpacing: "0.06em", textTransform: "uppercase", textDecoration: "none", padding: "9px 14px", borderRadius: 9, background: INK, color: "#fff", display: "inline-flex", alignItems: "center", gap: 7 }}><ArrowRight size={13} /> Check out in Assets</a>
+      </div>
+      <div style={{ ...display, fontSize: 17, color: INK, marginTop: 10 }}>{pkg.name}</div>
+      {types.length > 0 && <div style={{ display: "flex", flexWrap: "wrap", gap: 5, marginTop: 7 }}>{types.map((t, i) => <span key={i} style={{ ...mono, fontSize: 9.5, letterSpacing: "0.04em", color: RED, background: CREAM, border: `1px solid ${LINE}`, borderRadius: 999, padding: "2px 9px" }}>{t}</span>)}</div>}
+      {items.length > 0 ? (
+        <div style={{ marginTop: 13, border: `1px solid ${LINE}`, borderRadius: 10, overflow: "hidden" }}>
+          {items.map((it, idx) => {
+            const short = it.in_stock != null && Number(it.in_stock) < Number(it.quantity);
+            return (
+              <div key={idx} style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 12px", borderTop: idx ? `1px solid ${LINE}` : "none" }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 13, color: INK, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{it.name}</div>
+                  {it.category ? <div style={{ ...mono, fontSize: 10, color: short ? DANGER : STONE }}>{it.category}{short ? ` · only ${it.in_stock} in stock` : ""}</div> : null}
+                </div>
+                <span style={{ ...mono, fontSize: 12, color: STONE, flexShrink: 0 }}>×{it.quantity}</span>
+              </div>
+            );
+          })}
+        </div>
+      ) : <div style={{ ...mono, fontSize: 11.5, color: FAINT, marginTop: 10 }}>This kit has no gear in it yet — add items in the Assets app.</div>}
+    </div>
+  );
+}
+
 export function AdminSessions({ state, adminId, setAdminId, requestSetStage, addComment, uploadMessageImage, patchSession, onReschedule, slotTaken, markMessagesRead, onCancelBooking, onCloseBooking, onReopenBooking, onSendBalance, onSendCharge, onCheckPayment, onNewInternal, onNewInvoice, onEmailDelivery, onRequestReview, onSendInvite, onSetGroup, onDeleteBooking, showToast }) {
   const [chgLabel, setChgLabel] = useState("");
   const [collapsed, setCollapsed] = useState({ completed: true });
@@ -249,6 +296,7 @@ export function AdminSessions({ state, adminId, setAdminId, requestSetStage, add
           ) : <div style={{ fontSize: 12.5, color: FAINT, fontStyle: "italic" }}>The client hasn't filled out their production brief yet.</div>}
         </div>
 
+        <GearCard session={session} services={state.services} />
         <ClientNotes email={session.clientEmail} showToast={showToast} />
         <SessionExpenses sessionId={session.id} revenue={Number(session.total) || 0} />
         <InspirationBoard sessionId={session.id} compact />
