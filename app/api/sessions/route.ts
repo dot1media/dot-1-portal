@@ -79,7 +79,7 @@ export async function POST(request: Request) {
         }
       }
     } catch (e) {} }
-    if (clientEmailsEnabled()) {
+    if ((await clientEmailsEnabled())) {
       if (s.internal) {
         await sendEmail({ to: s.clientEmail, subject: "Your Dot One Media session is reserved", html: internalBookingEmail(s), replyTo: "contact@dot1.media" });
       } else {
@@ -122,7 +122,7 @@ export async function PATCH(request: Request) {
     await sendToClient(merged.clientEmail, "updates", { subject: "Your " + (merged.type || "session") + " status: " + stageLabelFor(merged, allowed.currentStage), html: stageClientEmail(merged, allowed.currentStage), replyTo: "contact@dot1.media" });
     if (isFinalStage(merged, allowed.currentStage)) {
       const rl = (process.env.GOOGLE_REVIEW_LINK || GOOGLE_REVIEW_URL || "").trim();
-      if (rl && merged.clientEmail && clientEmailsEnabled()) { try { await sendEmail({ to: merged.clientEmail, subject: "Thank you from Dot One Media", html: reviewEmail(merged, rl), replyTo: "contact@dot1.media" }); } catch (e) {} }
+      if (rl && merged.clientEmail && (await clientEmailsEnabled())) { try { await sendEmail({ to: merged.clientEmail, subject: "Thank you from Dot One Media", html: reviewEmail(merged, rl), replyTo: "contact@dot1.media" }); } catch (e) {} }
     }
   }
   if (Array.isArray(allowed.comments) && allowed.comments.length > (old.comments || []).length) {
@@ -140,7 +140,7 @@ export async function PATCH(request: Request) {
     const want = new Set<string>();
     if (typeof body.emailDelivery === "string") want.add(body.emailDelivery);
     if (Array.isArray(body.emailDeliveryKinds)) for (const k of body.emailDeliveryKinds) want.add(String(k));
-    if (want.size && merged.clientEmail && clientEmailsEnabled()) {
+    if (want.size && merged.clientEmail && (await clientEmailsEnabled())) {
       const DKINDS = [
         { field: "deliveryPhoto", kind: "gallery", subj: "Your gallery from Dot One Media is ready" },
         { field: "deliveryVideo", kind: "video", subj: "Your video from Dot One Media is ready" },
@@ -155,11 +155,11 @@ export async function PATCH(request: Request) {
       }
     }
   }
-  if (me.role === "admin" && body.sendReview && merged.clientEmail && clientEmailsEnabled()) {
+  if (me.role === "admin" && body.sendReview && merged.clientEmail && (await clientEmailsEnabled())) {
     const rl = (process.env.GOOGLE_REVIEW_LINK || GOOGLE_REVIEW_URL || "").trim();
     if (rl) { try { await sendEmail({ to: merged.clientEmail, subject: "Thank you from Dot One Media", html: reviewEmail(merged, rl), replyTo: "contact@dot1.media" }); } catch (e) {} }
   }
-  if (me.role === "admin" && body.sendInvite && merged.clientEmail && clientEmailsEnabled()) {
+  if (me.role === "admin" && body.sendInvite && merged.clientEmail && (await clientEmailsEnabled())) {
     const link = "https://portal.dot1.media/?invite=" + encodeURIComponent(makeInviteToken(merged.clientEmail, merged.clientName || ""));
     try { await sendEmail({ to: merged.clientEmail, subject: "Track your session with Dot One Media", html: inviteEmail(merged, link), replyTo: "contact@dot1.media" }); } catch (e) {}
   }

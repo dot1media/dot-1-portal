@@ -127,6 +127,19 @@ export function BusinessSettings({ sessions, showToast, onImport }) {
   const [payLoaded, setPayLoaded] = useState(false);
   const [emailing, setEmailing] = useState("");
   const [syncing, setSyncing] = useState(false);
+  const [savingEmails, setSavingEmails] = useState(false);
+  const toggleClientEmails = async (next) => {
+    setSavingEmails(true);
+    const prev = status;
+    setStatus((s) => ({ ...(s || {}), clientEmails: next })); // optimistic
+    try {
+      const r = await fetch("/api/business-status", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ clientEmails: next }) });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok || !d.ok) { setStatus(prev); showToast(d.error || "Could not update the setting."); }
+      else showToast(next ? "Client emails are ON — clients will now receive session emails." : "Client emails are OFF — no session emails will go to clients.");
+    } catch (e) { setStatus(prev); showToast("Network error."); }
+    setSavingEmails(false);
+  };
   useEffect(() => { (async () => { try { const r = await fetch("/api/payments"); const d = await r.json().catch(() => ({})); if (d && Array.isArray(d.payments)) setPayments(d.payments); } catch (e) {} setPayLoaded(true); })(); }, []);
   const emailReceipt = async (p) => { setEmailing(p.id); try { const r = await fetch("/api/payments", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ id: p.id }) }); const d = await r.json().catch(() => ({})); if (r.ok && d.ok) showToast("Receipt emailed to " + (p.client_email || "the client") + "."); else showToast(d.error || "Could not send the receipt."); } catch (e) { showToast("Network error."); } setEmailing(""); };
   const syncReceipts = async () => {
@@ -225,6 +238,36 @@ export function BusinessSettings({ sessions, showToast, onImport }) {
         {modeBadge("Payments", status ? (status.squareMode === "production" ? "Live (production)" : status.squareMode === "sandbox" ? "Test (sandbox)" : "Off") : "…", !!(status && status.squareMode === "production"))}
         {modeBadge("Email", status ? (status.emailOn ? "On" : "Off") : "…", !!(status && status.emailOn))}
       </div>
+
+      {(() => {
+        const on = !!(status && status.clientEmails);
+        const known = !!status;
+        return (
+          <div style={{ border: `1px solid ${on ? OK : LINE}`, borderRadius: 11, padding: "16px 18px", marginBottom: 28, background: on ? "#f3f9f4" : CREAM }}>
+            <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
+              <div style={{ flex: "1 1 320px", minWidth: 0 }}>
+                <div style={{ ...mono, fontSize: 10.5, letterSpacing: "0.14em", textTransform: "uppercase", color: on ? OK : WARN, marginBottom: 5, display: "flex", alignItems: "center", gap: 7 }}><Mail size={13} /> Client session emails · {known ? (on ? "On" : "Off") : "…"}</div>
+                <div style={{ fontSize: 13, color: BODY, lineHeight: 1.55 }}>
+                  {on
+                    ? "Clients receive session emails — booking confirmations, stage updates, reminders, balances, and delivery notices. Turn this on only after the Acuity cutover."
+                    : "Held for cutover. No session email goes to any client, including sessions imported from Acuity. Your studio notifications to contact@dot1.media are unaffected."}
+                </div>
+              </div>
+              <button
+                onClick={() => toggleClientEmails(!on)}
+                disabled={!known || savingEmails}
+                role="switch"
+                aria-checked={on}
+                aria-label="Toggle client session emails"
+                title={on ? "Turn client emails off" : "Turn client emails on"}
+                style={{ flexShrink: 0, width: 58, height: 32, borderRadius: 999, border: "none", cursor: !known || savingEmails ? "default" : "pointer", background: on ? OK : "#c9c5bd", position: "relative", transition: "background 0.2s ease", opacity: savingEmails ? 0.6 : 1 }}
+              >
+                <span style={{ position: "absolute", top: 3, left: on ? 29 : 3, width: 26, height: 26, borderRadius: "50%", background: "#fff", transition: "left 0.2s ease", boxShadow: "0 1px 3px rgba(0,0,0,0.25)" }} />
+              </button>
+            </div>
+          </div>
+        );
+      })()}
 
       <div style={{ ...mono, fontSize: 10.5, letterSpacing: "0.16em", textTransform: "uppercase", color: STONE, marginBottom: 10 }}>Revenue &amp; records by period</div>
       <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "flex-end", marginBottom: 16 }}>
