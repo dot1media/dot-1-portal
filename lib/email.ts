@@ -261,6 +261,16 @@ export function receiptEmail(p: any): string {
   return shell(BRAND_MAIN, "Payment Receipt", "Payment received", body);
 }
 
+// Pre-cutover kill switch. Until the Acuity → portal cutover is complete, the portal must not
+// send ANY session email to a client (booking confirmations, stage changes, reminders, deliveries,
+// reviews, invites, cancellations, payment/balance requests, receipts, prints, referrals, waitlist).
+// This stays OFF until CLIENT_EMAILS_ENABLED is explicitly set to 1/true/on/yes in the environment.
+// Studio-facing notifications (contact@dot1.media / NOTIFY_EMAILS) are unaffected.
+export function clientEmailsEnabled(): boolean {
+  const v = String(process.env.CLIENT_EMAILS_ENABLED || "").trim().toLowerCase();
+  return v === "1" || v === "true" || v === "on" || v === "yes";
+}
+
 export async function clientAllows(email: string | undefined | null, category: string): Promise<boolean> {
   if (!email) return false;
   try {
@@ -273,6 +283,7 @@ export async function clientAllows(email: string | undefined | null, category: s
 
 export async function sendToClient(email: string | undefined | null, category: string, opts: { subject: string; html: string; replyTo?: string; attachments?: Array<{ filename: string; content: string }> }): Promise<void> {
   if (!email) return;
+  if (!clientEmailsEnabled()) { console.log("[email] client send suppressed (pre-cutover): " + opts.subject + " → " + email); return; }
   if (!(await clientAllows(email, category))) return;
   await sendEmail({ to: String(email), ...opts });
 }

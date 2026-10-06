@@ -5,7 +5,7 @@ import { verifyToken, verifyClientToken, ADMIN_COOKIE, CLIENT_COOKIE, makeInvite
 import { hasStudio } from "@/lib/studioGuard";
 import { sendPush, formatWhen } from "@/lib/push";
 import { ensureReferralSchema, creditDollars } from "@/lib/referral";
-import { sendEmail, sendToClient, bookingStudioEmail, bookingClientEmail, stageClientEmail, messageEmail, stageLabelFor, briefStudioEmail, cancelClientEmail, internalBookingEmail, galleryEmail, videoEmail, deliveryEmail, reviewEmail, inviteEmail, isFinalStage } from "@/lib/email";
+import { sendEmail, sendToClient, clientEmailsEnabled, bookingStudioEmail, bookingClientEmail, stageClientEmail, messageEmail, stageLabelFor, briefStudioEmail, cancelClientEmail, internalBookingEmail, galleryEmail, videoEmail, deliveryEmail, reviewEmail, inviteEmail, isFinalStage } from "@/lib/email";
 import { GOOGLE_REVIEW_URL } from "@/lib/portal/constants";
 
 export const runtime = "nodejs";
@@ -79,10 +79,12 @@ export async function POST(request: Request) {
         }
       }
     } catch (e) {} }
-    if (s.internal) {
-      await sendEmail({ to: s.clientEmail, subject: "Your Dot One Media session is reserved", html: internalBookingEmail(s), replyTo: "contact@dot1.media" });
-    } else {
-      await sendEmail({ to: s.clientEmail, subject: "Your Dot One Media booking is confirmed", html: bookingClientEmail(s), replyTo: "contact@dot1.media" });
+    if (clientEmailsEnabled()) {
+      if (s.internal) {
+        await sendEmail({ to: s.clientEmail, subject: "Your Dot One Media session is reserved", html: internalBookingEmail(s), replyTo: "contact@dot1.media" });
+      } else {
+        await sendEmail({ to: s.clientEmail, subject: "Your Dot One Media booking is confirmed", html: bookingClientEmail(s), replyTo: "contact@dot1.media" });
+      }
     }
   }
   return NextResponse.json({ ok: true, session: s });
@@ -120,7 +122,7 @@ export async function PATCH(request: Request) {
     await sendToClient(merged.clientEmail, "updates", { subject: "Your " + (merged.type || "session") + " status: " + stageLabelFor(merged, allowed.currentStage), html: stageClientEmail(merged, allowed.currentStage), replyTo: "contact@dot1.media" });
     if (isFinalStage(merged, allowed.currentStage)) {
       const rl = (process.env.GOOGLE_REVIEW_LINK || GOOGLE_REVIEW_URL || "").trim();
-      if (rl && merged.clientEmail) { try { await sendEmail({ to: merged.clientEmail, subject: "Thank you from Dot One Media", html: reviewEmail(merged, rl), replyTo: "contact@dot1.media" }); } catch (e) {} }
+      if (rl && merged.clientEmail && clientEmailsEnabled()) { try { await sendEmail({ to: merged.clientEmail, subject: "Thank you from Dot One Media", html: reviewEmail(merged, rl), replyTo: "contact@dot1.media" }); } catch (e) {} }
     }
   }
   if (Array.isArray(allowed.comments) && allowed.comments.length > (old.comments || []).length) {
@@ -138,7 +140,7 @@ export async function PATCH(request: Request) {
     const want = new Set<string>();
     if (typeof body.emailDelivery === "string") want.add(body.emailDelivery);
     if (Array.isArray(body.emailDeliveryKinds)) for (const k of body.emailDeliveryKinds) want.add(String(k));
-    if (want.size && merged.clientEmail) {
+    if (want.size && merged.clientEmail && clientEmailsEnabled()) {
       const DKINDS = [
         { field: "deliveryPhoto", kind: "gallery", subj: "Your gallery from Dot One Media is ready" },
         { field: "deliveryVideo", kind: "video", subj: "Your video from Dot One Media is ready" },
@@ -153,11 +155,11 @@ export async function PATCH(request: Request) {
       }
     }
   }
-  if (me.role === "admin" && body.sendReview && merged.clientEmail) {
+  if (me.role === "admin" && body.sendReview && merged.clientEmail && clientEmailsEnabled()) {
     const rl = (process.env.GOOGLE_REVIEW_LINK || GOOGLE_REVIEW_URL || "").trim();
     if (rl) { try { await sendEmail({ to: merged.clientEmail, subject: "Thank you from Dot One Media", html: reviewEmail(merged, rl), replyTo: "contact@dot1.media" }); } catch (e) {} }
   }
-  if (me.role === "admin" && body.sendInvite && merged.clientEmail) {
+  if (me.role === "admin" && body.sendInvite && merged.clientEmail && clientEmailsEnabled()) {
     const link = "https://portal.dot1.media/?invite=" + encodeURIComponent(makeInviteToken(merged.clientEmail, merged.clientName || ""));
     try { await sendEmail({ to: merged.clientEmail, subject: "Track your session with Dot One Media", html: inviteEmail(merged, link), replyTo: "contact@dot1.media" }); } catch (e) {}
   }
