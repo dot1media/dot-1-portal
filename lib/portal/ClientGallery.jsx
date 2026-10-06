@@ -23,6 +23,8 @@ export function ClientGallery({ sessionId }) {
   const [busyFav, setBusyFav] = useState("");
   const [limitMsg, setLimitMsg] = useState("");
   const [dl, setDl] = useState(false);
+  const [dlMsg, setDlMsg] = useState("");
+  const dlTimers = React.useRef([]);
   const [requested, setRequested] = useState(false);
   const [release, setRelease] = useState(null);
   const [shareLink, setShareLink] = useState("");
@@ -114,13 +116,20 @@ export function ClientGallery({ sessionId }) {
   }
   function triggerDownload(ids) {
     if (!ids.length || dl) return;
+    dlTimers.current.forEach((t) => clearTimeout(t));
+    dlTimers.current = [];
     setDl(true);
+    const n = ids.length;
+    setDlMsg("Preparing your download of " + n + (n === 1 ? " photo" : " photos") + "… large galleries can take up to a minute. Keep this tab open — your download will start on its own.");
     const url = "/api/gallery/download?galleryId=" + encodeURIComponent(g.id) + "&ids=" + encodeURIComponent(ids.join(","));
     // A hidden iframe lets the browser handle the streamed attachment without navigating the page,
     // which is what iOS Safari needs. A same-tab link is the fallback if the iframe is blocked.
-    try { const f = document.createElement("iframe"); f.style.display = "none"; f.src = url; document.body.appendChild(f); setTimeout(() => { try { f.remove(); } catch (e) {} }, 90000); }
+    try { const f = document.createElement("iframe"); f.style.display = "none"; f.src = url; document.body.appendChild(f); dlTimers.current.push(setTimeout(() => { try { f.remove(); } catch (e) {} }, 180000)); }
     catch (e) { const a = document.createElement("a"); a.href = url; document.body.appendChild(a); a.click(); a.remove(); }
-    setTimeout(() => setDl(false), 4000);
+    // Re-enable the button after a moment, but leave a reassuring note a little longer.
+    dlTimers.current.push(setTimeout(() => setDl(false), 6000));
+    dlTimers.current.push(setTimeout(() => setDlMsg("Your download should be in your downloads folder (a .zip of full-resolution photos). Nothing yet? It's safe to tap Download again."), 8000));
+    dlTimers.current.push(setTimeout(() => setDlMsg(""), 22000));
   }
   function downloadSelected() { triggerDownload(photos.filter((p) => p.favorite).map((p) => p.id)); }
   function downloadAll() { triggerDownload(photos.filter((p) => p.favorite || includedIsNull).map((p) => p.id)); }
@@ -143,7 +152,7 @@ export function ClientGallery({ sessionId }) {
           <div style={{ ...display, fontWeight: 700, fontSize: 26, color: INK, lineHeight: 1.1 }}>{g.title || "Your gallery"}</div>
           <div style={{ ...mono, fontSize: 10.5, letterSpacing: "0.08em", textTransform: "uppercase", color: STONE, marginTop: 6 }}>{included != null ? "Select up to " + included + " favorites, then Download selected" : (selectedCount > 0 ? "Download your selected photos, or download everything below" : "Tap a photo to view it, tap the heart to pick favorites")}</div>
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap", justifyContent: "flex-end" }}>
           <div style={{ display: "inline-flex", background: CREAM, border: `1px solid ${LINE}`, borderRadius: 10, padding: 3 }}>
             {[{ k: "grid", Icon: LayoutGrid, label: "Grid" }, { k: "carousel", Icon: GalleryHorizontal, label: "Carousel" }].map(({ k, Icon, label }) => {
               const on = viewMode === k;
@@ -151,12 +160,14 @@ export function ClientGallery({ sessionId }) {
             })}
           </div>
           {included != null && <div style={{ ...mono, fontSize: 13, color: atLimit ? A : STONE }}>{selectedCount} / {included}</div>}
-          <button onClick={downloadSelected} disabled={dl || !selectedCount} style={{ ...mono, fontSize: 11, letterSpacing: "0.06em", textTransform: "uppercase", padding: "11px 18px", borderRadius: 9, cursor: selectedCount ? "pointer" : "default", border: "none", background: selectedCount ? A : LINE, color: selectedCount ? "#fff" : FAINT, display: "inline-flex", alignItems: "center", gap: 8 }}><Download size={14} /> {dl ? "Starting…" : "Download selected"}</button>
+          <button onClick={downloadSelected} disabled={dl || !selectedCount} style={{ ...mono, fontSize: 11, letterSpacing: "0.06em", textTransform: "uppercase", padding: "11px 18px", borderRadius: 9, cursor: selectedCount ? "pointer" : "default", border: "none", background: selectedCount ? A : LINE, color: selectedCount ? "#fff" : FAINT, display: "inline-flex", alignItems: "center", gap: 8 }}><Download size={14} /> {dl ? "Preparing…" : "Download selected"}</button>
           <button onClick={sharePicks} disabled={!selectedCount} title="Share a view-only link to your favorites" style={{ ...mono, fontSize: 11, letterSpacing: "0.06em", textTransform: "uppercase", padding: "11px 14px", borderRadius: 9, cursor: selectedCount ? "pointer" : "default", border: `1px solid ${selectedCount ? A : LINE}`, background: PAPER, color: selectedCount ? A : FAINT, display: "inline-flex", alignItems: "center", gap: 8 }}><Share2 size={14} /> {shareCopied ? "Link copied" : "Share picks"}</button>
           {includedIsNull && photos.length > 0 && <button onClick={downloadAll} disabled={dl} title="Download every photo in this gallery" style={{ ...mono, fontSize: 11, letterSpacing: "0.06em", textTransform: "uppercase", padding: "11px 14px", borderRadius: 9, cursor: dl ? "default" : "pointer", border: `1px solid ${LINE}`, background: PAPER, color: STONE, display: "inline-flex", alignItems: "center", gap: 8 }}><Download size={14} /> Download all</button>}
         </div>
       </div>
       {limitMsg && <div style={{ background: "#fff6f5", border: "1px solid #f2cdc9", borderRadius: 9, padding: "11px 14px", marginBottom: 16, fontSize: 12.5, color: "#b3261e", lineHeight: 1.5 }}>{limitMsg}</div>}
+      {dlMsg && <div style={{ display: "flex", alignItems: "flex-start", gap: 10, background: CREAM, border: `1px solid ${LINE}`, borderRadius: 9, padding: "11px 14px", marginBottom: 16, fontSize: 12.5, color: BODY, lineHeight: 1.5 }}><Download size={15} style={{ color: A, flexShrink: 0, marginTop: 1 }} />{dlMsg}</div>}
+      <div style={{ ...mono, fontSize: 10.5, letterSpacing: "0.03em", color: STONE, marginBottom: 16, display: "flex", alignItems: "center", gap: 7 }}><Check size={12} style={{ color: A }} /> Your gallery lives here in your portal — it won't expire. Come back and download anytime.</div>
       {viewMode === "grid" ? (
       <div style={{ columnGap: 8, columnWidth: 210 }}>
         {photos.map((p, i) => (

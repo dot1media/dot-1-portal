@@ -1,6 +1,6 @@
 // Dot One Media portal - studio dashboard home (stats, upcoming list, calendar).
-import React, { useState } from "react";
-import { CalendarClock, ChevronRight, Wallet, X } from "lucide-react";
+import React, { useState, useEffect } from "react";
+import { CalendarClock, ChevronRight, Wallet, X, PackageCheck, ArrowRight, MapPin } from "lucide-react";
 import { RED, INK, STONE, FAINT, LINE, CREAM, OK, WARN, display, mono, card, cardDense } from "./theme";
 import { GROUPS } from "./groups";
 import { fmtDate, fmtTime, money, timeGreeting } from "./format";
@@ -10,6 +10,8 @@ import { AdminCalendar } from "./AdminCalendar";
 
 export function StudioHome({ state, setAdminId, setAdminTab, dark }) {
   const [showUnpaid, setShowUnpaid] = useState(false);
+  const [pkgs, setPkgs] = useState(null); // camera packages from the assets app (id → kit)
+  useEffect(() => { fetch("/api/camera-packages").then((r) => r.json()).then((d) => setPkgs(d && d.configured && Array.isArray(d.packages) ? d.packages : [])).catch(() => setPkgs([])); }, []);
   const sessions = state.sessions || [];
   const now = new Date();
   const todayStr = now.getFullYear() + "-" + String(now.getMonth() + 1).padStart(2, "0") + "-" + String(now.getDate()).padStart(2, "0");
@@ -54,6 +56,11 @@ export function StudioHome({ state, setAdminId, setAdminTab, dark }) {
   const recent = live.filter((s) => s.date && s.date >= d90 && s.date <= todayStr).length;
   const perMonth = recent / 3;
   const goTo = (id) => { setAdminId(id); setAdminTab("sessions"); };
+  // Shoots in the next two weeks whose session type has a camera package attached → pack & check out.
+  const offOf = (d) => { const [y, m, dd] = String(d).slice(0, 10).split("-").map(Number); const t = new Date(y, m - 1, dd); const n = new Date(); const a = new Date(n.getFullYear(), n.getMonth(), n.getDate()); return Math.round((t - a) / 86400000); };
+  const svcByName = {}; (state.services || []).forEach((sv) => { if (sv && sv.name) svcByName[sv.name] = sv; });
+  const pkgById = {}; (pkgs || []).forEach((p) => { pkgById[p.id] = p; });
+  const toPack = (pkgs && pkgs.length) ? upcoming.filter((s) => { const o = offOf(s.date); if (o < 0 || o > 14) return false; const sv = svcByName[s.type]; return sv && sv.packageId != null && pkgById[sv.packageId]; }).slice(0, 8) : [];
   // Agenda: today, the next 7 days, and what needs attention.
   const dayOffset = (d) => { const [y, m, dd] = String(d).slice(0, 10).split("-").map(Number); const t = new Date(y, m - 1, dd); const n = new Date(); const a = new Date(n.getFullYear(), n.getMonth(), n.getDate()); return Math.round((t - a) / 86400000); };
   const byWhen = (a, b) => (String(a.date) + (a.time || "")).localeCompare(String(b.date) + (b.time || ""));
@@ -157,6 +164,30 @@ export function StudioHome({ state, setAdminId, setAdminTab, dark }) {
           </div>
         )}
       </div>
+      {toPack.length > 0 && (
+        <div style={{ ...cardDense, padding: "18px 20px", marginBottom: 18 }}>
+          <div style={{ ...mono, fontSize: 10.5, letterSpacing: "0.16em", textTransform: "uppercase", color: STONE, marginBottom: 6, display: "flex", alignItems: "center", gap: 8 }}><PackageCheck size={13} /> Pack for upcoming shoots</div>
+          <div style={{ fontSize: 12.5, color: STONE, lineHeight: 1.5, marginBottom: 14 }}>Shoots in the next two weeks with a camera package. Check the kit out in Assets so it's ready.</div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {toPack.map((s) => {
+              const grp = GROUPS[s.serviceLine] || GROUPS.video;
+              const pkg = pkgById[(svcByName[s.type] || {}).packageId];
+              const label = [s.clientName || "", fmtDate(s.date) || ""].filter(Boolean).join(" · ");
+              const href = "https://assets.dot1.media/?checkout=" + encodeURIComponent(pkg.id) + (label ? "&for=" + encodeURIComponent(label) : "");
+              return (
+                <div key={s.id} style={{ display: "flex", alignItems: "center", gap: 12, background: CREAM, border: `1px solid ${LINE}`, borderRadius: 10, padding: "11px 13px" }}>
+                  <div style={{ width: 34, height: 34, borderRadius: 8, background: grp.bg, border: `1px solid ${grp.border}`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}><grp.Icon size={15} color={grp.color} /></div>
+                  <button onClick={() => goTo(s.id)} style={{ flex: 1, minWidth: 0, background: "transparent", border: "none", textAlign: "left", cursor: "pointer", padding: 0 }}>
+                    <div style={{ ...display, fontWeight: 600, fontSize: 14.5, color: INK, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{s.clientName} <span style={{ ...mono, fontSize: 10.5, color: STONE, fontWeight: 400 }}>· {fmtDate(s.date)}{s.time ? " " + fmtTime(s.time) : ""}</span></div>
+                    <div style={{ ...mono, fontSize: 10, color: STONE, marginTop: 2, display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}><PackageCheck size={11} /> {pkg.name}{pkg.unit_count ? " · " + pkg.unit_count + " items" : ""}{s.location ? <span style={{ display: "inline-flex", alignItems: "center", gap: 3, color: FAINT }}><MapPin size={10} /> {s.location}</span> : null}</div>
+                  </button>
+                  <a href={href} target="_blank" rel="noopener noreferrer" style={{ ...mono, fontSize: 10, letterSpacing: "0.05em", textTransform: "uppercase", textDecoration: "none", padding: "8px 12px", borderRadius: 8, background: INK, color: "#fff", display: "inline-flex", alignItems: "center", gap: 6, flexShrink: 0 }}><ArrowRight size={12} /> Check out</a>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
       {pendingPay.length > 0 && (
         <div style={{ ...cardDense, padding: "18px 20px", marginBottom: 18 }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14, flexWrap: "wrap", gap: 8 }}>

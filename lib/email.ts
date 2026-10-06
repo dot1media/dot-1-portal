@@ -358,6 +358,7 @@ export function deliveryEmail(s: any, kind: string, url: string): string {
     para(`Hi${first ? " " + first : ""}, your ${c.noun} from your ${esc(s.type) || "project"} with Dot One Media is ready.`) +
     button(brand, url, c.cta) +
     para(c.tail) +
+    para(`<span style="color:${STONE};">This stays in your portal — it won't expire. You can come back and download anytime.</span>`) +
     (reviewLink ? para("If you love how everything turned out, a quick review would mean the world to a small studio like ours.") + button(brand, reviewLink, "Leave a Google review") : "");
   return shell(brand, c.title, c.heading, body);
 }
