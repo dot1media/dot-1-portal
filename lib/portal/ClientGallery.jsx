@@ -2,7 +2,7 @@
 import { money } from "./format";
 import React, { useEffect, useState, useCallback } from "react";
 import { createPortal } from "react-dom";
-import { Heart, Download, X, ChevronLeft, ChevronRight, Check, Share2, ShoppingBag, Plus, Minus } from "lucide-react";
+import { Heart, Download, X, ChevronLeft, ChevronRight, Check, Share2, ShoppingBag, Plus, Minus, LayoutGrid, GalleryHorizontal, Maximize2 } from "lucide-react";
 import { mono, display, INK, BODY, LINE, STONE, FAINT, PAPER, CREAM } from "./theme";
 
 const A = "#4a90d9";
@@ -32,6 +32,12 @@ export function ClientGallery({ sessionId }) {
   const [ship, setShip] = useState({ name: "", address: "" });
   const [ordering, setOrdering] = useState(false);
   const [orderErr, setOrderErr] = useState("");
+  const [viewMode, setViewMode] = useState("grid");
+  const [carIdx, setCarIdx] = useState(0);
+  const [carProof, setCarProof] = useState("");
+  const [carLoading, setCarLoading] = useState(false);
+  const touchX = React.useRef(null);
+  const activeThumb = React.useRef(null);
   useEffect(() => { fetch("/api/prints/products").then((r) => r.json()).then((d) => setProducts((d.products || []).filter((x) => x.active !== false))).catch(() => {}); }, []);
   const addToCart = (photoId, productId) => { setCart((c) => { const i = c.findIndex((x) => x.photoId === photoId && x.productId === productId); if (i >= 0) return c.map((x, j) => (j === i ? { ...x, qty: x.qty + 1 } : x)); return [...c, { photoId, productId, qty: 1 }]; }); setCartOpen(true); };
   const bump = (i, d) => setCart((c) => c.map((x, j) => (j === i ? { ...x, qty: Math.max(0, x.qty + d) } : x)).filter((x) => x.qty > 0));
@@ -82,6 +88,26 @@ export function ClientGallery({ sessionId }) {
     const h = (e) => { if (e.key === "Escape") setLightbox(-1); if (e.key === "ArrowRight") nav(1); if (e.key === "ArrowLeft") nav(-1); };
     window.addEventListener("keydown", h); return () => window.removeEventListener("keydown", h);
   }, [lightbox, nav]);
+  // Carousel: load the proof-quality image for the current slide (same source the lightbox uses).
+  useEffect(() => {
+    if (viewMode !== "carousel") return;
+    const p = photos[carIdx]; if (!p) return;
+    let live = true; setCarProof(""); setCarLoading(true);
+    fetch("/api/gallery/asset?size=proof&photoId=" + p.id).then((x) => x.json())
+      .then((r) => { if (live) { setCarProof(r.url || p.thumb || ""); setCarLoading(false); } })
+      .catch(() => { if (live) { setCarProof(p.thumb || ""); setCarLoading(false); } });
+    return () => { live = false; };
+  }, [viewMode, carIdx, photos]);
+  const carNav = useCallback((d) => { setCarIdx((i) => Math.max(0, Math.min(photos.length - 1, i + d))); }, [photos]);
+  useEffect(() => {
+    if (viewMode !== "carousel" || lightbox >= 0) return;
+    const h = (e) => { if (e.key === "ArrowRight") carNav(1); if (e.key === "ArrowLeft") carNav(-1); };
+    window.addEventListener("keydown", h); return () => window.removeEventListener("keydown", h);
+  }, [viewMode, lightbox, carNav]);
+  // Keep the current slide in range if the photo set changes.
+  useEffect(() => { if (carIdx > photos.length - 1) setCarIdx(Math.max(0, photos.length - 1)); }, [photos, carIdx]);
+  // Center the active thumbnail in the filmstrip as the slide changes.
+  useEffect(() => { if (viewMode === "carousel" && activeThumb.current) { try { activeThumb.current.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" }); } catch (e) {} } }, [carIdx, viewMode]);
 
   async function downloadOne(photoId, filename) {
     try { const r = await fetch("/api/gallery/asset?size=download&photoId=" + photoId).then((x) => x.json()); if (r.url) { const a = document.createElement("a"); a.href = r.url; a.download = filename || "photo.jpg"; document.body.appendChild(a); a.click(); a.remove(); } } catch (e) {}
@@ -118,6 +144,12 @@ export function ClientGallery({ sessionId }) {
           <div style={{ ...mono, fontSize: 10.5, letterSpacing: "0.08em", textTransform: "uppercase", color: STONE, marginTop: 6 }}>{included != null ? "Select up to " + included + " favorites, then Download selected" : (selectedCount > 0 ? "Download your selected photos, or download everything below" : "Tap a photo to view it, tap the heart to pick favorites")}</div>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+          <div style={{ display: "inline-flex", background: CREAM, border: `1px solid ${LINE}`, borderRadius: 10, padding: 3 }}>
+            {[{ k: "grid", Icon: LayoutGrid, label: "Grid" }, { k: "carousel", Icon: GalleryHorizontal, label: "Carousel" }].map(({ k, Icon, label }) => {
+              const on = viewMode === k;
+              return <button key={k} onClick={() => setViewMode(k)} aria-pressed={on} title={label + " view"} style={{ ...mono, fontSize: 10.5, letterSpacing: "0.06em", textTransform: "uppercase", padding: "8px 13px", borderRadius: 8, cursor: "pointer", border: "none", background: on ? A : "transparent", color: on ? "#fff" : STONE, display: "inline-flex", alignItems: "center", gap: 7, transition: "background 0.18s ease, color 0.18s ease" }}><Icon size={13} /> {label}</button>;
+            })}
+          </div>
           {included != null && <div style={{ ...mono, fontSize: 13, color: atLimit ? A : STONE }}>{selectedCount} / {included}</div>}
           <button onClick={downloadSelected} disabled={dl || !selectedCount} style={{ ...mono, fontSize: 11, letterSpacing: "0.06em", textTransform: "uppercase", padding: "11px 18px", borderRadius: 9, cursor: selectedCount ? "pointer" : "default", border: "none", background: selectedCount ? A : LINE, color: selectedCount ? "#fff" : FAINT, display: "inline-flex", alignItems: "center", gap: 8 }}><Download size={14} /> {dl ? "Starting…" : "Download selected"}</button>
           <button onClick={sharePicks} disabled={!selectedCount} title="Share a view-only link to your favorites" style={{ ...mono, fontSize: 11, letterSpacing: "0.06em", textTransform: "uppercase", padding: "11px 14px", borderRadius: 9, cursor: selectedCount ? "pointer" : "default", border: `1px solid ${selectedCount ? A : LINE}`, background: PAPER, color: selectedCount ? A : FAINT, display: "inline-flex", alignItems: "center", gap: 8 }}><Share2 size={14} /> {shareCopied ? "Link copied" : "Share picks"}</button>
@@ -125,6 +157,7 @@ export function ClientGallery({ sessionId }) {
         </div>
       </div>
       {limitMsg && <div style={{ background: "#fff6f5", border: "1px solid #f2cdc9", borderRadius: 9, padding: "11px 14px", marginBottom: 16, fontSize: 12.5, color: "#b3261e", lineHeight: 1.5 }}>{limitMsg}</div>}
+      {viewMode === "grid" ? (
       <div style={{ columnGap: 8, columnWidth: 210 }}>
         {photos.map((p, i) => (
           <div key={p.id} style={{ breakInside: "avoid", marginBottom: 8, position: "relative", borderRadius: 7, overflow: "hidden", background: CREAM }}>
@@ -133,6 +166,48 @@ export function ClientGallery({ sessionId }) {
           </div>
         ))}
       </div>
+      ) : (() => {
+        const cur = photos[carIdx]; if (!cur) return null;
+        return (
+          <div>
+            <div
+              onTouchStart={(e) => { touchX.current = e.touches[0].clientX; }}
+              onTouchEnd={(e) => { if (touchX.current == null) return; const dx = e.changedTouches[0].clientX - touchX.current; touchX.current = null; if (Math.abs(dx) > 45) carNav(dx < 0 ? 1 : -1); }}
+              style={{ position: "relative", background: "#111013", borderRadius: 14, overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center", minHeight: "clamp(320px, 62vh, 760px)", height: "clamp(320px, 62vh, 760px)" }}
+            >
+              {carProof ? (
+                <img key={cur.id} src={carProof} alt="" onClick={() => openLightbox(carIdx)} style={{ maxWidth: "100%", maxHeight: "100%", objectFit: "contain", display: "block", cursor: "zoom-in", animation: "d1fade 0.4s ease" }} />
+              ) : (
+                <div style={{ ...mono, fontSize: 11, letterSpacing: "0.1em", textTransform: "uppercase", color: "rgba(255,255,255,0.5)" }}>{carLoading ? "Loading…" : ""}</div>
+              )}
+              <style>{"@keyframes d1fade{from{opacity:0}to{opacity:1}}"}</style>
+              {carIdx > 0 && <button onClick={() => carNav(-1)} aria-label="Previous" style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", width: 44, height: 44, borderRadius: "50%", border: "none", background: "rgba(255,255,255,0.14)", color: "#fff", cursor: "pointer", display: "inline-flex", alignItems: "center", justifyContent: "center", backdropFilter: "blur(4px)" }}><ChevronLeft size={24} /></button>}
+              {carIdx < photos.length - 1 && <button onClick={() => carNav(1)} aria-label="Next" style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", width: 44, height: 44, borderRadius: "50%", border: "none", background: "rgba(255,255,255,0.14)", color: "#fff", cursor: "pointer", display: "inline-flex", alignItems: "center", justifyContent: "center", backdropFilter: "blur(4px)" }}><ChevronRight size={24} /></button>}
+              <button onClick={() => toggle(cur)} aria-label={cur.favorite ? "Unselect" : "Select"} style={{ position: "absolute", top: 14, right: 14, width: 44, height: 44, borderRadius: "50%", border: "none", cursor: "pointer", background: cur.favorite ? A : "rgba(20,20,24,0.45)", color: "#fff", display: "inline-flex", alignItems: "center", justifyContent: "center", backdropFilter: "blur(4px)" }}><Heart size={20} fill={cur.favorite ? "#fff" : "none"} /></button>
+              <button onClick={() => openLightbox(carIdx)} aria-label="View full screen" style={{ position: "absolute", top: 14, left: 14, width: 40, height: 40, borderRadius: "50%", border: "none", cursor: "pointer", background: "rgba(20,20,24,0.45)", color: "#fff", display: "inline-flex", alignItems: "center", justifyContent: "center", backdropFilter: "blur(4px)" }}><Maximize2 size={17} /></button>
+              <div style={{ position: "absolute", bottom: 12, left: "50%", transform: "translateX(-50%)", ...mono, fontSize: 11, letterSpacing: "0.1em", color: "#fff", background: "rgba(20,20,24,0.5)", borderRadius: 999, padding: "5px 13px", backdropFilter: "blur(4px)" }}>{carIdx + 1} / {photos.length}</div>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 12, flexWrap: "wrap", margin: "14px 0 4px" }}>
+              <button onClick={() => toggle(cur)} style={{ ...mono, fontSize: 11, letterSpacing: "0.06em", textTransform: "uppercase", padding: "11px 20px", borderRadius: 9, cursor: "pointer", border: "none", background: cur.favorite ? A : CREAM, color: cur.favorite ? "#fff" : INK, display: "inline-flex", alignItems: "center", gap: 8 }}><Heart size={15} fill={cur.favorite ? "#fff" : "none"} /> {cur.favorite ? "Selected" : "Select"}</button>
+              {cur.favorite && <button onClick={() => downloadOne(cur.id, cur.filename)} style={{ ...mono, fontSize: 11, letterSpacing: "0.06em", textTransform: "uppercase", padding: "11px 20px", borderRadius: 9, cursor: "pointer", border: `1px solid ${LINE}`, background: PAPER, color: INK, display: "inline-flex", alignItems: "center", gap: 8 }}><Download size={15} /> Download</button>}
+              {products.length > 0 && (
+                <select value="" onChange={(e) => { if (e.target.value) { addToCart(cur.id, e.target.value); e.target.value = ""; } }} style={{ ...mono, fontSize: 11, padding: "11px 12px", borderRadius: 9, border: `1px solid ${LINE}`, background: PAPER, color: INK, cursor: "pointer" }}>
+                  <option value="">Order a print…</option>
+                  {products.map((p) => <option key={p.id} value={p.id}>{p.name} · {money(p.price)}</option>)}
+                </select>
+              )}
+            </div>
+            <div style={{ display: "flex", gap: 7, overflowX: "auto", padding: "10px 2px 4px", scrollSnapType: "x proximity" }}>
+              {photos.map((p, i) => (
+                <button key={p.id} ref={i === carIdx ? activeThumb : null} onClick={() => setCarIdx(i)} aria-label={"Photo " + (i + 1)} style={{ flex: "0 0 auto", width: 72, height: 72, padding: 0, borderRadius: 8, overflow: "hidden", cursor: "pointer", position: "relative", scrollSnapAlign: "center", border: i === carIdx ? `2px solid ${A}` : "2px solid transparent", background: CREAM, opacity: i === carIdx ? 1 : 0.62, transition: "opacity 0.18s ease" }}>
+                  <img src={p.thumb} alt="" loading="lazy" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+                  {p.favorite && <span style={{ position: "absolute", bottom: 3, right: 3, width: 17, height: 17, borderRadius: "50%", background: A, display: "inline-flex", alignItems: "center", justifyContent: "center" }}><Heart size={9} fill="#fff" color="#fff" /></span>}
+                </button>
+              ))}
+            </div>
+          </div>
+        );
+      })()}
       {included != null && atLimit && (
         <div style={{ marginTop: 22, background: CREAM, border: `1px solid ${LINE}`, borderRadius: 12, padding: "20px", textAlign: "center" }}>
           <div style={{ ...display, fontWeight: 600, fontSize: 18, color: INK, marginBottom: 6 }}>Want more than {included}?</div>
