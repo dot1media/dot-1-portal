@@ -554,7 +554,7 @@ export function ClientView({ session, sessions, clientId, setClientId, addCommen
       </div>
 
       {lightbox ? (
-        <div onClick={() => setLightbox("")} style={{ position: "fixed", inset: 0, background: "rgba(20,20,26,0.82)", zIndex: 90, display: "flex", alignItems: "center", justifyContent: "center", padding: 24, cursor: "zoom-out" }}>
+        <div className="d1-overlay" onClick={() => setLightbox("")} style={{ position: "fixed", inset: 0, background: "rgba(20,20,26,0.82)", zIndex: 90, display: "flex", alignItems: "center", justifyContent: "center", padding: 24, cursor: "zoom-out" }}>
           <img src={lightbox} alt="Attached" style={{ maxWidth: "100%", maxHeight: "100%", borderRadius: 8, boxShadow: "0 20px 60px rgba(0,0,0,0.5)" }} />
         </div>
       ) : null}

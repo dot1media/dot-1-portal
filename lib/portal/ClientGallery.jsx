@@ -171,7 +171,7 @@ export function ClientGallery({ sessionId }) {
       {viewMode === "grid" ? (
       <div style={{ columnGap: 8, columnWidth: 210 }}>
         {photos.map((p, i) => (
-          <div key={p.id} style={{ breakInside: "avoid", marginBottom: 8, position: "relative", borderRadius: 7, overflow: "hidden", background: CREAM }}>
+          <div key={p.id} className="d1-photo-tile" style={{ breakInside: "avoid", marginBottom: 8, position: "relative", borderRadius: 7, overflow: "hidden", background: CREAM }}>
             <img src={p.thumb} alt="" loading="lazy" onClick={() => openLightbox(i)} style={{ width: "100%", display: "block", cursor: "pointer" }} />
             <button onClick={(e) => { e.stopPropagation(); toggle(p); }} aria-label={p.favorite ? "Unselect" : "Select"} style={{ position: "absolute", top: 9, right: 9, width: 36, height: 36, borderRadius: "50%", border: "none", cursor: "pointer", background: p.favorite ? A : "rgba(20,20,24,0.4)", color: "#fff", display: "inline-flex", alignItems: "center", justifyContent: "center" }}><Heart size={18} fill={p.favorite ? "#fff" : "none"} /></button>
           </div>
@@ -278,7 +278,7 @@ export function ClientGallery({ sessionId }) {
         <button onClick={() => setCartOpen(true)} style={{ position: "fixed", right: 18, bottom: 18, zIndex: 40, ...mono, fontSize: 11, letterSpacing: "0.06em", textTransform: "uppercase", padding: "12px 16px", borderRadius: 999, border: "none", background: A, color: "#fff", boxShadow: "0 8px 24px rgba(20,18,16,0.25)", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 8 }}><ShoppingBag size={14} /> {cart.reduce((a, x) => a + x.qty, 0)} print{cart.reduce((a, x) => a + x.qty, 0) === 1 ? "" : "s"} · {money(cartTotal)}</button>
       )}
       {lightbox >= 0 && typeof document !== "undefined" && createPortal((
-        <div onClick={() => setLightbox(-1)} style={{ position: "fixed", inset: 0, background: "rgba(14,14,16,0.95)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: 18 }}>
+        <div className="d1-overlay" onClick={() => setLightbox(-1)} style={{ position: "fixed", inset: 0, background: "rgba(14,14,16,0.95)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: 18 }}>
           <button onClick={() => setLightbox(-1)} style={{ position: "absolute", top: 16, right: 16, width: 44, height: 44, borderRadius: "50%", border: "none", background: "rgba(255,255,255,0.12)", color: "#fff", cursor: "pointer", display: "inline-flex", alignItems: "center", justifyContent: "center" }}><X size={22} /></button>
           {lightbox > 0 && <button onClick={(e) => { e.stopPropagation(); nav(-1); }} style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", width: 46, height: 46, borderRadius: "50%", border: "none", background: "rgba(255,255,255,0.12)", color: "#fff", cursor: "pointer", display: "inline-flex", alignItems: "center", justifyContent: "center" }}><ChevronLeft size={24} /></button>}
           {lightbox < photos.length - 1 && <button onClick={(e) => { e.stopPropagation(); nav(1); }} style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", width: 46, height: 46, borderRadius: "50%", border: "none", background: "rgba(255,255,255,0.12)", color: "#fff", cursor: "pointer", display: "inline-flex", alignItems: "center", justifyContent: "center" }}><ChevronRight size={24} /></button>}
