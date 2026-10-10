@@ -112,6 +112,7 @@ export function InvoiceModal({ state, showToast, onClose, onSessionsRefresh }) {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
+  const [cc, setCc] = useState("");
   const [group, setGroup] = useState("video");
   const [serviceId, setServiceId] = useState("");
   const [date, setDate] = useState("");
@@ -143,7 +144,7 @@ export function InvoiceModal({ state, showToast, onClose, onSessionsRefresh }) {
     if (!name.trim() || !email.trim() || !svc || !date || !time) { showToast("Name, email, service, date, and time are required."); return; }
     setSending(true);
     try {
-      const res = await fetch("/api/invoices", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ name, email, phone, serviceId: svc.id, date, time, addons: Object.entries(addonQty).filter(([, q]) => q > 0).map(([id, q]) => ({ id, qty: q })), custom, notes }) });
+      const res = await fetch("/api/invoices", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ name, email, phone, cc, serviceId: svc.id, date, time, addons: Object.entries(addonQty).filter(([, q]) => q > 0).map(([id, q]) => ({ id, qty: q })), custom, notes }) });
       const d = await res.json().catch(() => ({}));
       if (!res.ok) { showToast(d.error || "Could not send the invoice."); setSending(false); return; }
       if (d.emailDelivered === false) {
@@ -185,6 +186,7 @@ export function InvoiceModal({ state, showToast, onClose, onSessionsRefresh }) {
               <div><label style={lbl}>Email</label><input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="client@email.com" style={{ ...inputStyle, marginBottom: 0 }} /></div>
               <div><label style={lbl}>Phone</label><input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="(907) 555-0100" style={{ ...inputStyle, marginBottom: 0 }} /></div>
             </div>
+            <div><label style={lbl}>CC (optional)</label><input value={cc} onChange={(e) => setCc(e.target.value)} placeholder="Also send to, e.g. spouse@email.com, accounting@company.com" style={{ ...inputStyle, marginBottom: 0 }} /></div>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
               <div>
                 <label style={lbl}>Service line</label>

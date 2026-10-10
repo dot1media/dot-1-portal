@@ -363,16 +363,19 @@ export function deliveryEmail(s: any, kind: string, url: string): string {
   return shell(brand, c.title, c.heading, body);
 }
 
-export async function sendEmail(opts: { to?: string; subject: string; html: string; replyTo?: string; attachments?: Array<{ filename: string; content: string }> }): Promise<{ ok: boolean; id?: string; error?: string }> {
+export async function sendEmail(opts: { to?: string; subject: string; html: string; replyTo?: string; cc?: string | string[]; attachments?: Array<{ filename: string; content: string }> }): Promise<{ ok: boolean; id?: string; error?: string }> {
   const key = process.env.RESEND_API_KEY;
   if (!key) return { ok: false, error: "Email is not configured (RESEND_API_KEY is missing)." };
   if (!opts.to) return { ok: false, error: "No recipient address." };
   const from = process.env.EMAIL_FROM || "Dot One Media <notifications@dot1.media>";
+  const cc = (Array.isArray(opts.cc) ? opts.cc : (opts.cc ? [opts.cc] : []))
+    .map((e) => String(e || "").trim())
+    .filter((e) => /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(e) && e.toLowerCase() !== String(opts.to).toLowerCase());
   try {
     const res = await fetch("https://api.resend.com/emails", {
       method: "POST",
       headers: { Authorization: "Bearer " + key, "Content-Type": "application/json" },
-      body: JSON.stringify({ from, to: [opts.to], subject: opts.subject, html: opts.html, reply_to: opts.replyTo, ...(opts.attachments && opts.attachments.length ? { attachments: opts.attachments } : {}) }),
+      body: JSON.stringify({ from, to: [opts.to], subject: opts.subject, html: opts.html, reply_to: opts.replyTo, ...(cc.length ? { cc } : {}), ...(opts.attachments && opts.attachments.length ? { attachments: opts.attachments } : {}) }),
     });
     const data: any = await res.json().catch(() => ({}));
     if (!res.ok || (data && data.error)) {

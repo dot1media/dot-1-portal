@@ -46,6 +46,7 @@ export async function POST(request: Request) {
   const date = String(b.date || "");
   const time = String(b.time || "");
   const notes = String(b.notes || "").trim().slice(0, 1200);
+  const cc = String(b.cc || "").split(/[,;\s]+/).map((e) => e.trim().toLowerCase()).filter((e) => /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(e) && e !== email).slice(0, 5);
   const emailOk = /^[a-z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-z0-9-]+(\.[a-z0-9-]+)+$/.test(email) && email.indexOf("..") === -1 && email.length <= 254;
   if (!name || !emailOk || !serviceId || !date || !time) {
     return NextResponse.json({ error: "Name, a valid email, service, date, and time are required." }, { status: 400 });
@@ -126,7 +127,7 @@ export async function POST(request: Request) {
     no, createdAt: Date.now(),
     client: { name, email, phone },
     service: { id: svc.id, name: svc.name, group: grp, date, time, duration: svc.duration_min || 60 },
-    items, totalCents, retainerCents, payUrl, notes,
+    items, totalCents, retainerCents, payUrl, notes, cc,
   };
   await sql`UPDATE invoices SET data = ${JSON.stringify(inv)}::jsonb WHERE token = ${token}`;
   await sql`UPDATE portal_sessions SET data = data || ${JSON.stringify({ invoiceNo: no })}::jsonb WHERE id = ${sessionId}`;
@@ -136,6 +137,7 @@ export async function POST(request: Request) {
   try { const bytes = await buildInvoicePdf(inv); pdfB64 = Buffer.from(bytes).toString("base64"); } catch (e) {}
   const clientSend = await sendEmail({
     to: email,
+    cc,
     subject: "Your Dot One Media invoice " + no + (date ? " for " + date : ""),
     html: invoiceEmailHtml(inv),
     replyTo: "contact@dot1.media",

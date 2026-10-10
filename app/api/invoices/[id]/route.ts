@@ -52,6 +52,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   try { const bytes = await buildInvoicePdf(inv); pdfB64 = Buffer.from(bytes).toString("base64"); } catch (e) {}
   const sent = await sendEmail({
     to: inv.client && inv.client.email,
+    cc: Array.isArray(inv.cc) ? inv.cc : undefined,
     subject: "Your Dot One Media invoice " + inv.no + (inv.service && inv.service.date ? " for " + inv.service.date : ""),
     html: invoiceEmailHtml(inv),
     replyTo: "contact@dot1.media",
