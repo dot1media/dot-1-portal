@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { sql } from "@/lib/db";
 import { verifyClientToken, CLIENT_COOKIE } from "@/lib/auth";
+import { hasStudio } from "@/lib/studioGuard";
 import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
 
 export const runtime = "nodejs";
@@ -59,18 +60,28 @@ function fmtDate(iso: any): string {
 
 export async function GET(request: Request) {
   const store = await cookies();
-  const client = verifyClientToken(store.get(CLIENT_COOKIE)?.value);
-  if (!client || !client.email) return new NextResponse("Please sign in again.", { status: 401 });
   const u = new URL(request.url);
   const id = String(u.searchParams.get("id") || "");
   if (!id) return new NextResponse("Missing document id.", { status: 400 });
 
+  // Access: the client who signed it (via their session cookie), or a studio admin (who may pull any
+  // client's signed agreement for a booking). Admins are identified server-side, not by email param.
+  const client = verifyClientToken(store.get(CLIENT_COOKIE)?.value);
+  const clientEmail = client?.email ? String(client.email).toLowerCase() : "";
+  const admin = clientEmail ? false : await hasStudio();
+  if (!clientEmail && !admin) return new NextResponse("Please sign in again.", { status: 401 });
+
   let rows: any[];
   try {
-    rows = (await sql`
-      SELECT a.agreement_type, a.signed_name, a.usage_option, a.details, a.signed_at, u.email
-      FROM agreements a JOIN users u ON a.user_id = u.id
-      WHERE a.id = ${id} AND lower(u.email) = ${String(client.email).toLowerCase()} LIMIT 1`) as any[];
+    rows = admin
+      ? (await sql`
+          SELECT a.agreement_type, a.signed_name, a.usage_option, a.details, a.signed_at, u.email
+          FROM agreements a JOIN users u ON a.user_id = u.id
+          WHERE a.id = ${id} LIMIT 1`) as any[]
+      : (await sql`
+          SELECT a.agreement_type, a.signed_name, a.usage_option, a.details, a.signed_at, u.email
+          FROM agreements a JOIN users u ON a.user_id = u.id
+          WHERE a.id = ${id} AND lower(u.email) = ${clientEmail} LIMIT 1`) as any[];
   } catch (e) {
     return new NextResponse("Could not load the document.", { status: 500 });
   }

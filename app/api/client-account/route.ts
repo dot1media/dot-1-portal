@@ -20,6 +20,25 @@ export async function POST(request: Request) {
   const email = String(b.email || "").trim().toLowerCase();
   if (!email) return NextResponse.json({ error: "A client email is required." }, { status: 400 });
 
+  // Create a client account on the client's behalf (e.g. when an invoice was paid by someone else and
+  // the real client never onboarded). Does NOT sign the admin in as the client (no client cookie set).
+  if (action === "create") {
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return NextResponse.json({ error: "Please enter a valid email address." }, { status: 400 });
+    const name = String(b.name || "").trim();
+    if (!name) return NextResponse.json({ error: "A name is required." }, { status: 400 });
+    const phone = String(b.phone || "").trim() || null;
+    const password = String(b.password || "");
+    if (password && password.length < 8) return NextResponse.json({ error: "Password must be at least 8 characters." }, { status: 400 });
+    const dupe = await sql`SELECT id FROM users WHERE email = ${email} LIMIT 1`;
+    if (dupe.length > 0) return NextResponse.json({ error: "An account already uses that email." }, { status: 409 });
+    const rows = await sql`
+      INSERT INTO users (name, email, phone, role, password_hash)
+      VALUES (${name}, ${email}, ${phone}, 'client', ${password ? hashPassword(password) : null})
+      RETURNING id, name, email, phone, role, avatar_url, (password_hash IS NOT NULL) AS has_password
+    `;
+    return NextResponse.json({ ok: true, user: rows[0], message: "Account created." });
+  }
+
   const existing = await sql`SELECT id, name, email FROM users WHERE email = ${email} LIMIT 1`;
   if (existing.length === 0) return NextResponse.json({ error: "No client account found with that email." }, { status: 404 });
 

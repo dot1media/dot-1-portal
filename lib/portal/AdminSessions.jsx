@@ -68,6 +68,68 @@ function GearCard({ session, services }) {
   );
 }
 
+// Signed agreements for this booking's client. Agreements are recorded against the client's account
+// (by email), so this shows every agreement that client has signed and lets the studio view or
+// download each as the finished, signed PDF. Admin access is enforced server-side in /api/signed-doc.
+const AGREEMENT_LABELS = { client_services: "Client Services Agreement", media_release: "Media Release & Waiver", minor_release: "Minor Release & Waiver" };
+function SignedAgreements({ email, showToast }) {
+  const [rows, setRows] = useState(null);
+  const [dl, setDl] = useState("");
+  useEffect(() => {
+    const e = (email || "").trim().toLowerCase();
+    if (!e) { setRows([]); return; }
+    let live = true;
+    fetch("/api/users?email=" + encodeURIComponent(e)).then((r) => r.json()).then((d) => { if (live) setRows(Array.isArray(d.agreements) ? d.agreements : []); }).catch(() => { if (live) setRows([]); });
+    return () => { live = false; };
+  }, [email]);
+  if (rows === null) return null;
+
+  const download = async (a) => {
+    setDl(a.id);
+    try {
+      const res = await fetch("/api/signed-doc?id=" + encodeURIComponent(a.id));
+      if (!res.ok) { showToast && showToast("Could not generate that document."); setDl(""); return; }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a2 = document.createElement("a");
+      a2.href = url;
+      a2.download = (AGREEMENT_LABELS[a.agreement_type] || "Agreement").replace(/[^\w]+/g, "-") + "-signed.pdf";
+      document.body.appendChild(a2); a2.click(); a2.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 4000);
+    } catch (e) { showToast && showToast("Could not download that document."); }
+    setDl("");
+  };
+
+  return (
+    <div style={{ ...card, marginTop: 18, padding: "18px 20px" }}>
+      <div style={{ ...mono, fontSize: 10.5, letterSpacing: "0.16em", textTransform: "uppercase", color: STONE, display: "flex", alignItems: "center", gap: 8, marginBottom: rows.length ? 12 : 0 }}><FileText size={14} /> Signed agreements</div>
+      {rows.length === 0 ? (
+        <div style={{ ...mono, fontSize: 11.5, color: FAINT, marginTop: 10 }}>This client hasn't signed any agreements yet.</div>
+      ) : (
+        <div style={{ border: `1px solid ${LINE}`, borderRadius: 10, overflow: "hidden" }}>
+          {rows.map((a, idx) => {
+            const canDoc = !!AGREEMENT_LABELS[a.agreement_type];
+            return (
+              <div key={a.id || idx} style={{ display: "flex", alignItems: "center", gap: 10, padding: "11px 13px", borderTop: idx ? `1px solid ${LINE}` : "none" }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 13.5, color: INK }}>{AGREEMENT_LABELS[a.agreement_type] || a.agreement_type}</div>
+                  <div style={{ ...mono, fontSize: 10.5, color: STONE }}>Signed by {a.signed_name || "—"}{a.signed_at ? " · " + (fmtDate(a.signed_at) || "") : ""}{a.version ? " · v" + a.version : ""}</div>
+                </div>
+                {canDoc ? (
+                  <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
+                    <a href={"/api/signed-doc?id=" + encodeURIComponent(a.id)} target="_blank" rel="noopener noreferrer" style={{ ...mono, fontSize: 10, letterSpacing: "0.06em", textTransform: "uppercase", textDecoration: "none", color: STONE, border: `1px solid ${LINE}`, borderRadius: 6, padding: "6px 10px", display: "inline-flex", alignItems: "center", gap: 5 }}><FileText size={11} /> View</a>
+                    <button onClick={() => download(a)} disabled={dl === a.id} style={{ ...mono, fontSize: 10, letterSpacing: "0.06em", textTransform: "uppercase", color: "#fff", background: INK, border: "none", borderRadius: 6, padding: "6px 10px", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 5, opacity: dl === a.id ? 0.6 : 1 }}><Download size={11} /> {dl === a.id ? "..." : "Download"}</button>
+                  </div>
+                ) : <span style={{ ...mono, fontSize: 10, color: FAINT, flexShrink: 0 }}>Recorded</span>}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function AdminSessions({ state, adminId, setAdminId, requestSetStage, addComment, uploadMessageImage, patchSession, onReschedule, slotTaken, markMessagesRead, onCancelBooking, onCloseBooking, onReopenBooking, onSendBalance, onSendCharge, onCheckPayment, onNewInternal, onNewInvoice, onEmailDelivery, onRequestReview, onSendInvite, onSetGroup, onDeleteBooking, showToast }) {
   const [chgLabel, setChgLabel] = useState("");
   const [collapsed, setCollapsed] = useState({ completed: true });
@@ -309,6 +371,7 @@ export function AdminSessions({ state, adminId, setAdminId, requestSetStage, add
         </div>
 
         <GearCard session={session} services={state.services} />
+        <SignedAgreements email={session.clientEmail} showToast={showToast} />
         <ClientNotes email={session.clientEmail} showToast={showToast} />
         <SessionExpenses sessionId={session.id} revenue={Number(session.total) || 0} />
         <InspirationBoard sessionId={session.id} compact />
