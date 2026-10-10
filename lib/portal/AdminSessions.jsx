@@ -75,36 +75,64 @@ const AGREEMENT_LABELS = { client_services: "Client Services Agreement", media_r
 function SignedAgreements({ email, showToast }) {
   const [rows, setRows] = useState(null);
   const [dl, setDl] = useState("");
-  useEffect(() => {
+  const [upType, setUpType] = useState("client_services");
+  const [upFile, setUpFile] = useState(null);
+  const [upName, setUpName] = useState("");
+  const [upBusy, setUpBusy] = useState(false);
+  const [fileKey, setFileKey] = useState(0); // bump to reset the file input
+  const [showUp, setShowUp] = useState(false);
+
+  const load = () => {
     const e = (email || "").trim().toLowerCase();
     if (!e) { setRows([]); return; }
-    let live = true;
-    fetch("/api/users?email=" + encodeURIComponent(e)).then((r) => r.json()).then((d) => { if (live) setRows(Array.isArray(d.agreements) ? d.agreements : []); }).catch(() => { if (live) setRows([]); });
-    return () => { live = false; };
-  }, [email]);
+    fetch("/api/users?email=" + encodeURIComponent(e)).then((r) => r.json()).then((d) => setRows(Array.isArray(d.agreements) ? d.agreements : [])).catch(() => setRows([]));
+  };
+  useEffect(() => { load(); /* eslint-disable-next-line */ }, [email]);
   if (rows === null) return null;
 
   const download = async (a) => {
     setDl(a.id);
     try {
       const res = await fetch("/api/signed-doc?id=" + encodeURIComponent(a.id));
-      if (!res.ok) { showToast && showToast("Could not generate that document."); setDl(""); return; }
+      if (!res.ok) { showToast && showToast("Could not open that document."); setDl(""); return; }
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
       const a2 = document.createElement("a");
       a2.href = url;
-      a2.download = (AGREEMENT_LABELS[a.agreement_type] || "Agreement").replace(/[^\w]+/g, "-") + "-signed.pdf";
+      const base = a.uploaded && a.file_name ? a.file_name : (AGREEMENT_LABELS[a.agreement_type] || "Agreement").replace(/[^\w]+/g, "-") + "-signed.pdf";
+      a2.download = base;
       document.body.appendChild(a2); a2.click(); a2.remove();
       setTimeout(() => URL.revokeObjectURL(url), 4000);
     } catch (e) { showToast && showToast("Could not download that document."); }
     setDl("");
   };
 
+  const upload = async () => {
+    const e = (email || "").trim().toLowerCase();
+    if (!e) { showToast && showToast("This booking has no client email yet."); return; }
+    if (!upFile) { showToast && showToast("Choose the signed PDF or photo to upload."); return; }
+    setUpBusy(true);
+    try {
+      const fd = new FormData();
+      fd.append("email", e); fd.append("agreementType", upType); fd.append("file", upFile);
+      if (upName.trim()) fd.append("signedName", upName.trim());
+      const res = await fetch("/api/agreements/upload", { method: "POST", body: fd });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok) { showToast && showToast("Signed copy uploaded to their account."); setUpFile(null); setUpName(""); setFileKey((k) => k + 1); setShowUp(false); load(); }
+      else showToast && showToast(data.error || "Could not upload the file.");
+    } catch (e2) { showToast && showToast("Could not upload the file."); }
+    setUpBusy(false);
+  };
+
   return (
     <div style={{ ...card, marginTop: 18, padding: "18px 20px" }}>
-      <div style={{ ...mono, fontSize: 10.5, letterSpacing: "0.16em", textTransform: "uppercase", color: STONE, display: "flex", alignItems: "center", gap: 8, marginBottom: rows.length ? 12 : 0 }}><FileText size={14} /> Signed agreements</div>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, flexWrap: "wrap", marginBottom: rows.length ? 12 : 0 }}>
+        <div style={{ ...mono, fontSize: 10.5, letterSpacing: "0.16em", textTransform: "uppercase", color: STONE, display: "flex", alignItems: "center", gap: 8 }}><FileText size={14} /> Signed agreements</div>
+        <button onClick={() => setShowUp((v) => !v)} style={{ ...mono, fontSize: 9.5, letterSpacing: "0.06em", textTransform: "uppercase", color: STONE, background: "transparent", border: `1px solid ${LINE}`, borderRadius: 6, padding: "5px 10px", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 5 }}><Download size={11} style={{ transform: "rotate(180deg)" }} /> Upload signed copy</button>
+      </div>
+
       {rows.length === 0 ? (
-        <div style={{ ...mono, fontSize: 11.5, color: FAINT, marginTop: 10 }}>This client hasn't signed any agreements yet.</div>
+        <div style={{ ...mono, fontSize: 11.5, color: FAINT, marginTop: 10 }}>No agreements on file for this client yet.</div>
       ) : (
         <div style={{ border: `1px solid ${LINE}`, borderRadius: 10, overflow: "hidden" }}>
           {rows.map((a, idx) => {
@@ -112,8 +140,8 @@ function SignedAgreements({ email, showToast }) {
             return (
               <div key={a.id || idx} style={{ display: "flex", alignItems: "center", gap: 10, padding: "11px 13px", borderTop: idx ? `1px solid ${LINE}` : "none" }}>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 13.5, color: INK }}>{AGREEMENT_LABELS[a.agreement_type] || a.agreement_type}</div>
-                  <div style={{ ...mono, fontSize: 10.5, color: STONE }}>Signed by {a.signed_name || "—"}{a.signed_at ? " · " + (fmtDate(a.signed_at) || "") : ""}{a.version ? " · v" + a.version : ""}</div>
+                  <div style={{ fontSize: 13.5, color: INK, display: "flex", alignItems: "center", gap: 7, flexWrap: "wrap" }}>{AGREEMENT_LABELS[a.agreement_type] || a.agreement_type}{a.uploaded && <span style={{ ...mono, fontSize: 8.5, letterSpacing: "0.08em", textTransform: "uppercase", color: RED, background: CREAM, border: `1px solid ${LINE}`, borderRadius: 999, padding: "2px 7px" }}>Uploaded copy</span>}</div>
+                  <div style={{ ...mono, fontSize: 10.5, color: STONE }}>{a.uploaded ? "Signed offline" : "Signed by " + (a.signed_name || "—")}{a.signed_at ? " · " + (fmtDate(a.signed_at) || "") : ""}{a.version ? " · v" + a.version : ""}</div>
                 </div>
                 {canDoc ? (
                   <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
@@ -124,6 +152,26 @@ function SignedAgreements({ email, showToast }) {
               </div>
             );
           })}
+        </div>
+      )}
+
+      {showUp && (
+        <div style={{ marginTop: 14, border: `1px solid ${LINE}`, borderRadius: 10, padding: 14, background: PAPER }}>
+          <div style={{ ...mono, fontSize: 10, letterSpacing: "0.1em", textTransform: "uppercase", color: RED, marginBottom: 9 }}>Upload a manually-signed agreement</div>
+          <div style={{ fontSize: 12, color: BODY, lineHeight: 1.5, marginBottom: 11 }}>Attach a PDF or photo the client signed by hand. It's filed on their account as signed, which also clears the sign-in prompt for that agreement.</div>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+            <select value={upType} onChange={(e) => setUpType(e.target.value)} style={{ ...inputStyle, marginBottom: 0, width: "auto", flex: "1 1 200px" }}>
+              <option value="client_services">Client Services Agreement</option>
+              <option value="media_release">Media Release & Waiver</option>
+              <option value="minor_release">Minor Release & Waiver</option>
+            </select>
+            <input key={fileKey} type="file" accept="application/pdf,image/*" onChange={(e) => setUpFile(e.target.files && e.target.files[0] ? e.target.files[0] : null)} style={{ fontSize: 12.5, flex: "1 1 220px" }} />
+          </div>
+          <input value={upName} onChange={(e) => setUpName(e.target.value)} placeholder="Signed by (optional, e.g. the client's name)" style={{ ...inputStyle, marginTop: 9, marginBottom: 0 }} />
+          <div style={{ display: "flex", gap: 8, marginTop: 11 }}>
+            <button onClick={upload} disabled={upBusy || !upFile} style={{ ...btnSolid, background: RED, opacity: (upBusy || !upFile) ? 0.6 : 1 }}><Download size={14} style={{ transform: "rotate(180deg)" }} /> {upBusy ? "Uploading…" : "Upload & file as signed"}</button>
+            <button onClick={() => { setShowUp(false); setUpFile(null); setUpName(""); setFileKey((k) => k + 1); }} style={{ ...btnGhost }}>Cancel</button>
+          </div>
         </div>
       )}
     </div>

@@ -66,7 +66,9 @@ export async function GET(request: Request) {
   if (!email) return NextResponse.json({ error: "email is required" }, { status: 400 });
   const users = await sql`SELECT id, name, email, phone, role, avatar_url FROM users WHERE email = ${email} LIMIT 1`;
   if (users.length === 0) return NextResponse.json({ user: null, agreements: [] });
-  const agreements = await sql`SELECT id, agreement_type, version, signed_name, usage_option, signed_at FROM agreements WHERE user_id = ${users[0].id} ORDER BY signed_at DESC`;
+  const agreements = await sql`SELECT id, agreement_type, version, signed_name, usage_option, signed_at,
+      COALESCE((details->>'uploaded')::boolean, false) AS uploaded, details->>'fileName' AS file_name
+    FROM agreements WHERE user_id = ${users[0].id} ORDER BY signed_at DESC`;
   return NextResponse.json({ user: users[0], agreements });
 }
 

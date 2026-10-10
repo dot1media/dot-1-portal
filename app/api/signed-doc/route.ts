@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import { sql } from "@/lib/db";
 import { verifyClientToken, CLIENT_COOKIE } from "@/lib/auth";
 import { hasStudio } from "@/lib/studioGuard";
+import { presignGet } from "@/lib/r2";
 import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
 
 export const runtime = "nodejs";
@@ -87,6 +88,19 @@ export async function GET(request: Request) {
   }
   if (!rows || rows.length === 0) return new NextResponse("Document not found.", { status: 404 });
   const a = rows[0];
+
+  // Manually-signed copy uploaded by the studio: hand back the stored file instead of generating one.
+  const det = a.details || {};
+  if (det && det.uploaded && det.key) {
+    try {
+      const name = String(det.fileName || "signed-agreement").replace(/[^\w.-]+/g, "-");
+      const url = await presignGet(det.key, 3600, name);
+      return NextResponse.redirect(url, 302);
+    } catch (e) {
+      return new NextResponse("The signed copy is temporarily unavailable.", { status: 502 });
+    }
+  }
+
   const spec = SPECS[a.agreement_type];
   if (!spec) return new NextResponse("This document type cannot be generated.", { status: 400 });
 
