@@ -395,7 +395,13 @@ export default function App() {
     setState((s) => ({ ...s, sessions: sess }));
     try { localStorage.setItem("dot1_view_pref", "client"); } catch (e) {}
     setClientAuth({ name: (data.name) || (sess[0] && sess[0].clientName) || "", email: myEmail });
-    if (sess.length) { setClientId(sess[0].id); setView("client"); showToast("Welcome back, " + sess[0].clientName + "!"); }
+    // First-login agreement gate: if this account hasn't signed the Client Services Agreement yet
+    // (e.g. the studio created the account for them), route to signing before the portal.
+    let needsSign = false;
+    if (sess.length) {
+      try { const st = await fetch("/api/client-onboard-status?email=" + encodeURIComponent(myEmail)).then((r) => r.json()).catch(() => null); if (st && st.hasAccount && !st.signedServices) needsSign = true; } catch (e) {}
+    }
+    if (sess.length) { setClientId(sess[0].id); setView(needsSign ? "onboard" : "client"); if (!needsSign) showToast("Welcome back, " + sess[0].clientName + "!"); }
     else { setClientId(""); setView("client"); showToast("Signed in. You don't have any sessions yet."); }
     applyServerTheme();
   };

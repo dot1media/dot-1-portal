@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Check, ArrowRight, AlertTriangle } from "lucide-react";
 import { INK, BODY, STONE, FAINT, LINE, PAPER, CREAM, RED, OK, DANGER, display, mono, card, btnSolid, inputStyle } from "./theme";
 import { GROUPS } from "./groups";
@@ -26,17 +26,28 @@ export function InvoiceOnboarding({ session, onDone }) {
   const [agree, setAgree] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [err, setErr] = useState("");
+  // If the account already has a password (e.g. the studio created it, or the client set one already),
+  // this becomes a sign-only step: no password field, and we don't overwrite their existing password.
+  const [hasPw, setHasPw] = useState(null);
+  useEffect(() => {
+    if (!email) { setHasPw(false); return; }
+    let live = true;
+    fetch("/api/client-onboard-status?email=" + encodeURIComponent(email)).then((r) => r.json()).then((d) => { if (live) setHasPw(!!(d && d.hasPassword)); }).catch(() => { if (live) setHasPw(false); });
+    return () => { live = false; };
+  }, [email]);
+  const needsPw = hasPw === false; // null while loading → treat as not-yet-required
 
   const submit = async () => {
     setErr("");
     if (!signature.trim()) { setErr("Type your full legal name to sign."); return; }
     if (!agree) { setErr("Please check the box to agree and sign."); return; }
-    if (!password || password.length < 8) { setErr("Choose a password of at least 8 characters."); return; }
+    if (needsPw && (!password || password.length < 8)) { setErr("Choose a password of at least 8 characters."); return; }
     if (isMinor && (!child.name.trim() || !child.age.trim() || !child.relationship.trim())) { setErr("Please add the child's name, age, and your relationship to the child."); return; }
     setSubmitting(true);
     try {
-      // create/attach the account + password (idempotent on email; sets the client cookie)
-      const ures = await fetch("/api/users", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ name: name.trim() || signature.trim(), email, phone: (session?.clientPhone || "").trim(), password }) });
+      // create/attach the account (idempotent on email; sets the client cookie). Password is only sent
+      // when the account doesn't already have one — otherwise the existing password is preserved.
+      const ures = await fetch("/api/users", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ name: name.trim() || signature.trim(), email, phone: (session?.clientPhone || "").trim(), password: needsPw ? password : "" }) });
       const udata = await ures.json().catch(() => ({}));
       if (!ures.ok) throw new Error(udata.error || "Could not set up your account.");
 
@@ -62,9 +73,9 @@ export function InvoiceOnboarding({ session, onDone }) {
     <div style={{ maxWidth: 620, margin: "0 auto", padding: "34px 20px 40px" }}>
       <div style={{ textAlign: "center", marginBottom: 22 }}>
         <div style={{ width: 54, height: 54, borderRadius: "50%", background: grp.bg, border: `1.5px solid ${grp.border}`, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px" }}><Check size={26} color={A} /></div>
-        <div style={{ ...mono, fontSize: 10.5, letterSpacing: "0.22em", textTransform: "uppercase", color: OK, marginBottom: 12 }}>Payment received</div>
-        <h1 style={{ ...display, fontWeight: 700, fontSize: 26, color: INK, lineHeight: 1.18, margin: "0 0 10px" }}>Two quick steps to finish</h1>
-        {session && <div style={{ fontSize: 14, color: BODY, lineHeight: 1.6 }}>Your <strong style={{ color: INK }}>{session.type}</strong> is booked{session.date ? " for " + fmtDate(session.date) : ""}{session.time ? " at " + fmtTime(session.time) : ""}. Please sign your agreements and set a password so you can sign in to your portal.</div>}
+        <div style={{ ...mono, fontSize: 10.5, letterSpacing: "0.22em", textTransform: "uppercase", color: OK, marginBottom: 12 }}>{needsPw ? "Payment received" : "One quick step"}</div>
+        <h1 style={{ ...display, fontWeight: 700, fontSize: 26, color: INK, lineHeight: 1.18, margin: "0 0 10px" }}>{needsPw ? "Two quick steps to finish" : "Please sign your agreements"}</h1>
+        {session && <div style={{ fontSize: 14, color: BODY, lineHeight: 1.6 }}>Your <strong style={{ color: INK }}>{session.type}</strong> is booked{session.date ? " for " + fmtDate(session.date) : ""}{session.time ? " at " + fmtTime(session.time) : ""}. {needsPw ? "Please sign your agreements and set a password so you can sign in to your portal." : "Before we continue, please review and sign the agreements below."}</div>}
       </div>
 
       <div style={{ ...card, padding: "22px 22px 24px" }}>
@@ -102,16 +113,18 @@ export function InvoiceOnboarding({ session, onDone }) {
           <span style={{ fontSize: 12.5, color: BODY, lineHeight: 1.5 }}>I have read and agree to the Client Services Agreement and the {isMinor ? "Minor " : ""}Release and Liability Waiver above. This typed signature is legally binding.</span>
         </label>
 
-        <div style={{ marginTop: 20, borderTop: `1px solid ${LINE}`, paddingTop: 18 }}>
-          <div style={{ ...mono, fontSize: 10.5, letterSpacing: "0.16em", textTransform: "uppercase", color: STONE, marginBottom: 8 }}>Set your portal password</div>
-          <div style={{ fontSize: 12.5, color: STONE, marginBottom: 8, lineHeight: 1.5 }}>You'll sign in with <strong style={{ color: INK }}>{email}</strong> and this password.</div>
-          <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="At least 8 characters" style={{ ...inputStyle, marginBottom: 2 }} />
-          <PasswordMeter value={password} />
-        </div>
+        {needsPw && (
+          <div style={{ marginTop: 20, borderTop: `1px solid ${LINE}`, paddingTop: 18 }}>
+            <div style={{ ...mono, fontSize: 10.5, letterSpacing: "0.16em", textTransform: "uppercase", color: STONE, marginBottom: 8 }}>Set your portal password</div>
+            <div style={{ fontSize: 12.5, color: STONE, marginBottom: 8, lineHeight: 1.5 }}>You'll sign in with <strong style={{ color: INK }}>{email}</strong> and this password.</div>
+            <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="At least 8 characters" style={{ ...inputStyle, marginBottom: 2 }} />
+            <PasswordMeter value={password} />
+          </div>
+        )}
 
         {err && <div style={{ marginTop: 14, fontSize: 12.5, color: DANGER, display: "flex", alignItems: "center", gap: 7 }}><AlertTriangle size={14} /> {err}</div>}
 
-        <button onClick={submit} disabled={submitting} style={{ ...btnSolid, background: A, width: "100%", justifyContent: "center", marginTop: 18, fontSize: 15, padding: "13px 20px" }}>{submitting ? "Finishing…" : "Sign & enter my portal"} <ArrowRight size={16} /></button>
+        <button onClick={submit} disabled={submitting} style={{ ...btnSolid, background: A, width: "100%", justifyContent: "center", marginTop: 18, fontSize: 15, padding: "13px 20px" }}>{submitting ? "Finishing…" : (needsPw ? "Sign & enter my portal" : "Sign & continue")} <ArrowRight size={16} /></button>
       </div>
     </div>
   );

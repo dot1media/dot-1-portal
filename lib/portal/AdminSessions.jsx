@@ -130,6 +130,79 @@ function SignedAgreements({ email, showToast }) {
   );
 }
 
+// Create (or confirm) the client's portal account for this specific booking, so they can sign in and
+// track this session. Prefilled from the booking. On first sign-in they're prompted to sign any
+// unsigned agreements (handled by the login gate). Shows live account status.
+function ClientAccountForSession({ session, onSendInvite, showToast }) {
+  const email = (session.clientEmail || "").trim().toLowerCase();
+  const [status, setStatus] = useState(null); // {hasAccount, hasPassword, signedServices}
+  const [open, setOpen] = useState(false);
+  const [pw, setPw] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  const load = () => {
+    if (!email) { setStatus({ hasAccount: false }); return; }
+    fetch("/api/client-onboard-status?email=" + encodeURIComponent(email)).then((r) => r.json()).then((d) => setStatus(d || { hasAccount: false })).catch(() => setStatus({ hasAccount: false }));
+  };
+  useEffect(() => { load(); /* eslint-disable-next-line */ }, [email]);
+  if (!email || status === null) return null;
+
+  const create = async () => {
+    if (pw && pw.length < 8) { showToast && showToast("Password must be at least 8 characters."); return; }
+    setBusy(true);
+    try {
+      const res = await fetch("/api/client-account", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ action: "create", name: (session.clientName || "").trim() || email, email, phone: (session.clientPhone || "").trim(), password: pw }) });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok) {
+        showToast && showToast(pw ? "Account created. Share the password; they'll be asked to sign the agreement on first sign-in." : "Account created. They can set a password from the sign-in page, then sign the agreement.");
+        setOpen(false); setPw(""); load();
+      } else showToast && showToast(data.error || "Could not create the account.");
+    } catch (e) { showToast && showToast("Could not create the account."); }
+    setBusy(false);
+  };
+
+  const active = status.hasAccount && status.hasPassword;
+  return (
+    <div style={{ ...card, marginTop: 18, padding: "18px 20px" }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+        <div style={{ ...mono, fontSize: 10.5, letterSpacing: "0.16em", textTransform: "uppercase", color: STONE, display: "flex", alignItems: "center", gap: 8 }}><UserPlus size={14} /> Client account</div>
+        <div style={{ ...mono, fontSize: 10, letterSpacing: "0.06em", textTransform: "uppercase", color: status.hasAccount ? (active ? OK : WARN) : FAINT }}>
+          {status.hasAccount ? (active ? (status.signedServices ? "Active · signed" : "Active · not signed") : "Invited · no password") : "No account yet"}
+        </div>
+      </div>
+
+      {!status.hasAccount ? (
+        <>
+          <div style={{ fontSize: 12.5, color: BODY, lineHeight: 1.55, marginTop: 10 }}>{session.clientName ? session.clientName + " (" : ""}{email}{session.clientName ? ")" : ""} doesn't have a portal account yet. Create one so they can sign in and track this session. They'll be asked to sign the agreement the first time they sign in.</div>
+          {!open ? (
+            <div style={{ display: "flex", gap: 8, marginTop: 13, flexWrap: "wrap" }}>
+              <button onClick={() => setOpen(true)} style={{ ...btnSolid, background: INK }}><UserPlus size={14} /> Create account</button>
+              {onSendInvite && <button onClick={() => onSendInvite(session)} style={{ ...btnGhost }}><Send size={13} /> Send portal invite</button>}
+            </div>
+          ) : (
+            <div style={{ marginTop: 13, border: `1px solid ${LINE}`, borderRadius: 10, padding: 14, background: PAPER }}>
+              <div style={{ ...mono, fontSize: 10, letterSpacing: "0.1em", textTransform: "uppercase", color: STONE, marginBottom: 8 }}>Temp password (optional)</div>
+              <input type="text" value={pw} onChange={(e) => setPw(e.target.value)} placeholder="Leave blank to let them set their own" style={{ ...inputStyle, marginBottom: 0 }} />
+              <div style={{ ...mono, fontSize: 9.5, color: FAINT, marginTop: 6, lineHeight: 1.45 }}>Blank → they set a password from the sign-in page. With a temp password, share it and have them change it after signing in.</div>
+              <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
+                <button onClick={create} disabled={busy} style={{ ...btnSolid, background: RED, opacity: busy ? 0.6 : 1 }}><UserPlus size={14} /> {busy ? "Creating…" : "Create account"}</button>
+                <button onClick={() => { setOpen(false); setPw(""); }} style={{ ...btnGhost }}>Cancel</button>
+              </div>
+            </div>
+          )}
+        </>
+      ) : (
+        <div style={{ fontSize: 12.5, color: BODY, lineHeight: 1.55, marginTop: 10 }}>
+          {active
+            ? (status.signedServices ? "They have an account and have signed the agreement. They can sign in to track this session." : "They have an account but haven't signed the agreement yet — they'll be prompted to sign the next time they sign in.")
+            : "An account exists but no password is set. They can set one from the sign-in page (or use \"Send portal invite\"), then they'll be asked to sign the agreement."}
+          {!active && onSendInvite && <div style={{ marginTop: 11 }}><button onClick={() => onSendInvite(session)} style={{ ...btnGhost }}><Send size={13} /> Send portal invite</button></div>}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function AdminSessions({ state, adminId, setAdminId, requestSetStage, addComment, uploadMessageImage, patchSession, onReschedule, slotTaken, markMessagesRead, onCancelBooking, onCloseBooking, onReopenBooking, onSendBalance, onSendCharge, onCheckPayment, onNewInternal, onNewInvoice, onEmailDelivery, onRequestReview, onSendInvite, onSetGroup, onDeleteBooking, showToast }) {
   const [chgLabel, setChgLabel] = useState("");
   const [collapsed, setCollapsed] = useState({ completed: true });
@@ -371,6 +444,7 @@ export function AdminSessions({ state, adminId, setAdminId, requestSetStage, add
         </div>
 
         <GearCard session={session} services={state.services} />
+        <ClientAccountForSession session={session} onSendInvite={onSendInvite} showToast={showToast} />
         <SignedAgreements email={session.clientEmail} showToast={showToast} />
         <ClientNotes email={session.clientEmail} showToast={showToast} />
         <SessionExpenses sessionId={session.id} revenue={Number(session.total) || 0} />
