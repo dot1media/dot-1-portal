@@ -133,12 +133,14 @@ function SignedAgreements({ email, showToast }) {
 // Create (or confirm) the client's portal account for this specific booking, so they can sign in and
 // track this session. Prefilled from the booking. On first sign-in they're prompted to sign any
 // unsigned agreements (handled by the login gate). Shows live account status.
-function ClientAccountForSession({ session, onSendInvite, showToast }) {
+function ClientAccountForSession({ session, onSendInvite, patchSession, showToast }) {
   const email = (session.clientEmail || "").trim().toLowerCase();
   const [status, setStatus] = useState(null); // {hasAccount, hasPassword, signedServices}
   const [open, setOpen] = useState(false);
   const [pw, setPw] = useState("");
   const [busy, setBusy] = useState(false);
+  const [editEmail, setEditEmail] = useState(false);
+  const [emailVal, setEmailVal] = useState("");
 
   const load = () => {
     if (!email) { setStatus({ hasAccount: false }); return; }
@@ -146,6 +148,26 @@ function ClientAccountForSession({ session, onSendInvite, showToast }) {
   };
   useEffect(() => { load(); /* eslint-disable-next-line */ }, [email]);
   if (!email || status === null) return null;
+
+  const saveEmail = async () => {
+    const ne = emailVal.trim().toLowerCase();
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(ne)) { showToast && showToast("Enter a valid email address."); return; }
+    if (ne === email) { setEditEmail(false); return; }
+    setBusy(true);
+    try {
+      // If an account already exists under the current email, move the account + all its bookings so
+      // nothing is orphaned. Otherwise just reassign this booking's email.
+      if (status.hasAccount) {
+        const res = await fetch("/api/client-account", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ action: "change-email", email, newEmail: ne }) });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) { showToast && showToast(data.error || "Could not change the email."); setBusy(false); return; }
+      }
+      if (patchSession) patchSession(session.id, { clientEmail: ne });
+      showToast && showToast("Session email updated to " + ne + ".");
+      setEditEmail(false); setEmailVal("");
+    } catch (e) { showToast && showToast("Could not update the email."); }
+    setBusy(false);
+  };
 
   const create = async () => {
     if (pw && pw.length < 8) { showToast && showToast("Password must be at least 8 characters."); return; }
@@ -170,6 +192,23 @@ function ClientAccountForSession({ session, onSendInvite, showToast }) {
           {status.hasAccount ? (active ? (status.signedServices ? "Active · signed" : "Active · not signed") : "Invited · no password") : "No account yet"}
         </div>
       </div>
+
+      {/* The email this session uses — also the email the account is created under. Editable. */}
+      <div style={{ marginTop: 11, display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+        {!editEmail ? (
+          <>
+            <span style={{ ...mono, fontSize: 12, color: INK }}>{email}</span>
+            <button onClick={() => { setEmailVal(email); setEditEmail(true); }} style={{ ...mono, fontSize: 9.5, letterSpacing: "0.06em", textTransform: "uppercase", color: STONE, background: "transparent", border: `1px solid ${LINE}`, borderRadius: 6, padding: "4px 9px", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 5 }}><Pencil size={10} /> Change email</button>
+          </>
+        ) : (
+          <div style={{ display: "flex", gap: 7, alignItems: "center", flexWrap: "wrap", width: "100%" }}>
+            <input type="email" value={emailVal} onChange={(e) => setEmailVal(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") saveEmail(); }} placeholder="client@example.com" style={{ ...inputStyle, marginBottom: 0, flex: 1, minWidth: 200 }} />
+            <button onClick={saveEmail} disabled={busy} style={{ ...btnSolid, background: INK, padding: "8px 12px", opacity: busy ? 0.6 : 1 }}><Check size={13} /> Save</button>
+            <button onClick={() => { setEditEmail(false); setEmailVal(""); }} style={{ ...btnGhost, padding: "8px 12px" }}>Cancel</button>
+          </div>
+        )}
+      </div>
+      {editEmail && <div style={{ ...mono, fontSize: 9.5, color: FAINT, marginTop: 6, lineHeight: 1.45 }}>{status.hasAccount ? "This client already has an account — changing the email moves the account and all their bookings to the new address." : "Reassigns this booking to the new email. The account will be created under it."}</div>}
 
       {!status.hasAccount ? (
         <>
@@ -444,7 +483,7 @@ export function AdminSessions({ state, adminId, setAdminId, requestSetStage, add
         </div>
 
         <GearCard session={session} services={state.services} />
-        <ClientAccountForSession session={session} onSendInvite={onSendInvite} showToast={showToast} />
+        <ClientAccountForSession session={session} onSendInvite={onSendInvite} patchSession={patchSession} showToast={showToast} />
         <SignedAgreements email={session.clientEmail} showToast={showToast} />
         <ClientNotes email={session.clientEmail} showToast={showToast} />
         <SessionExpenses sessionId={session.id} revenue={Number(session.total) || 0} />

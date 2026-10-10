@@ -109,10 +109,17 @@ export async function PATCH(request: Request) {
     for (const k of ["comments", "clientImage", "brief", "shotList"]) if (k in patch) allowed[k] = patch[k];
   }
   const merged = { ...cur.data, ...allowed };
+  // Admins may reassign a booking to a different client email. Keep the indexed client_email column
+  // in sync with the JSON so the client's own session lookups (which filter on the column) still work.
+  let colEmail = String(cur.client_email || "");
+  if (me.role === "admin" && typeof allowed.clientEmail === "string" && allowed.clientEmail.trim()) {
+    colEmail = allowed.clientEmail.trim().toLowerCase();
+    merged.clientEmail = colEmail;
+  }
   const dataStr = JSON.stringify(merged);
   await sql`
     UPDATE portal_sessions
-    SET data = ${dataStr}::jsonb, date = ${merged.date || null}, time = ${merged.time || null},
+    SET data = ${dataStr}::jsonb, client_email = ${colEmail}, date = ${merged.date || null}, time = ${merged.time || null},
         status = ${merged.status || "active"}, updated_at = now()
     WHERE id = ${id}
   `;
