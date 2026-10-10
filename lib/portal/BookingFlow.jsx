@@ -243,12 +243,20 @@ export function BookingFlow({ state, direct, slotTaken, onCancel, onComplete, on
       <h1 style={{ ...display, fontWeight: 700, fontSize: 30, color: INK, marginBottom: 20, letterSpacing: "-0.015em" }}>{direct ? "You've been invited to book" : "Let's plan your project"}</h1>
 
       {direct && (
-        <div style={{ background: AB, border: `1px solid ${ABD}`, borderRadius: 10, padding: "14px 18px", marginBottom: 22, display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
-          <CalendarClock size={18} color={A} />
-          <div style={{ flex: 1, minWidth: 200 }}>
-            <div style={{ ...display, fontWeight: 600, fontSize: 16, color: INK }}>{direct.serviceName}</div>
-            <div style={{ ...mono, fontSize: 11, color: AT, marginTop: 2 }}>{fmtDate(direct.date)} at {fmtTime(direct.time)} · this slot is held for you</div>
+        <div style={{ background: AB, border: `1px solid ${ABD}`, borderRadius: 10, padding: "14px 18px", marginBottom: 22 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+            <CalendarClock size={18} color={A} />
+            <div style={{ flex: 1, minWidth: 200 }}>
+              <div style={{ ...display, fontWeight: 600, fontSize: 16, color: INK }}>{direct.serviceName}</div>
+              <div style={{ ...mono, fontSize: 11, color: AT, marginTop: 2 }}>{fmtDate(direct.date)} at {fmtTime(direct.time)} · this slot is held for you</div>
+            </div>
           </div>
+          {direct.details ? (
+            <div style={{ marginTop: 12, paddingTop: 12, borderTop: `1px solid ${ABD}` }}>
+              <div style={{ ...mono, fontSize: 9.5, letterSpacing: "0.14em", textTransform: "uppercase", color: AT, marginBottom: 5 }}>About this session</div>
+              <div style={{ fontSize: 13.5, color: INK, lineHeight: 1.55, whiteSpace: "pre-wrap" }}>{direct.details}</div>
+            </div>
+          ) : null}
         </div>
       )}
 
@@ -498,7 +506,7 @@ export function BookingFlow({ state, direct, slotTaken, onCancel, onComplete, on
 
           <div style={{ display: "flex", justifyContent: "space-between" }}>
             <button onClick={() => setStep(3)} style={btnGhost}><ArrowLeft size={14} /> Back</button>
-            <button onClick={() => { if (!date || !time || !payChoice || taken) return; const payAmount = optionAmount(rules.options.find((o) => o.key === payChoice), total); onComplete({ linkId: direct?.id, group, serviceName: service.name, location: service.location || "", locationUrl: service.locationUrl || "", confirmationMessage: service.confirmationMessage || "", duration: apptLen, apptMin: apptLen, padBefore: padB, padAfter: padA, addons: chosenAddons.map((a) => ({ name: a.name, price: Number(a.price) || 0, addTime: Number(a.addTime) || 0 })), total, payAmount, date, time, payChoice, name: acct.name, email: acct.email }); }} style={{ ...btnSolid, background: date && time && payChoice && !taken ? A : FAINT }}><Check size={15} /> {(() => { const amt = optionAmount(rules.options.find((o) => o.key === payChoice), total); return amt > 0 ? "Continue to payment · " + money(amt) : "Confirm booking"; })()}</button>
+            <button onClick={() => { if (!date || !time || !payChoice || taken) return; const payAmount = optionAmount(rules.options.find((o) => o.key === payChoice), total); onComplete({ linkId: direct?.id, bookingDetails: direct?.details || "", group, serviceName: service.name, location: service.location || "", locationUrl: service.locationUrl || "", confirmationMessage: service.confirmationMessage || "", duration: apptLen, apptMin: apptLen, padBefore: padB, padAfter: padA, addons: chosenAddons.map((a) => ({ name: a.name, price: Number(a.price) || 0, addTime: Number(a.addTime) || 0 })), total, payAmount, date, time, payChoice, name: acct.name, email: acct.email }); }} style={{ ...btnSolid, background: date && time && payChoice && !taken ? A : FAINT }}><Check size={15} /> {(() => { const amt = optionAmount(rules.options.find((o) => o.key === payChoice), total); return amt > 0 ? "Continue to payment · " + money(amt) : "Confirm booking"; })()}</button>
           </div>
         </div>
       )}

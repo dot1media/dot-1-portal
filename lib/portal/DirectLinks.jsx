@@ -15,6 +15,7 @@ export function DirectLinks({ state, createDirectLink, revokeDirectLink, openDir
   const [date, setDate] = useState("");
   const [time, setTime] = useState("");
   const [recipient, setRecipient] = useState("");
+  const [details, setDetails] = useState("");
   const [justMade, setJustMade] = useState(null);
   const [inviteAccount, setInviteAccount] = useState(true);
   const g = GROUPS[group];
@@ -24,10 +25,10 @@ export function DirectLinks({ state, createDirectLink, revokeDirectLink, openDir
   const generate = () => {
     if (!svc) { showToast("Choose a service first."); return; }
     if (!date || !time) { showToast("Pick a date and time."); return; }
-    const res = createDirectLink({ group, serviceId: svc.id, serviceName: svc.name, price: Number(svc.price) || 0, date, time, recipient: recipient.trim(), inviteAccount });
+    const res = createDirectLink({ group, serviceId: svc.id, serviceName: svc.name, price: Number(svc.price) || 0, date, time, recipient: recipient.trim(), details: details.trim(), inviteAccount });
     if (!res.ok) { showToast(res.error); return; }
     setJustMade(res.link);
-    setServiceId(""); setDate(""); setTime(""); setRecipient("");
+    setServiceId(""); setDate(""); setTime(""); setRecipient(""); setDetails("");
     showToast("Direct booking link created and slot reserved.");
   };
 
@@ -72,7 +73,10 @@ export function DirectLinks({ state, createDirectLink, revokeDirectLink, openDir
           <FieldLabel>Who is this for? (optional)</FieldLabel>
           <TextInput value={recipient} onChange={setRecipient} placeholder="e.g. Sarah M." />
 
-          <label style={{ display: "flex", alignItems: "flex-start", gap: 9, margin: "14px 0 4px", cursor: "pointer" }}>
+          <div style={{ marginTop: 12 }}><FieldLabel>What is this for? (optional, shown to your client)</FieldLabel></div>
+          <textarea value={details} onChange={(e) => setDetails(e.target.value)} placeholder="Add specific details for this booking, e.g. Sunset family session at Hatcher Pass. Two kids. Wear neutral tones; bring a change of clothes." rows={3} style={{ ...inputStyle, minHeight: 74, resize: "vertical", lineHeight: 1.5 }} />
+
+          <label style={{ display: "flex", alignItems: "flex-start", gap: 9, margin: "6px 0 4px", cursor: "pointer" }}>
             <input type="checkbox" checked={inviteAccount} onChange={(e) => setInviteAccount(e.target.checked)} style={{ marginTop: 2, width: 16, height: 16, accentColor: g.color, cursor: "pointer" }} />
             <span style={{ fontSize: 12.5, color: BODY, lineHeight: 1.45 }}>Invite them to create an account while booking. Uncheck to let them book with just their details, no password.</span>
           </label>
@@ -86,7 +90,8 @@ export function DirectLinks({ state, createDirectLink, revokeDirectLink, openDir
             <div style={{ background: `color-mix(in srgb, ${RED} 7%, ${PAPER})`, border: `1px solid color-mix(in srgb, ${RED} 22%, ${LINE})`, borderRadius: 12, padding: "18px 20px", marginBottom: 18 }}>
               <div style={{ ...mono, fontSize: 10, letterSpacing: "0.14em", textTransform: "uppercase", color: RED, marginBottom: 10, display: "flex", alignItems: "center", gap: 7 }}><Check size={13} /> Link ready — slot reserved</div>
               <div style={{ fontSize: 13, color: BODY, marginBottom: 4 }}>{justMade.serviceName}</div>
-              <div style={{ ...mono, fontSize: 11, color: DANGER, marginBottom: 12 }}>{fmtDate(justMade.date)} at {fmtTime(justMade.time)}{justMade.recipient ? ` · for ${justMade.recipient}` : ""}</div>
+              <div style={{ ...mono, fontSize: 11, color: DANGER, marginBottom: justMade.details ? 8 : 12 }}>{fmtDate(justMade.date)} at {fmtTime(justMade.time)}{justMade.recipient ? ` · for ${justMade.recipient}` : ""}</div>
+              {justMade.details ? <div style={{ fontSize: 12.5, color: BODY, lineHeight: 1.5, marginBottom: 12, whiteSpace: "pre-wrap" }}>{justMade.details}</div> : null}
               <div style={{ display: "flex", gap: 6, marginBottom: 12 }}>
                 <input readOnly value={linkUrl(justMade)} onClick={(e) => e.target.select()} style={{ ...inputStyle, marginBottom: 0, fontSize: 11, color: STONE }} />
                 <button onClick={() => copy(linkUrl(justMade))} style={{ ...btnSolid, background: INK, padding: "9px 12px" }}><Copy size={13} /></button>
@@ -118,6 +123,7 @@ export function DirectLinks({ state, createDirectLink, revokeDirectLink, openDir
               <div style={{ flex: 1, minWidth: 200 }}>
                 <div style={{ ...display, fontWeight: 600, fontSize: 15, color: INK }}>{l.serviceName}</div>
                 <div style={{ ...mono, fontSize: 10.5, color: STONE, marginTop: 2 }}>{fmtDate(l.date)} at {fmtTime(l.time)}{l.recipient ? ` · ${l.recipient}` : ""}</div>
+                {l.details ? <div style={{ fontSize: 12, color: BODY, lineHeight: 1.45, marginTop: 5, whiteSpace: "pre-wrap" }}>{l.details}</div> : null}
               </div>
               <span style={{ ...mono, fontSize: 9.5, letterSpacing: "0.08em", textTransform: "uppercase", padding: "4px 10px", borderRadius: 20, background: used ? "#eaf7ef" : "#fff4e8", color: used ? OK : WARN, border: `1px solid ${used ? "#bfe6cc" : "#f0dcc0"}` }}>{used ? "Booked" : "Active · held"}</span>
               <div style={{ display: "flex", gap: 6 }}>
