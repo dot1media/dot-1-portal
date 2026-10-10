@@ -5,7 +5,7 @@ import { verifyToken, verifyClientToken, ADMIN_COOKIE, CLIENT_COOKIE, makeInvite
 import { hasStudio } from "@/lib/studioGuard";
 import { sendPush, formatWhen } from "@/lib/push";
 import { ensureReferralSchema, creditDollars } from "@/lib/referral";
-import { sendEmail, sendToClient, clientEmailsEnabled, bookingStudioEmail, bookingClientEmail, stageClientEmail, messageEmail, stageLabelFor, briefStudioEmail, cancelClientEmail, internalBookingEmail, galleryEmail, videoEmail, deliveryEmail, reviewEmail, inviteEmail, isFinalStage } from "@/lib/email";
+import { sendEmail, sendToClient, clientEmailAllowedFor, bookingStudioEmail, bookingClientEmail, stageClientEmail, messageEmail, stageLabelFor, briefStudioEmail, cancelClientEmail, internalBookingEmail, galleryEmail, videoEmail, deliveryEmail, reviewEmail, inviteEmail, isFinalStage } from "@/lib/email";
 import { GOOGLE_REVIEW_URL } from "@/lib/portal/constants";
 
 export const runtime = "nodejs";
@@ -79,7 +79,7 @@ export async function POST(request: Request) {
         }
       }
     } catch (e) {} }
-    if ((await clientEmailsEnabled())) {
+    if ((await clientEmailAllowedFor(s.clientEmails))) {
       if (s.internal) {
         await sendEmail({ to: s.clientEmail, subject: "Your Dot One Media session is reserved", html: internalBookingEmail(s), replyTo: "contact@dot1.media" });
       } else {
@@ -119,10 +119,10 @@ export async function PATCH(request: Request) {
 
   const old = (cur.data || {}) as any;
   if (me.role === "admin" && body.notifyStage !== false && typeof allowed.currentStage === "number" && allowed.currentStage > (old.currentStage || 0)) {
-    await sendToClient(merged.clientEmail, "updates", { subject: "Your " + (merged.type || "session") + " status: " + stageLabelFor(merged, allowed.currentStage), html: stageClientEmail(merged, allowed.currentStage), replyTo: "contact@dot1.media" });
+    await sendToClient(merged.clientEmail, "updates", { subject: "Your " + (merged.type || "session") + " status: " + stageLabelFor(merged, allowed.currentStage), html: stageClientEmail(merged, allowed.currentStage), replyTo: "contact@dot1.media", sessionPref: merged.clientEmails });
     if (isFinalStage(merged, allowed.currentStage)) {
       const rl = (process.env.GOOGLE_REVIEW_LINK || GOOGLE_REVIEW_URL || "").trim();
-      if (rl && merged.clientEmail && (await clientEmailsEnabled())) { try { await sendEmail({ to: merged.clientEmail, subject: "Thank you from Dot One Media", html: reviewEmail(merged, rl), replyTo: "contact@dot1.media" }); } catch (e) {} }
+      if (rl && merged.clientEmail && (await clientEmailAllowedFor(merged.clientEmails))) { try { await sendEmail({ to: merged.clientEmail, subject: "Thank you from Dot One Media", html: reviewEmail(merged, rl), replyTo: "contact@dot1.media" }); } catch (e) {} }
     }
   }
   if (Array.isArray(allowed.comments) && allowed.comments.length > (old.comments || []).length) {
@@ -133,14 +133,14 @@ export async function PATCH(request: Request) {
       try { await sendPush(subj, [(merged.type || "Session"), formatWhen(merged.date, merged.time), last.body ? String(last.body).slice(0, 70) : "sent an image"].filter(Boolean).join(" · "), "/"); } catch (e) {}
     } else if (last && last.author === "studio") {
       const subj = last.body ? "New reply from Dot One Media" : "Dot One Media sent you an image";
-      await sendToClient(merged.clientEmail, "messages", { subject: subj, html: messageEmail(merged, false, last.body, last.image), replyTo: "contact@dot1.media" });
+      await sendToClient(merged.clientEmail, "messages", { subject: subj, html: messageEmail(merged, false, last.body, last.image), replyTo: "contact@dot1.media", sessionPref: merged.clientEmails });
     }
   }
   if (me.role === "admin") {
     const want = new Set<string>();
     if (typeof body.emailDelivery === "string") want.add(body.emailDelivery);
     if (Array.isArray(body.emailDeliveryKinds)) for (const k of body.emailDeliveryKinds) want.add(String(k));
-    if (want.size && merged.clientEmail && (await clientEmailsEnabled())) {
+    if (want.size && merged.clientEmail && (await clientEmailAllowedFor(merged.clientEmails))) {
       const DKINDS = [
         { field: "deliveryPhoto", kind: "gallery", subj: "Your gallery from Dot One Media is ready" },
         { field: "deliveryVideo", kind: "video", subj: "Your video from Dot One Media is ready" },
@@ -155,11 +155,11 @@ export async function PATCH(request: Request) {
       }
     }
   }
-  if (me.role === "admin" && body.sendReview && merged.clientEmail && (await clientEmailsEnabled())) {
+  if (me.role === "admin" && body.sendReview && merged.clientEmail && (await clientEmailAllowedFor(merged.clientEmails))) {
     const rl = (process.env.GOOGLE_REVIEW_LINK || GOOGLE_REVIEW_URL || "").trim();
     if (rl) { try { await sendEmail({ to: merged.clientEmail, subject: "Thank you from Dot One Media", html: reviewEmail(merged, rl), replyTo: "contact@dot1.media" }); } catch (e) {} }
   }
-  if (me.role === "admin" && body.sendInvite && merged.clientEmail && (await clientEmailsEnabled())) {
+  if (me.role === "admin" && body.sendInvite && merged.clientEmail && (await clientEmailAllowedFor(merged.clientEmails))) {
     const link = "https://portal.dot1.media/?invite=" + encodeURIComponent(makeInviteToken(merged.clientEmail, merged.clientName || ""));
     try { await sendEmail({ to: merged.clientEmail, subject: "Track your session with Dot One Media", html: inviteEmail(merged, link), replyTo: "contact@dot1.media" }); } catch (e) {}
   }
@@ -169,7 +169,7 @@ export async function PATCH(request: Request) {
   }
 
   if (me.role === "admin" && merged.status === "cancelled" && (old.status || "active") !== "cancelled") {
-    await sendToClient(merged.clientEmail, "updates", { subject: "Your " + (merged.type || "booking") + " has been cancelled", html: cancelClientEmail(merged), replyTo: "contact@dot1.media" });
+    await sendToClient(merged.clientEmail, "updates", { subject: "Your " + (merged.type || "booking") + " has been cancelled", html: cancelClientEmail(merged), replyTo: "contact@dot1.media", sessionPref: merged.clientEmails });
   }
 
   return NextResponse.json({ ok: true, session: merged });

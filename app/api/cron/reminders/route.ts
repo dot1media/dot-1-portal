@@ -38,15 +38,15 @@ export async function GET(req: Request) {
     const days = daysUntil(date);
     const when = formatWhen(date, d.time);
     const type = d.type || "session";
-    if (days === 2 && !(await alreadySent(r.id, "48h"))) { try { await sendToClient(email, "updates", { subject: "Your " + type + " is in two days", html: reminderHtml(type, when, d, "in two days"), replyTo: "contact@dot1.media" }); await markSent(r.id, "48h"); sent.h48++; } catch (e) {} }
+    if (days === 2 && !(await alreadySent(r.id, "48h"))) { try { await sendToClient(email, "updates", { subject: "Your " + type + " is in two days", html: reminderHtml(type, when, d, "in two days"), replyTo: "contact@dot1.media", sessionPref: d.clientEmails }); await markSent(r.id, "48h"); sent.h48++; } catch (e) {} }
     if (days === 1) {
       tomorrow.push([d.clientName || "Client", type, d.time ? formatWhen("", d.time) : ""].filter(Boolean).join(" · "));
-      if (!(await alreadySent(r.id, "24h"))) { try { await sendToClient(email, "updates", { subject: "See you tomorrow: your " + type, html: reminderHtml(type, when, d, "tomorrow"), replyTo: "contact@dot1.media" }); await markSent(r.id, "24h"); sent.h24++; } catch (e) {} }
+      if (!(await alreadySent(r.id, "24h"))) { try { await sendToClient(email, "updates", { subject: "See you tomorrow: your " + type, html: reminderHtml(type, when, d, "tomorrow"), replyTo: "contact@dot1.media", sessionPref: d.clientEmails }); await markSent(r.id, "24h"); sent.h24++; } catch (e) {} }
     }
     const total = Number(d.total) || 0; const paid = d.paymentStatus === "paid" ? (Number(d.payAmount) || 0) : 0; const due = total - paid;
     if (due > 0 && d.paymentStatus === "paid" && d.balanceStatus !== "paid") {
-      if (days >= 0 && days <= 7 && !(await alreadySent(r.id, "balance"))) { try { await sendToClient(email, "payments", { subject: "Balance due for your " + type, html: balanceHtml(type, when, due), replyTo: "contact@dot1.media" }); await markSent(r.id, "balance"); sent.balance++; } catch (e) {} }
-      if (days < 0 && days >= -30 && !(await alreadySent(r.id, "balance-overdue"))) { try { await sendToClient(email, "payments", { subject: "Reminder: remaining balance for your " + type, html: balanceHtml(type, when, due, true), replyTo: "contact@dot1.media" }); await markSent(r.id, "balance-overdue"); sent.overdue++; } catch (e) {} }
+      if (days >= 0 && days <= 7 && !(await alreadySent(r.id, "balance"))) { try { await sendToClient(email, "payments", { subject: "Balance due for your " + type, html: balanceHtml(type, when, due), replyTo: "contact@dot1.media", sessionPref: d.clientEmails }); await markSent(r.id, "balance"); sent.balance++; } catch (e) {} }
+      if (days < 0 && days >= -30 && !(await alreadySent(r.id, "balance-overdue"))) { try { await sendToClient(email, "payments", { subject: "Reminder: remaining balance for your " + type, html: balanceHtml(type, when, due, true), replyTo: "contact@dot1.media", sessionPref: d.clientEmails }); await markSent(r.id, "balance-overdue"); sent.overdue++; } catch (e) {} }
     }
   }
   if (tomorrow.length) { try { await sendPush("Tomorrow: " + tomorrow.length + " session" + (tomorrow.length === 1 ? "" : "s"), tomorrow.slice(0, 3).join("  |  "), "/"); } catch (e) {} }

@@ -106,7 +106,7 @@ export async function GET(request: Request) {
               const rec: any = { id: rid, client_email: data.clientEmail, client_name: data.clientName, service: rcptService, kind: rcptKind, amount_cents: amountCents, total_cents: Math.round((Number(data.total) || 0) * 100), card_brand: cd.card_brand, card_last4: cd.last_4, paid_at: paidAt };
               let attachments: any = undefined;
               try { attachments = [{ filename: "Dot-One-Media-Receipt.pdf", content: await receiptPdf(rec) }]; } catch (e2) {}
-              try { await sendToClient(data.clientEmail, "payments", { subject: "Your Dot One Media receipt", html: receiptEmail(rec), attachments }); }
+              try { await sendToClient(data.clientEmail, "payments", { subject: "Your Dot One Media receipt", html: receiptEmail(rec), attachments, sessionPref: data.clientEmails }); }
               catch (e7) { receipt = "recorded (client email failed)"; try { console.error("[pay/verify] client receipt email:", (e7 && (e7 as any).message) || e7); } catch (e8) {} }
             }
           } else {

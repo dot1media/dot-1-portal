@@ -180,7 +180,19 @@ export function AdminSessions({ state, adminId, setAdminId, requestSetStage, add
           </div>
         </div>
         <div style={{ ...mono, fontSize: 11, color: STONE, marginBottom: session.notifyEmail ? 4 : 18, letterSpacing: "0.04em" }}>{session.type} · {fmtDate(session.date) || "date TBD"}{session.time ? " at " + fmtTime(session.time) : ""} · {session.clientEmail}</div>
-        {session.notifyEmail && <div style={{ ...mono, fontSize: 10, color: FAINT, marginBottom: 18, letterSpacing: "0.04em", display: "flex", alignItems: "center", gap: 6 }}><Send size={11} /> New-booking alert routed to {session.notifyEmail}</div>}
+        {session.notifyEmail && <div style={{ ...mono, fontSize: 10, color: FAINT, marginBottom: 10, letterSpacing: "0.04em", display: "flex", alignItems: "center", gap: 6 }}><Send size={11} /> New-booking alert routed to {session.notifyEmail}</div>}
+        <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", marginBottom: 18 }}>
+          <span style={{ ...mono, fontSize: 10, letterSpacing: "0.12em", textTransform: "uppercase", color: STONE, display: "inline-flex", alignItems: "center", gap: 6 }}><Send size={11} /> Client emails</span>
+          <div style={{ display: "inline-flex", border: `1px solid ${LINE}`, borderRadius: 8, overflow: "hidden" }}>
+            {[{ k: "default", v: null, label: "Default" }, { k: "on", v: true, label: "On" }, { k: "off", v: false, label: "Off" }].map(({ k, v, label }, i) => {
+              const cur = session.clientEmails === true ? "on" : session.clientEmails === false ? "off" : "default";
+              const active = cur === k;
+              const col = k === "off" ? DANGER : k === "on" ? OK : INK;
+              return <button key={k} onClick={() => patchSession(session.id, { clientEmails: v })} style={{ ...mono, fontSize: 10, letterSpacing: "0.06em", textTransform: "uppercase", padding: "6px 12px", cursor: "pointer", border: "none", borderLeft: i === 0 ? "none" : `1px solid ${LINE}`, background: active ? col : PAPER, color: active ? "#fff" : STONE }}>{label}</button>;
+            })}
+          </div>
+          <span style={{ ...mono, fontSize: 9.5, color: FAINT }}>{session.clientEmails === true ? "On for this session, even before cutover" : session.clientEmails === false ? "Off for this session" : "Follows the global cutover switch"}</span>
+        </div>
         {(session.paymentStatus === "paid" || session.paymentStatus === "pending") && (
           <div style={{ display: "inline-flex", alignItems: "center", gap: 8, background: session.paymentStatus === "paid" ? "#eef6ee" : "#fbf4e9", border: `1px solid ${session.paymentStatus === "paid" ? "#cfe6cf" : "#f0e2c4"}`, borderRadius: 8, padding: "7px 12px", marginBottom: 16 }}>
             <span style={{ ...mono, fontSize: 10.5, letterSpacing: "0.1em", textTransform: "uppercase", color: session.paymentStatus === "paid" ? OK : WARN }}>{session.paymentStatus === "paid" ? "Paid" : "Payment pending"}{session.payAmount ? " · " + money(session.payAmount) : ""}</span>

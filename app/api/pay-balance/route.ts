@@ -50,7 +50,7 @@ export async function POST(request: Request) {
   const link = sq.payment_link.url;
   const merged = { ...data, balanceOrderId: sq.payment_link.order_id || "", balanceStatus: "sent", balanceLink: link };
   await sql`UPDATE portal_sessions SET data = ${JSON.stringify(merged)}::jsonb, updated_at = now() WHERE id = ${sid}`;
-  await sendToClient(data.clientEmail, "payments", { subject: "Your balance for " + String(data.type || "your session") + " is ready to pay", html: balanceEmail(data, link, balanceCents / 100), replyTo: "contact@dot1.media" });
+  await sendToClient(data.clientEmail, "payments", { subject: "Your balance for " + String(data.type || "your session") + " is ready to pay", html: balanceEmail(data, link, balanceCents / 100), replyTo: "contact@dot1.media", sessionPref: data.clientEmails });
   return NextResponse.json({ ok: true, link });
 }
 

@@ -35,3 +35,12 @@ export async function setClientEmailsEnabled(on: boolean): Promise<void> {
     ON CONFLICT (key) DO UPDATE SET enabled = ${!!on}, updated_at = now()`;
   cache = { at: Date.now(), val: !!on };
 }
+
+// Per-session override, layered on top of the global switch. A session may carry a `clientEmails`
+// flag: true forces its client emails ON, false forces them OFF, and null/undefined follows the
+// global switch. Studio-facing notifications are never affected.
+export async function clientEmailAllowedFor(sessionPref: boolean | null | undefined): Promise<boolean> {
+  if (sessionPref === true) return true;
+  if (sessionPref === false) return false;
+  return clientEmailsEnabled();
+}

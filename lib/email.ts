@@ -266,8 +266,8 @@ export function receiptEmail(p: any): string {
 // reviews, invites, cancellations, payment/balance requests, receipts, prints, referrals, waitlist).
 // Controlled by a DB flag the studio toggles from the admin portal (Business settings), default OFF.
 // Studio-facing notifications (contact@dot1.media / NOTIFY_EMAILS) are unaffected.
-export { clientEmailsEnabled } from "@/lib/email-flags";
-import { clientEmailsEnabled } from "@/lib/email-flags";
+export { clientEmailsEnabled, clientEmailAllowedFor } from "@/lib/email-flags";
+import { clientEmailsEnabled, clientEmailAllowedFor } from "@/lib/email-flags";
 
 export async function clientAllows(email: string | undefined | null, category: string): Promise<boolean> {
   if (!email) return false;
@@ -279,11 +279,12 @@ export async function clientAllows(email: string | undefined | null, category: s
   } catch (e) { return true; }
 }
 
-export async function sendToClient(email: string | undefined | null, category: string, opts: { subject: string; html: string; replyTo?: string; attachments?: Array<{ filename: string; content: string }> }): Promise<void> {
+export async function sendToClient(email: string | undefined | null, category: string, opts: { subject: string; html: string; replyTo?: string; cc?: string | string[]; attachments?: Array<{ filename: string; content: string }>; sessionPref?: boolean | null }): Promise<void> {
   if (!email) return;
-  if (!(await clientEmailsEnabled())) { console.log("[email] client send suppressed (pre-cutover): " + opts.subject + " → " + email); return; }
+  const { sessionPref, ...send } = opts;
+  if (!(await clientEmailAllowedFor(sessionPref))) { console.log("[email] client send suppressed (pre-cutover): " + opts.subject + " → " + email); return; }
   if (!(await clientAllows(email, category))) return;
-  await sendEmail({ to: String(email), ...opts });
+  await sendEmail({ to: String(email), ...send });
 }
 
 export function paymentStudioEmail(s: any, info: { amountCents: number; kind: string; cardBrand?: string | null; cardLast4?: string | null }): string {
