@@ -591,8 +591,7 @@ export default function App() {
           </div>
         )}
       </main>
-      {view !== "terms" && view !== "privacy" ? <Footer onLegal={(k) => { setLegalReturn(view); setView(k); }} /> : null}
-      <PortalFooter brand={brand} />
+      <PortalFooter brand={brand} onLegal={(k) => { setLegalReturn(view); setView(k); }} />
 
       {toast && <div style={{ position: "fixed", bottom: 44, left: "50%", transform: "translateX(-50%)", background: INK, color: "#fff", padding: "11px 18px", borderRadius: 8, boxShadow: "0 10px 30px rgba(0,0,0,0.25)", fontSize: 13.5, maxWidth: "92%", display: "flex", alignItems: "center", gap: 9, zIndex: 60 }}><CheckCircle2 size={16} color="#7ee0a0" /> {toast}</div>}
       {confirm && <ConfirmDialog {...confirm} onCancel={() => setConfirm(null)} />}
@@ -612,9 +611,10 @@ export default function App() {
 
 /* ============================ LANDING (first-use entry) ============================ */
 
-function PortalFooter({ brand = { orgName: "Dot One Media", tagline: "Create with purpose." } }) {
+function PortalFooter({ brand = { orgName: "Dot One Media", tagline: "Create with purpose." }, onLegal }) {
   const link = { color: STONE, textDecoration: "none" };
   const A = (href, label) => <a href={href} target="_blank" rel="noopener noreferrer" style={link}>{label}</a>;
+  const B = (k, label) => <button onClick={() => onLegal && onLegal(k)} style={{ ...link, background: "transparent", border: "none", cursor: "pointer", padding: 0, font: "inherit" }}>{label}</button>;
   return (
     <footer style={{ borderTop: `1px solid ${LINE}`, marginTop: 54, padding: "40px 24px 34px", textAlign: "center" }}>
       <div style={{ ...mono, fontSize: 10.5, letterSpacing: "0.16em", textTransform: "uppercase", color: STONE, marginBottom: 16 }}>Wasilla, Alaska · USA</div>
@@ -626,10 +626,12 @@ function PortalFooter({ brand = { orgName: "Dot One Media", tagline: "Create wit
       <img src="/api/brand/logo" alt="Dot One Media" style={{ height: 34, width: "auto", margin: "0 auto 10px", display: "block" }} />
       <div style={{ ...mono, fontSize: 10.5, letterSpacing: "0.16em", textTransform: "uppercase", color: INK, marginBottom: 24 }}>{brand.orgName} · {brand.tagline}</div>
       <div style={{ fontSize: 11.5, display: "flex", justifyContent: "center", gap: 16, flexWrap: "wrap", marginBottom: 20 }}>
-        {A("https://www.dot1.media/privacy-policy", "Privacy Policy")}
+        {B("terms", "Terms")}
+        {onLegal ? B("privacy", "Privacy Policy") : A("https://www.dot1.media/privacy-policy", "Privacy Policy")}
         {A("https://www.dot1.media/Dot-One-Media-Client-Services-Agreement.pdf", "Client Services Agreement")}
         {A("https://www.dot1.media/Dot-One-Media-Release-and-Waiver.pdf", "Media Release")}
         {A("https://www.dot1.media/Dot-One-Media-Minor-Release-and-Waiver.pdf", "Minor Release")}
+        {A("mailto:contact@dot1.media", "Contact")}
       </div>
       <div style={{ fontSize: 10.5, color: FAINT, lineHeight: 1.65, maxWidth: 660, margin: "0 auto" }}>
         Copyright © 2026 DOT ONE LLC. All Rights Reserved. DOT ONE®, DOT ONE MEDIA PRODUCTIONS™, and associated logos are trademarks or registered trademarks of DOT ONE LLC and/or its affiliates. Unauthorized use, reproduction, or distribution of this material, in whole or in part, without written permission from DOT ONE LLC or its parent company Dot One Media Inc. is strictly prohibited.
@@ -1189,22 +1191,6 @@ function LegalPage({ kind, onBack }) {
   );
 }
 
-function Footer({ onLegal }) {
-  const year = new Date().getFullYear();
-  const link = { ...mono, fontSize: 10, letterSpacing: "0.08em", textTransform: "uppercase", color: STONE, background: "transparent", border: "none", cursor: "pointer", padding: 0, textDecoration: "none" };
-  return (
-    <footer style={{ borderTop: `1px solid ${LINE}`, background: PAPER }}>
-      <div style={{ maxWidth: 1120, margin: "0 auto", padding: "22px 22px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 14, flexWrap: "wrap" }}>
-        <div style={{ ...mono, fontSize: 10, letterSpacing: "0.04em", color: FAINT }}>{"\u00a9 " + year + " Dot One Media · Wasilla, Alaska"}</div>
-        <div style={{ display: "flex", alignItems: "center", gap: 20 }}>
-          <button onClick={() => onLegal("terms")} style={link}>Terms</button>
-          <button onClick={() => onLegal("privacy")} style={link}>Privacy</button>
-          <a href="mailto:contact@dot1.media" style={link}>Contact</a>
-        </div>
-      </div>
-    </footer>
-  );
-}
 
 function NotificationBell({ mode, sessions, clientId, onOpenSession, onMarkRead, onOpenTab }) {
   const [open, setOpen] = useState(false);
