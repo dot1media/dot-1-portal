@@ -101,7 +101,7 @@ export function VideoReview({ sessionId, isStudio }) {
           {approved && <span style={{ ...mono, fontSize: 10.5, letterSpacing: "0.06em", textTransform: "uppercase", color: "#fff", background: A, borderRadius: 20, padding: "6px 12px", display: "inline-flex", alignItems: "center", gap: 6 }}><Check size={13} /> Approved</span>}
         </div>
       </div>
-      <video ref={videoRef} src={cur.playUrl} controls playsInline onTimeUpdate={(e) => setCurTime(e.target.currentTime)} style={{ width: "100%", borderRadius: 10, background: "#000", display: "block", maxHeight: "68vh" }} />
+      <video ref={videoRef} src={cur.playUrl} controls playsInline preload="auto" onTimeUpdate={(e) => setCurTime(e.target.currentTime)} style={{ width: "100%", borderRadius: 10, background: "#000", display: "block", maxHeight: "68vh" }} />
       {!approved && (
         <div style={{ display: "flex", gap: 8, marginTop: 14, alignItems: "center" }}>
           <span style={{ ...mono, fontSize: 12.5, color: A, flexShrink: 0, minWidth: 42 }}>{fmtT(curTime)}</span>
