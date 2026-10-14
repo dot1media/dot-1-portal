@@ -76,12 +76,17 @@ function ClientActionPanel({ session, grp, draft, setDraft, onSubmit }) {
   if (stage === 5) {
     const reviewLabel = isVideo ? "Review your cut" : "Preview your gallery";
     return (
-      <div style={{ background: CREAM, border: `1px solid ${LINE}`, borderRadius: 10, padding: "16px 18px", marginTop: 4 }}>
-        <div style={{ ...mono, fontSize: 10, letterSpacing: "0.16em", textTransform: "uppercase", color: g.color, marginBottom: 10 }}>Your preview is ready</div>
-        {session.reviewLink ? <a href={session.reviewLink} target="_blank" rel="noopener noreferrer" style={{ display: "inline-flex", alignItems: "center", gap: 8, background: INK, color: "#fff", textDecoration: "none", padding: "10px 16px", borderRadius: 8, fontSize: 13.5, marginBottom: 14 }}>{isVideo ? <Play size={15} /> : <ImageIcon size={15} />} {reviewLabel}</a> : <div style={{ ...mono, fontSize: 11, color: FAINT, marginBottom: 12 }}>Preview link coming shortly.</div>}
-        <div style={{ fontSize: 13, color: BODY, marginBottom: 8, lineHeight: 1.5 }}>Watched it? If you'd like any changes, tell us here and we'll take care of them.</div>
-        <textarea value={draft} onChange={(e) => setDraft(e.target.value)} placeholder="Suggest an edit…" rows={3} style={{ width: "100%", border: `1px solid ${LINE}`, borderRadius: 8, padding: "10px 12px", fontSize: 13.5, fontFamily: "inherit", resize: "vertical", background: PAPER, color: BODY, boxSizing: "border-box" }} />
-        <button onClick={onSubmit} style={{ marginTop: 10, ...btnSolid, background: g.color, textTransform: "none", letterSpacing: 0, fontSize: 13 }}><Send size={14} /> Send edit request</button>
+      <div style={{ marginTop: 4 }}>
+        {/* In-portal video cuts uploaded for review. Renders nothing if there are no cuts yet, in which
+            case the external preview-link block below still applies. */}
+        <VideoReview sessionId={session.id} />
+        <div style={{ background: CREAM, border: `1px solid ${LINE}`, borderRadius: 10, padding: "16px 18px" }}>
+          <div style={{ ...mono, fontSize: 10, letterSpacing: "0.16em", textTransform: "uppercase", color: g.color, marginBottom: 10 }}>Your preview is ready</div>
+          {session.reviewLink ? <a href={session.reviewLink} target="_blank" rel="noopener noreferrer" style={{ display: "inline-flex", alignItems: "center", gap: 8, background: INK, color: "#fff", textDecoration: "none", padding: "10px 16px", borderRadius: 8, fontSize: 13.5, marginBottom: 14 }}>{isVideo ? <Play size={15} /> : <ImageIcon size={15} />} {reviewLabel}</a> : <div style={{ ...mono, fontSize: 11, color: FAINT, marginBottom: 12 }}>Your cut is above. If it isn't showing yet, it's still processing — check back shortly.</div>}
+          <div style={{ fontSize: 13, color: BODY, marginBottom: 8, lineHeight: 1.5 }}>Watched it? If you'd like any changes, tell us here and we'll take care of them.</div>
+          <textarea value={draft} onChange={(e) => setDraft(e.target.value)} placeholder="Suggest an edit…" rows={3} style={{ width: "100%", border: `1px solid ${LINE}`, borderRadius: 8, padding: "10px 12px", fontSize: 13.5, fontFamily: "inherit", resize: "vertical", background: PAPER, color: BODY, boxSizing: "border-box" }} />
+          <button onClick={onSubmit} style={{ marginTop: 10, ...btnSolid, background: g.color, textTransform: "none", letterSpacing: 0, fontSize: 13 }}><Send size={14} /> Send edit request</button>
+        </div>
       </div>
     );
   }
