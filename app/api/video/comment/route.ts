@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { sql } from "@/lib/db";
 import { hasStudio } from "@/lib/studioGuard";
-import { reviewWithOwner, currentClientEmail, newId } from "@/lib/video";
+import { reviewWithOwner, currentClientEmail, clientMayAccessReview, newId } from "@/lib/video";
 import { sendEmail } from "@/lib/email";
 export const runtime = "nodejs";
 export async function POST(req: Request) {
@@ -14,7 +14,7 @@ export async function POST(req: Request) {
   if (!rv) return NextResponse.json({ error: "Not found." }, { status: 404 });
   const admin = await hasStudio();
   let ok = admin;
-  if (!ok) { const em = await currentClientEmail(); ok = !!em && em === String(rv.client_email || "").toLowerCase(); }
+  if (!ok) { const em = await currentClientEmail(); ok = await clientMayAccessReview(rv, em); }
   if (!ok) return NextResponse.json({ error: "Not authorized." }, { status: 401 });
   const id = newId("c_");
   await sql`INSERT INTO video_comments (id, review_id, t, body, author) VALUES (${id}, ${reviewId}, ${t}, ${body}, ${admin ? "studio" : "client"})`;

@@ -12,7 +12,16 @@ export async function GET(req: Request) {
   const reviews = (await sql`SELECT id, version, title, status, approved_at, client_email, final_uploaded, final_filename FROM video_reviews WHERE session_id = ${sessionId} AND uploaded = true ORDER BY version DESC`) as any[];
   if (!reviews.length) return NextResponse.json({ reviews: [], current: null, comments: [] });
   let ok = await hasStudio();
-  if (!ok) { const em = await currentClientEmail(); ok = !!em && em === String(reviews[0].client_email || "").toLowerCase(); }
+  if (!ok) {
+    const em = await currentClientEmail();
+    // Authorize against the session's CURRENT client email (and the email snapshot stored on the
+    // cut, as a fallback). Keying only off the snapshot meant a cut became invisible to the client
+    // whenever the studio changed the session's email after the cut was uploaded.
+    const sess = (await sql`SELECT client_email FROM portal_sessions WHERE id = ${sessionId} LIMIT 1`) as any[];
+    const sessEmail = String(sess[0]?.client_email || "").toLowerCase();
+    const revEmail = String(reviews[0].client_email || "").toLowerCase();
+    ok = !!em && (em === sessEmail || em === revEmail);
+  }
   if (!ok) return NextResponse.json({ error: "Not authorized." }, { status: 401 });
   const cur = (reviewId ? reviews.find((r) => r.id === reviewId) : null) || reviews[0];
   const comments = (await sql`SELECT id, t, body, author FROM video_comments WHERE review_id = ${cur.id} ORDER BY t`) as any[];

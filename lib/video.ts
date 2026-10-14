@@ -22,3 +22,17 @@ export async function reviewWithOwner(reviewId: string): Promise<any | null> {
   const rows = (await sql`SELECT * FROM video_reviews WHERE id = ${reviewId} LIMIT 1`) as any[];
   return rows[0] || null;
 }
+
+// A client may access a review if their email matches the session's CURRENT client email or the
+// email snapshot stored on the review. Keying only off the snapshot broke access whenever the studio
+// changed the session's email after the cut was uploaded.
+export async function clientMayAccessReview(rv: any, email: string): Promise<boolean> {
+  const em = String(email || "").toLowerCase();
+  if (!em || !rv) return false;
+  if (em === String(rv.client_email || "").toLowerCase()) return true;
+  if (rv.session_id) {
+    const s = (await sql`SELECT client_email FROM portal_sessions WHERE id = ${rv.session_id} LIMIT 1`) as any[];
+    if (em === String(s[0]?.client_email || "").toLowerCase()) return true;
+  }
+  return false;
+}
