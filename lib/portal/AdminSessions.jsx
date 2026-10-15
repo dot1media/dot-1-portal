@@ -378,6 +378,7 @@ function BalanceInvoicePanel({ session, patchSession, showToast }) {
 }
 
 export function AdminSessions({ state, adminId, setAdminId, requestSetStage, addComment, uploadMessageImage, patchSession, onReschedule, slotTaken, markMessagesRead, onCancelBooking, onCloseBooking, onReopenBooking, onSendBalance, onSendCharge, onCheckPayment, onNewInternal, onNewInvoice, onEmailDelivery, onRequestReview, onSendInvite, onSetGroup, onDeleteBooking, showToast }) {
+  const [delChargeId, setDelChargeId] = useState("");
   const [chgLabel, setChgLabel] = useState("");
   const [collapsed, setCollapsed] = useState({ completed: true });
   const [editType, setEditType] = useState(false);
@@ -537,6 +538,14 @@ export function AdminSessions({ state, adminId, setAdminId, requestSetStage, add
                       <span style={{ fontSize: 13, color: c.status === "paid" ? STONE : INK, fontWeight: 500 }}>{money((Number(c.amountCents) || 0) / 100)}</span>
                       <span style={{ ...mono, fontSize: 9, letterSpacing: "0.06em", textTransform: "uppercase", color: c.status === "paid" ? OK : WARN }}>{c.status === "paid" ? "Paid" : "Pending"}</span>
                       {c.status !== "paid" && c.squareOrderId ? <button onClick={() => onCheckPayment && onCheckPayment(session, c)} title="Check Square and mark this paid if the client has already paid" style={{ ...mono, fontSize: 8.5, letterSpacing: "0.05em", textTransform: "uppercase", color: STONE, background: "transparent", border: `1px solid ${LINE}`, borderRadius: 6, padding: "5px 8px", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 5 }}><RefreshCw size={10} /> Check</button> : null}
+                      {delChargeId === c.id ? (
+                        <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                          <button onClick={() => { patchSession(session.id, { charges: (session.charges || []).filter((x) => x.id !== c.id) }); setDelChargeId(""); showToast("Payment request deleted. No email was sent."); }} style={{ ...mono, fontSize: 8.5, letterSpacing: "0.05em", textTransform: "uppercase", color: "#fff", background: DANGER, border: "none", borderRadius: 6, padding: "5px 8px", cursor: "pointer" }}>Delete</button>
+                          <button onClick={() => setDelChargeId("")} title="Cancel" style={{ ...mono, fontSize: 8.5, letterSpacing: "0.05em", textTransform: "uppercase", color: STONE, background: "transparent", border: `1px solid ${LINE}`, borderRadius: 6, padding: "5px 8px", cursor: "pointer" }}>Keep</button>
+                        </span>
+                      ) : (
+                        <button onClick={() => setDelChargeId(c.id)} title="Delete this payment request (no email is sent)" style={{ background: "transparent", border: "none", cursor: "pointer", color: STONE, padding: 3, display: "inline-flex" }}><Trash2 size={13} /></button>
+                      )}
                     </div>
                   </div>
                 ))}
