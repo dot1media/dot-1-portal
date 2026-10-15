@@ -80,34 +80,64 @@ export async function buildInvoicePdf(inv: any): Promise<Uint8Array> {
   }
 
   // totals
+  const GREEN = rgb(0.18, 0.49, 0.196);
+  const isBalance = inv.amountPaidCents != null;
   y -= 6;
   const totLabel = "Total";
   const tot = money(Number(inv.totalCents) || 0);
   page.drawText(totLabel, { x: 612 - M - 170, y, size: 10, font: helv, color: STONE });
   page.drawText(tot, { x: 612 - M - helv.widthOfTextAtSize(tot, 10), y, size: 10, font: helv, color: INK });
-  y -= 24;
-  // retainer box
-  page.drawRectangle({ x: 612 - M - 236, y: y - 12, width: 236, height: 34, color: rgb(0.98, 0.955, 0.935) });
-  page.drawRectangle({ x: 612 - M - 236, y: y - 12, width: 2.5, height: 34, color: RED });
-  page.drawText("RETAINER DUE NOW (50%)", { x: 612 - M - 224, y: y + 8, size: 7.5, font: bold, color: RED });
-  const ret = money(Number(inv.retainerCents) || 0);
-  page.drawText(ret, { x: 612 - M - helv.widthOfTextAtSize(ret, 14) - 12, y: y - 6, size: 14, font: bold, color: INK });
-  y -= 34;
-  const remain = money((Number(inv.totalCents) || 0) - (Number(inv.retainerCents) || 0));
-  page.drawText("Remaining balance of " + remain + " is due per your service agreement.", { x: M, y, size: 8.5, font: helv, color: STONE });
-  y -= 22;
+  y -= 18;
 
-  // pay line
-  if (inv.payUrl) {
-    page.drawText("Pay your retainer securely online:", { x: M, y, size: 9, font: bold, color: INK });
-    y -= 13;
-    page.drawText(String(inv.payUrl).slice(0, 96), { x: M, y, size: 8, font: helv, color: RED });
-    y -= 12;
-    page.drawText("Paying the retainer reserves your date and opens your Dot One client portal account.", { x: M, y, size: 8, font: helv, color: STONE });
+  if (isBalance) {
+    // paid credit line
+    const paidLabel = String(inv.paidLabel || "Paid to date");
+    const paid = "-" + money(Number(inv.amountPaidCents) || 0);
+    page.drawText(paidLabel, { x: 612 - M - 170, y, size: 10, font: helv, color: GREEN });
+    page.drawText(paid, { x: 612 - M - helv.widthOfTextAtSize(paid, 10), y, size: 10, font: helv, color: GREEN });
     y -= 20;
+    // balance due box
+    const balanceDue = Number(inv.balanceDueCents != null ? inv.balanceDueCents : (Number(inv.totalCents) || 0) - (Number(inv.amountPaidCents) || 0));
+    page.drawRectangle({ x: 612 - M - 236, y: y - 12, width: 236, height: 34, color: rgb(0.98, 0.955, 0.935) });
+    page.drawRectangle({ x: 612 - M - 236, y: y - 12, width: 2.5, height: 34, color: RED });
+    page.drawText("BALANCE DUE NOW", { x: 612 - M - 224, y: y + 8, size: 7.5, font: bold, color: RED });
+    const bd = money(balanceDue);
+    page.drawText(bd, { x: 612 - M - helv.widthOfTextAtSize(bd, 14) - 12, y: y - 6, size: 14, font: bold, color: INK });
+    y -= 34;
+    page.drawText("Your deposit has been credited. Pay the balance in one secure payment.", { x: M, y, size: 8.5, font: helv, color: STONE });
+    y -= 22;
+    if (inv.payUrl) {
+      page.drawText("Pay your balance securely online:", { x: M, y, size: 9, font: bold, color: INK });
+      y -= 13;
+      page.drawText(String(inv.payUrl).slice(0, 96), { x: M, y, size: 8, font: helv, color: RED });
+      y -= 20;
+    } else {
+      page.drawText("We will send a secure payment link separately.", { x: M, y, size: 8.5, font: helv, color: STONE });
+      y -= 20;
+    }
   } else {
-    page.drawText("We will send a secure payment link separately to complete your reservation.", { x: M, y, size: 8.5, font: helv, color: STONE });
-    y -= 20;
+    y -= 6;
+    // retainer box
+    page.drawRectangle({ x: 612 - M - 236, y: y - 12, width: 236, height: 34, color: rgb(0.98, 0.955, 0.935) });
+    page.drawRectangle({ x: 612 - M - 236, y: y - 12, width: 2.5, height: 34, color: RED });
+    page.drawText("RETAINER DUE NOW (50%)", { x: 612 - M - 224, y: y + 8, size: 7.5, font: bold, color: RED });
+    const ret = money(Number(inv.retainerCents) || 0);
+    page.drawText(ret, { x: 612 - M - helv.widthOfTextAtSize(ret, 14) - 12, y: y - 6, size: 14, font: bold, color: INK });
+    y -= 34;
+    const remain = money((Number(inv.totalCents) || 0) - (Number(inv.retainerCents) || 0));
+    page.drawText("Remaining balance of " + remain + " is due per your service agreement.", { x: M, y, size: 8.5, font: helv, color: STONE });
+    y -= 22;
+    if (inv.payUrl) {
+      page.drawText("Pay your retainer securely online:", { x: M, y, size: 9, font: bold, color: INK });
+      y -= 13;
+      page.drawText(String(inv.payUrl).slice(0, 96), { x: M, y, size: 8, font: helv, color: RED });
+      y -= 12;
+      page.drawText("Paying the retainer reserves your date and opens your Dot One client portal account.", { x: M, y, size: 8, font: helv, color: STONE });
+      y -= 20;
+    } else {
+      page.drawText("We will send a secure payment link separately to complete your reservation.", { x: M, y, size: 8.5, font: helv, color: STONE });
+      y -= 20;
+    }
   }
 
   // notes
@@ -136,6 +166,39 @@ export async function buildInvoicePdf(inv: any): Promise<Uint8Array> {
 export function invoiceEmailHtml(inv: any): string {
   const rows = (inv.items || []).map((it: any) =>
     `<tr><td style="padding:9px 0;border-bottom:1px solid #ece8e0;font-size:13.5px;color:#33322d">${it.label}</td><td align="right" style="padding:9px 0;border-bottom:1px solid #ece8e0;font-size:13.5px;color:#1a1a17">${money(it.cents)}</td></tr>`).join("");
+
+  // Balance mode: the client already paid a deposit/retainer, so show the total, the amount already
+  // paid as a credit, and the balance now due — all payable in one link.
+  const isBalance = inv.amountPaidCents != null;
+  if (isBalance) {
+    const paidLabel = inv.paidLabel || "Paid to date";
+    const balanceDue = Number(inv.balanceDueCents != null ? inv.balanceDueCents : (Number(inv.totalCents) || 0) - (Number(inv.amountPaidCents) || 0));
+    const payBtnB = inv.payUrl
+      ? `<a href="${inv.payUrl}" style="display:inline-block;background:#e23b2e;color:#ffffff;text-decoration:none;padding:14px 26px;border-radius:8px;font-size:13px;letter-spacing:.08em;text-transform:uppercase;font-weight:bold">Pay your balance &middot; ${money(balanceDue)}</a>`
+      : `<span style="font-size:13px;color:#6f6d65">We will send a secure payment link separately.</span>`;
+    return `<div style="background:#fbf8f2;padding:34px 16px;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif">
+  <div style="max-width:560px;margin:0 auto;background:#ffffff;border:1px solid #ece8e0;border-radius:12px;overflow:hidden">
+    <div style="padding:26px 30px;border-bottom:2px solid #e23b2e"><img src="https://portal.dot1.media/dot1-logo.png" alt="Dot One Media" style="height:40px"></div>
+    <div style="padding:28px 30px">
+      <p style="margin:0 0 4px;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:#9a988f">Invoice ${inv.no}</p>
+      <h1 style="margin:0 0 14px;font-family:Georgia,'Times New Roman',serif;font-size:23px;color:#1a1a17">Your remaining balance</h1>
+      <p style="margin:0 0 18px;font-size:14px;line-height:1.6;color:#33322d">Hi ${inv.client && inv.client.name ? inv.client.name.split(" ")[0] : "there"}, here is the balance for <b>${inv.service ? inv.service.name : "your session"}</b>${inv.service && inv.service.date ? " on <b>" + inv.service.date + (inv.service.time ? " at " + inv.service.time : "") + "</b>" : ""}, including any add-ons. Your deposit is already applied below. The full invoice is attached as a PDF.</p>
+      <table width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 6px">${rows}
+        <tr><td style="padding:12px 0 2px;font-size:13px;color:#6f6d65">Total</td><td align="right" style="padding:12px 0 2px;font-size:13px;color:#1a1a17">${money(inv.totalCents)}</td></tr>
+        <tr><td style="padding:6px 0 2px;font-size:13px;color:#2e7d32">${paidLabel}</td><td align="right" style="padding:6px 0 2px;font-size:13px;color:#2e7d32">&minus;${money(inv.amountPaidCents)}</td></tr>
+        <tr><td style="padding:8px 0;border-top:2px solid #1a1a17;font-size:13.5px;font-weight:bold;color:#e23b2e">Balance due now</td><td align="right" style="padding:8px 0;border-top:2px solid #1a1a17;font-size:16px;font-weight:bold;color:#1a1a17">${money(balanceDue)}</td></tr>
+      </table>
+      <p style="margin:4px 0 22px;font-size:12px;color:#9a988f">Pay the balance in one secure payment. Your deposit has been credited.</p>
+      <div style="text-align:center;margin:0 0 8px">${payBtnB}</div>
+      <p style="margin:14px 0 0;font-size:12px;line-height:1.6;color:#6f6d65;text-align:center">You can also pay anytime from your Dot One client portal, where this session is tracked to final delivery.</p>
+    </div>
+    <div style="padding:16px 30px;border-top:1px solid #ece8e0;text-align:center">
+      <p style="margin:0;font-size:11px;color:#9a988f">Dot One Media &middot; Create with purpose &middot; Wasilla, Alaska &middot; contact@dot1.media</p>
+    </div>
+  </div>
+</div>`;
+  }
+
   const payBtn = inv.payUrl
     ? `<a href="${inv.payUrl}" style="display:inline-block;background:#e23b2e;color:#ffffff;text-decoration:none;padding:14px 26px;border-radius:8px;font-size:13px;letter-spacing:.08em;text-transform:uppercase;font-weight:bold">Pay retainer &amp; reserve your date</a>`
     : `<span style="font-size:13px;color:#6f6d65">We will send a secure payment link separately.</span>`;

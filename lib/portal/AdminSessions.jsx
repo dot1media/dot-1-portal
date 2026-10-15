@@ -290,6 +290,93 @@ function ClientAccountForSession({ session, onSendInvite, patchSession, showToas
   );
 }
 
+// Balance invoice from the session: bill the remaining balance plus any add-ons in one payment. The
+// client's email receipt shows the deposit/retainer already paid as a credit.
+function BalanceInvoicePanel({ session, patchSession, showToast }) {
+  const [open, setOpen] = useState(false);
+  const [lines, setLines] = useState([]); // { label, price, qty }
+  const [note, setNote] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  const paidCents = Math.round((Number(session.payAmount) || 0) * 100)
+    + (Array.isArray(session.charges) ? session.charges : []).filter((c) => c && c.status === "paid").reduce((s, c) => s + (Number(c.amountCents) || 0), 0);
+  const agreedCents = Math.round((Number(session.total) || 0) * 100);
+  const addonsCents = lines.reduce((s, l) => s + Math.max(0, Math.round((Number(l.price) || 0) * 100)) * Math.max(1, Math.round(Number(l.qty) || 1)), 0);
+  const grandCents = agreedCents + addonsCents;
+  const dueCents = grandCents - paidCents;
+
+  const addLine = () => setLines((ls) => [...ls, { label: "", price: "", qty: "1" }]);
+  const setLine = (i, k, v) => setLines((ls) => ls.map((l, idx) => (idx === i ? { ...l, [k]: v } : l)));
+  const rmLine = (i) => setLines((ls) => ls.filter((_, idx) => idx !== i));
+
+  const send = async () => {
+    if (dueCents < 100) { showToast("Balance due must be at least $1.00."); return; }
+    const addons = lines
+      .map((l) => ({ label: (l.label || "").trim(), price: Number(l.price) || 0, qty: Math.max(1, Math.round(Number(l.qty) || 1)) }))
+      .filter((a) => a.label && a.price > 0);
+    setBusy(true);
+    try {
+      const res = await fetch("/api/invoices/balance", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ sessionId: session.id, addons, note: note.trim() }) });
+      const d = await res.json().catch(() => ({}));
+      if (res.ok) {
+        showToast("Balance invoice emailed to " + session.clientEmail + (d.emailDelivered === false ? " (delivery may be delayed)" : "") + ".");
+        if (patchSession && d.session) patchSession(session.id, { total: d.session.total, selectedAddons: d.session.selectedAddons, balanceStatus: d.session.balanceStatus });
+        setOpen(false); setLines([]); setNote("");
+      } else showToast(d.error || "Could not send the balance invoice.");
+    } catch (e) { showToast("Could not send the balance invoice."); }
+    setBusy(false);
+  };
+
+  const row = (label, value, opts = {}) => (
+    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "4px 0", ...(opts.top ? { borderTop: `2px solid ${INK}`, paddingTop: 8, marginTop: 4 } : {}) }}>
+      <span style={{ fontSize: opts.big ? 13.5 : 12.5, color: opts.color || STONE, fontWeight: opts.big ? 700 : 400 }}>{label}</span>
+      <span style={{ fontSize: opts.big ? 16 : 13, color: opts.color || INK, fontWeight: opts.big ? 700 : 500 }}>{value}</span>
+    </div>
+  );
+
+  return (
+    <div style={{ marginBottom: 22, ...cardDense, padding: "15px 16px" }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
+        <div style={{ ...mono, fontSize: 10, letterSpacing: "0.14em", textTransform: "uppercase", color: STONE, display: "flex", alignItems: "center", gap: 7 }}><FileText size={13} /> Balance invoice</div>
+        <button onClick={() => setOpen((v) => !v)} style={{ ...mono, fontSize: 9.5, letterSpacing: "0.06em", textTransform: "uppercase", color: open ? STONE : "#fff", background: open ? "transparent" : RED, border: open ? `1px solid ${LINE}` : "none", borderRadius: 7, padding: "7px 12px", cursor: "pointer" }}>{open ? "Close" : "Bill the balance"}</button>
+      </div>
+
+      {open && (
+        <div style={{ marginTop: 13 }}>
+          <div style={{ fontSize: 12.5, color: BODY, lineHeight: 1.5, marginBottom: 12 }}>Charge the rest of the agreed total plus any add-ons in one payment. The client's receipt shows the deposit already paid as a credit.</div>
+
+          {lines.length > 0 && (
+            <div style={{ marginBottom: 10 }}>
+              {lines.map((l, i) => (
+                <div key={i} style={{ display: "flex", gap: 7, marginBottom: 7, alignItems: "center" }}>
+                  <input value={l.label} onChange={(e) => setLine(i, "label", e.target.value)} placeholder="Add-on (extra hour, USB, prints…)" style={{ ...inputStyle, marginBottom: 0, flex: 1, minWidth: 0 }} />
+                  <input value={l.qty} onChange={(e) => setLine(i, "qty", e.target.value.replace(/[^0-9]/g, ""))} inputMode="numeric" title="Quantity" style={{ ...inputStyle, marginBottom: 0, width: 48, textAlign: "center" }} />
+                  <input value={l.price} onChange={(e) => setLine(i, "price", e.target.value.replace(/[^0-9.]/g, ""))} inputMode="decimal" placeholder="$0.00" style={{ ...inputStyle, marginBottom: 0, width: 88 }} />
+                  <button onClick={() => rmLine(i)} title="Remove" style={{ background: "transparent", border: "none", cursor: "pointer", color: STONE, padding: 4, display: "inline-flex" }}><Trash2 size={15} /></button>
+                </div>
+              ))}
+            </div>
+          )}
+          <button onClick={addLine} style={{ ...mono, fontSize: 10, letterSpacing: "0.06em", textTransform: "uppercase", color: RED, background: "transparent", border: `1px dashed ${RED}`, borderRadius: 7, padding: "8px 12px", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 6, marginBottom: 12 }}><Plus size={12} /> Add an add-on</button>
+
+          <div style={{ border: `1px solid ${LINE}`, borderRadius: 9, padding: "11px 13px", background: PAPER, marginBottom: 12 }}>
+            {row("Agreed total", money(agreedCents / 100))}
+            {addonsCents > 0 && row("Add-ons", money(addonsCents / 100))}
+            {grandCents !== agreedCents && row("Total", money(grandCents / 100), { color: INK })}
+            {row(session.payChoice === "deposit" ? "Deposit paid" : session.payChoice === "retainer" ? "Retainer paid" : "Paid to date", "-" + money(paidCents / 100), { color: "#2e7d32" })}
+            {row("Balance due now", money(Math.max(0, dueCents) / 100), { top: true, big: true, color: dueCents < 100 ? WARN : INK })}
+          </div>
+
+          <input value={note} onChange={(e) => setNote(e.target.value)} placeholder="Note on the invoice (optional)" style={{ ...inputStyle, marginBottom: 12 }} />
+
+          <button onClick={send} disabled={busy || dueCents < 100} style={{ ...btnSolid, background: RED, width: "100%", justifyContent: "center", opacity: (busy || dueCents < 100) ? 0.55 : 1 }}><Wallet size={15} /> {busy ? "Sending…" : "Send balance invoice · " + money(Math.max(0, dueCents) / 100)}</button>
+          <div style={{ ...mono, fontSize: 9.5, color: FAINT, marginTop: 8, lineHeight: 1.5 }}>Emails the client an itemized receipt with a pay link for the balance, and credits the deposit. The session total updates to include the add-ons.</div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function AdminSessions({ state, adminId, setAdminId, requestSetStage, addComment, uploadMessageImage, patchSession, onReschedule, slotTaken, markMessagesRead, onCancelBooking, onCloseBooking, onReopenBooking, onSendBalance, onSendCharge, onCheckPayment, onNewInternal, onNewInvoice, onEmailDelivery, onRequestReview, onSendInvite, onSetGroup, onDeleteBooking, showToast }) {
   const [chgLabel, setChgLabel] = useState("");
   const [collapsed, setCollapsed] = useState({ completed: true });
@@ -430,6 +517,10 @@ export function AdminSessions({ state, adminId, setAdminId, requestSetStage, add
             </div>
           );
         })()}
+
+        {session.clientEmail && (status === "active" || (Number(session.total) || 0) > 0) && (
+          <BalanceInvoicePanel session={session} patchSession={patchSession} showToast={showToast} />
+        )}
 
         {(status === "active" || (Array.isArray(session.charges) && session.charges.length > 0)) && (
           <div style={{ marginBottom: 22, ...cardDense, padding: "15px 16px" }}>
