@@ -377,7 +377,7 @@ function BalanceInvoicePanel({ session, patchSession, showToast }) {
   );
 }
 
-export function AdminSessions({ state, adminId, setAdminId, requestSetStage, addComment, uploadMessageImage, patchSession, onReschedule, slotTaken, markMessagesRead, onCancelBooking, onCloseBooking, onReopenBooking, onSendBalance, onSendCharge, onCheckPayment, onNewInternal, onNewInvoice, onEmailDelivery, onRequestReview, onSendInvite, onSetGroup, onDeleteBooking, showToast }) {
+export function AdminSessions({ state, adminId, setAdminId, requestSetStage, addComment, uploadMessageImage, patchSession, onReschedule, slotTaken, markMessagesRead, onCancelBooking, onCloseBooking, onReopenBooking, onSendBalance, onSendCharge, onCheckPayment, onNewInternal, onNewInvoice, onNewQuote, onEmailDelivery, onRequestReview, onSendInvite, onSetGroup, onDeleteBooking, showToast }) {
   const [delChargeId, setDelChargeId] = useState("");
   const [chgLabel, setChgLabel] = useState("");
   const [collapsed, setCollapsed] = useState({ completed: true });
@@ -435,6 +435,7 @@ export function AdminSessions({ state, adminId, setAdminId, requestSetStage, add
         <div style={{ ...mono, fontSize: 10.5, letterSpacing: "0.2em", textTransform: "uppercase", color: RED, marginBottom: 14 }}>Sessions</div>
         <button onClick={onNewInternal} style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 7, marginBottom: 16, padding: "10px", borderRadius: 9, cursor: "pointer", border: `1px dashed ${LINE}`, background: CREAM, color: STONE, ...mono, fontSize: 10.5, letterSpacing: "0.06em", textTransform: "uppercase" }}><Plus size={13} /> New internal booking</button>
         <button onClick={onNewInvoice} style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 7, marginBottom: 16, padding: "10px", borderRadius: 9, cursor: "pointer", border: `1px dashed ${RED}`, background: "#fdf3f0", color: RED, ...mono, fontSize: 10.5, letterSpacing: "0.06em", textTransform: "uppercase" }}><FileText size={13} /> New invoice</button>
+        <button onClick={onNewQuote} style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 7, marginBottom: 16, padding: "10px", borderRadius: 9, cursor: "pointer", border: `1px dashed ${LINE}`, background: CREAM, color: STONE, ...mono, fontSize: 10.5, letterSpacing: "0.06em", textTransform: "uppercase" }}><FileText size={13} /> New quote</button>
         <MiniCalendar sessions={state.sessions} onSelectSession={(id) => { setAdminId(id); markMessagesRead(id, "client"); }} />
         {(() => {
           const now = new Date();
