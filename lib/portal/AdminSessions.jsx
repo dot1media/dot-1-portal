@@ -72,6 +72,88 @@ function GearCard({ session, services }) {
 // (by email), so this shows every agreement that client has signed and lets the studio view or
 // download each as the finished, signed PDF. Admin access is enforced server-side in /api/signed-doc.
 const AGREEMENT_LABELS = { client_services: "Client Services Agreement", media_release: "Media Release & Waiver", minor_release: "Minor Release & Waiver" };
+function ModelReleases({ session, showToast }) {
+  const [list, setList] = useState(null);
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [minor, setMinor] = useState(false);
+  const [guardian, setGuardian] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [upFor, setUpFor] = useState("");
+  const sid = session.id;
+  const load = () => { fetch("/api/model-release?sessionId=" + encodeURIComponent(sid)).then((r) => r.json()).then((d) => setList(d.models || [])).catch(() => setList([])); };
+  useEffect(() => { load(); /* eslint-disable-next-line */ }, [sid]);
+
+  const add = async () => {
+    if (!name.trim()) { showToast && showToast("Enter the person's name."); return; }
+    setBusy(true);
+    try {
+      const r = await fetch("/api/model-release", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ action: "add", sessionId: sid, name: name.trim(), email: email.trim(), minor, guardianName: guardian.trim() }) });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) { showToast && showToast(d.error || "Could not add."); setBusy(false); return; }
+      setName(""); setEmail(""); setMinor(false); setGuardian(""); load();
+      showToast && showToast(d.model && d.model.email ? "Added. Send them the e-sign link." : "Added. Download the PDF for them to sign and upload it back.");
+    } catch (e) { showToast && showToast("Could not add."); }
+    setBusy(false);
+  };
+  const remove = async (m) => { if (!window.confirm("Remove the release for " + m.name + "?")) return; await fetch("/api/model-release", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ action: "remove", id: m.id }) }); load(); };
+  const sendLink = async (m) => { const r = await fetch("/api/model-release", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ action: "sendLink", id: m.id }) }); const d = await r.json().catch(() => ({})); if (!r.ok) { showToast && showToast(d.error || "Could not send."); return; } showToast && showToast("E-sign link sent to " + m.email + "."); };
+  const copyLink = async (m) => { try { await navigator.clipboard.writeText(window.location.origin + "/sign-release/" + m.token); showToast && showToast("Signing link copied."); } catch (e) { showToast && showToast("Could not copy."); } };
+  const upload = async (m, file) => { if (!file) return; setUpFor(m.id); const fd = new FormData(); fd.append("id", m.id); fd.append("file", file); const r = await fetch("/api/model-release/upload", { method: "POST", body: fd }); const d = await r.json().catch(() => ({})); setUpFor(""); if (!r.ok) { showToast && showToast(d.error || "Upload failed."); return; } showToast && showToast("Signed release uploaded."); load(); };
+
+  const mini = { display: "inline-flex", alignItems: "center", gap: 5, ...mono, fontSize: 9.5, letterSpacing: "0.04em", padding: "6px 9px", borderRadius: 7, border: `1px solid ${LINE}`, background: PAPER, color: STONE, cursor: "pointer" };
+  const badge = (m) => m.status === "signed" ? { t: "Signed", c: OK, bg: "#eaf5ec", bd: "#cfe6d4" } : m.status === "uploaded" ? { t: "On file", c: OK, bg: "#eaf5ec", bd: "#cfe6d4" } : { t: "Pending", c: STONE, bg: CREAM, bd: LINE };
+
+  return (
+    <div style={{ ...card, padding: "16px 18px", marginTop: 14 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+        <UserPlus size={15} style={{ color: RED }} />
+        <h4 style={{ ...display, fontSize: 15, fontWeight: 700, color: INK, margin: 0 }}>Model Releases</h4>
+      </div>
+      <p style={{ ...mono, fontSize: 9.5, color: FAINT, margin: "0 0 12px", lineHeight: 1.5 }}>One release per person in this session. With an email, they get an e-sign link; otherwise download a pre-filled PDF to sign and upload back. Minors are signed by a parent or guardian.</p>
+
+      {list === null && <div style={{ ...mono, fontSize: 10.5, color: FAINT }}>Loading&hellip;</div>}
+      {list && list.map((m) => {
+        const b = badge(m);
+        return (
+          <div key={m.id} style={{ border: `1px solid ${LINE}`, borderRadius: 9, padding: "10px 12px", marginBottom: 8, background: "#fff" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 8, flexWrap: "wrap" }}>
+              <div>
+                <span style={{ fontWeight: 600, color: INK, fontSize: 13.5 }}>{m.name}</span>
+                {m.minor && <span style={{ ...mono, fontSize: 8, letterSpacing: "0.06em", textTransform: "uppercase", marginLeft: 7, padding: "2px 6px", borderRadius: 5, background: "#eef3fb", color: "#3a5a8c", border: "1px solid #d6e2f2" }}>Minor</span>}
+                <span style={{ ...mono, fontSize: 8, letterSpacing: "0.06em", textTransform: "uppercase", marginLeft: 7, padding: "2px 6px", borderRadius: 5, background: b.bg, color: b.c, border: `1px solid ${b.bd}` }}>{b.t}</span>
+                {m.email ? <span style={{ ...mono, fontSize: 9.5, color: STONE, marginLeft: 8 }}>{m.email}</span> : <span style={{ ...mono, fontSize: 9.5, color: FAINT, marginLeft: 8 }}>no email</span>}
+              </div>
+              <button onClick={() => remove(m)} style={{ background: "transparent", border: "none", cursor: "pointer", color: RED }}><Trash2 size={13} /></button>
+            </div>
+            <div style={{ display: "flex", gap: 7, marginTop: 8, flexWrap: "wrap", alignItems: "center" }}>
+              {m.status === "pending" && m.email && <><button onClick={() => sendLink(m)} style={{ ...mini, color: RED, borderColor: "#f0d4cf", background: "#fdf1ee" }}><Send size={11} /> Send e-sign link</button><button onClick={() => copyLink(m)} style={mini}><Link2 size={11} /> Copy link</button></>}
+              {m.status === "pending" && !m.email && <>
+                <a href={"/api/model-release/blank?token=" + encodeURIComponent(m.token)} target="_blank" rel="noreferrer" style={{ ...mini, textDecoration: "none" }}><Download size={11} /> Download release PDF</a>
+                <label style={{ ...mini, cursor: "pointer" }}>{upFor === m.id ? "Uploading…" : <><Plus size={11} /> Upload signed</>}<input type="file" accept="application/pdf,image/*" style={{ display: "none" }} onChange={(e) => upload(m, e.target.files && e.target.files[0])} /></label>
+              </>}
+              {(m.status === "signed" || m.status === "uploaded") && m.hasDoc && <a href={"/api/model-release/doc?token=" + encodeURIComponent(m.token)} target="_blank" rel="noreferrer" style={{ ...mini, textDecoration: "none", color: OK, borderColor: "#cfe6d4" }}><Check size={11} /> View signed release</a>}
+            </div>
+          </div>
+        );
+      })}
+      {list && list.length === 0 && <div style={{ ...mono, fontSize: 10.5, color: FAINT, marginBottom: 10 }}>No one added yet.</div>}
+
+      <div style={{ borderTop: `1px solid ${LINE}`, marginTop: 10, paddingTop: 12 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+          <input value={name} onChange={(e) => setName(e.target.value)} placeholder={minor ? "Child's full name" : "Person's full name"} style={{ ...inputStyle, marginBottom: 0 }} />
+          <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder={minor ? "Parent/guardian email (optional)" : "Email (optional)"} style={{ ...inputStyle, marginBottom: 0 }} />
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 14, marginTop: 8, flexWrap: "wrap" }}>
+          <label style={{ display: "inline-flex", alignItems: "center", gap: 7, ...mono, fontSize: 10, color: STONE, cursor: "pointer" }}><input type="checkbox" checked={minor} onChange={(e) => setMinor(e.target.checked)} /> Under 18 (minor)</label>
+          {minor && <input value={guardian} onChange={(e) => setGuardian(e.target.value)} placeholder="Parent/guardian name (optional)" style={{ ...inputStyle, marginBottom: 0, flex: 1, minWidth: 160 }} />}
+          <button onClick={add} disabled={busy} style={{ ...btnSolid, background: RED, padding: "9px 14px", marginLeft: "auto" }}><Plus size={13} /> {busy ? "Adding…" : "Add person"}</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function SignedAgreements({ email, showToast }) {
   const [rows, setRows] = useState(null);
   const [dl, setDl] = useState("");
@@ -634,6 +716,7 @@ export function AdminSessions({ state, adminId, setAdminId, requestSetStage, add
         <GearCard session={session} services={state.services} />
         <ClientAccountForSession session={session} onSendInvite={onSendInvite} patchSession={patchSession} showToast={showToast} />
         <SignedAgreements email={session.clientEmail} showToast={showToast} />
+        <ModelReleases session={session} showToast={showToast} />
         <ClientNotes email={session.clientEmail} showToast={showToast} />
         <SessionExpenses sessionId={session.id} revenue={Number(session.total) || 0} />
         <InspirationBoard sessionId={session.id} compact />
