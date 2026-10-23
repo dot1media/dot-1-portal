@@ -30,6 +30,9 @@ import { BusinessSettings } from "../lib/portal/BusinessSettings";
 import { AdminAccounts } from "../lib/portal/AdminAccounts";
 import { BookingFlow } from "../lib/portal/BookingFlow";
 import { ClientView } from "../lib/portal/ClientView";
+import { BookingFlowRedesign } from "../lib/portal/BookingFlowRedesign";
+import { ClientViewRedesign } from "../lib/portal/ClientViewRedesign";
+import { ClientUiToggle } from "../lib/portal/ClientUiToggle";
 import { GuidePage } from "../lib/portal/GuidePage";
 import { CLIENT_GUIDE_HTML, ADMIN_GUIDE_HTML } from "../lib/portal/guides";
 import { AccountManagement } from "../lib/portal/AccountManagement";
@@ -94,6 +97,9 @@ export default function App() {
       setBrand({ orgName: b.orgName || "Dot One Media", tagline: b.tagline || "Create with purpose." });
     }).catch(() => {});
   }, []);
+  // Which client experience is live (admin-controlled, revertible). Defaults to the redesign.
+  const [clientUi, setClientUi] = useState("redesign");
+  useEffect(() => { fetch("/api/client-ui").then((r) => r.json()).then((d) => { if (d && d.mode) setClientUi(d.mode); }).catch(() => {}); }, []);
   const [installDismissed, setInstallDismissed] = useState(false);
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [clientId, setClientId] = useState("");
@@ -556,13 +562,13 @@ export default function App() {
           onLogout={adminLogout}
         />}
         {view === "studiologin" && <StudioLogin onLogin={loginAsStudio} onBack={() => setView("landing")} />}
-        {view === "book" && <BookingFlow state={state} direct={directContext} slotTaken={slotTaken} onCancel={() => { setDirectContext(null); setView("landing"); }} onComplete={createBooking} onLogin={() => setView("login")} catalogLoaded={catalogLoaded} catalogError={catalogError} availability={state.availability} authedClient={clientAuth} refreshSlots={refreshSlots} onGroupChange={setBookingGroup} preService={preService} />}
+        {view === "book" && (() => { const BookFlow = clientUi === "redesign" ? BookingFlowRedesign : BookingFlow; return <BookFlow state={state} direct={directContext} slotTaken={slotTaken} onCancel={() => { setDirectContext(null); setView("landing"); }} onComplete={createBooking} onLogin={() => setView("login")} catalogLoaded={catalogLoaded} catalogError={catalogError} availability={state.availability} authedClient={clientAuth} refreshSlots={refreshSlots} onGroupChange={setBookingGroup} preService={preService} />; })()}
         {view === "login" && <LoginView onLogin={loginAs} onBook={() => { setDirectContext(null); setView("book"); }} onStudio={() => setView("studiologin")} onForgot={requestReset} />}
         {view === "resetpw" && <ResetPassword token={resetToken} onDone={() => setView("login")} showToast={showToast} />}
         {view === "invite" && <InviteAccept token={inviteToken} showToast={showToast} />}
         {(view === "terms" || view === "privacy") && <LegalPage kind={view} onBack={() => setView(legalReturn)} />}
         {view === "client" && clientGuideOpen && <GuidePage title="Client Guide" html={CLIENT_GUIDE_HTML} pdf="/guides/dot1-client-guide.pdf" onBack={() => setClientGuideOpen(false)} />}
-        {view === "client" && !clientGuideOpen && <ClientView session={clientSession} onOpenSession={(id) => setClientId(id)} onRebook={(serviceId) => { setPreServiceId(serviceId ? String(serviceId) : ""); setPreServiceSlug(""); setDirectContext(null); setView("book"); window.scrollTo(0, 0); }} sessions={state.sessions} clientId={clientId} setClientId={setClientId} addComment={addComment} onRescheduleRequest={clientRescheduleRequest} markMessagesRead={markMessagesRead} patchSession={patchSession} resizeImage={resizeImage} uploadMessageImage={uploadMessageImage} showToast={showToast} />}
+        {view === "client" && !clientGuideOpen && (() => { const CView = clientUi === "redesign" ? ClientViewRedesign : ClientView; return <CView session={clientSession} onOpenSession={(id) => setClientId(id)} onRebook={(serviceId) => { setPreServiceId(serviceId ? String(serviceId) : ""); setPreServiceSlug(""); setDirectContext(null); setView("book"); window.scrollTo(0, 0); }} sessions={state.sessions} clientId={clientId} setClientId={setClientId} addComment={addComment} onRescheduleRequest={clientRescheduleRequest} markMessagesRead={markMessagesRead} patchSession={patchSession} resizeImage={resizeImage} uploadMessageImage={uploadMessageImage} showToast={showToast} />; })()}
         {view === "thankyou" && <ThankYou session={clientSession} onPortal={() => setView("client")} brand={brand} />}
         {view === "onboard" && <InvoiceOnboarding session={clientSession} onDone={() => { try { localStorage.setItem("dot1_view_pref", "client"); } catch (e) {} setView("client"); showToast("You're all set. Welcome to your portal!"); }} />}
         {view === "client" && !guideSeen && clientSession && <ClientGuide onClose={() => { setGuideSeen(true); try { localStorage.setItem("dot1_guide_seen", "1"); } catch (e) {} }} />}
@@ -588,7 +594,7 @@ export default function App() {
             {adminTab === "calendar" && <AdminCalendar state={state} onSelectSession={(id) => { setAdminId(id); setAdminTab("sessions"); }} />}
             {adminTab === "availability" && <><CalendarSync showToast={showToast} /><WeeklyHours services={state.services} showToast={showToast} onApplied={reloadAvailability} /><WaitlistPanel showToast={showToast} /><AvailabilityManager availability={state.availability} addAvailability={addAvailability} removeAvailability={removeAvailability} showToast={showToast} services={state.services} /><div style={{ marginTop: 44, paddingTop: 40, borderTop: `1px solid ${LINE}` }}><DirectLinks state={state} createDirectLink={createDirectLink} revokeDirectLink={revokeDirectLink} openDirectLink={openDirectLink} showToast={showToast} /></div></>}
             {adminTab === "services" && <ServiceCatalog state={state} addService={addService} updateService={updateService} deleteService={deleteService} addAddon={addAddon} updateAddon={updateAddon} deleteAddon={deleteAddon} showToast={showToast} setConfirm={setConfirm} />}
-            {adminTab === "business" && <BusinessSettings sessions={state.sessions} showToast={showToast} onImport={importSessions} />}
+            {adminTab === "business" && <><ClientUiToggle showToast={showToast} onChange={setClientUi} /><BusinessSettings sessions={state.sessions} showToast={showToast} onImport={importSessions} /></>}
             {adminTab === "account" && <><AccountManagement state={state} showToast={showToast} /><div style={{ marginTop: 44, paddingTop: 40, borderTop: `1px solid ${LINE}` }}><AdminAccounts showToast={showToast} /></div></>}
             {adminTab === "guide" && <GuidePage title="Studio Admin Guide" html={ADMIN_GUIDE_HTML} pdf="/guides/dot1-admin-guide.pdf" onBack={() => setAdminTab(prevTab)} />}
           </div>

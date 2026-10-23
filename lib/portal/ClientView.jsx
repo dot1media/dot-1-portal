@@ -13,7 +13,7 @@ import { PAYMENT_RULES, STAGES, CONSULT_STAGES, stagesFor, curStage } from "./st
 import { EmptyState, Avatar, Row } from "./ui";
 import { useIsMobile } from "./hooks";
 
-function ProgressBar({ stages, current, accent }) {
+export function ProgressBar({ stages, current, accent }) {
   const target = stages.length > 1 ? Math.max(0, Math.min(1, current / (stages.length - 1))) * 100 : 0;
   const [w, setW] = useState(0);
   useEffect(() => { const t = setTimeout(() => setW(target), 90); return () => clearTimeout(t); }, [target]);
@@ -35,7 +35,7 @@ function SummaryCell({ label, value, icon }) {
   return <div><div style={{ ...mono, fontSize: 9, letterSpacing: "0.14em", textTransform: "uppercase", color: FAINT, marginBottom: 3 }}>{label}</div><div style={{ fontSize: 14, color: INK, fontWeight: 500, display: "flex", alignItems: "center", gap: 6 }}>{icon}{value}</div></div>;
 }
 
-function StatusBadge({ stage, group, consult }) {
+export function StatusBadge({ stage, group, consult }) {
   const stArr = consult ? CONSULT_STAGES : STAGES;
   const st = stArr[Math.min(stage, stArr.length - 1)] || stArr[0], St = st.Icon, delivered = stage >= stArr.length - 1;
   const g = GROUPS[group] || GROUPS.video;
@@ -43,7 +43,7 @@ function StatusBadge({ stage, group, consult }) {
   return <div style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "8px 14px", borderRadius: 24, background: bg, border: `1px solid ${bd}` }}><St size={14} color={ic} /><span style={{ ...mono, fontSize: 11, letterSpacing: "0.06em", color: tx }}>{st.label}</span></div>;
 }
 
-function Timeline({ session, actionPanel, accent = RED }) {
+export function Timeline({ session, actionPanel, accent = RED }) {
   const cur = session.currentStage;
   return (
     <div style={{ position: "relative" }}>
@@ -69,7 +69,7 @@ function Timeline({ session, actionPanel, accent = RED }) {
   );
 }
 
-function ClientActionPanel({ session, grp, draft, setDraft, onSubmit }) {
+export function ClientActionPanel({ session, grp, draft, setDraft, onSubmit }) {
   const g = grp || GROUPS[session.serviceLine] || GROUPS.video;
   const stage = session.currentStage;
   const isVideo = session.serviceLine === "video";
@@ -137,7 +137,7 @@ function ClientActionPanel({ session, grp, draft, setDraft, onSubmit }) {
   return <div style={{ display: "flex", alignItems: "center", gap: 9, color: STONE, fontSize: 13, marginTop: 4, background: CREAM, border: `1px dashed ${LINE}`, borderRadius: 10, padding: "13px 16px" }}><Clock size={15} color="#9a988f" /> We'll email you the moment your next update is ready.</div>;
 }
 
-function SessionReleases({ session }) {
+export function SessionReleases({ session }) {
   const [list, setList] = useState(null);
   const [copied, setCopied] = useState("");
   useEffect(() => {
