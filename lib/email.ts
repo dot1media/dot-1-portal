@@ -257,7 +257,7 @@ export function receiptEmail(p: any): string {
     rows2.push(["Balance remaining", "$" + (remainC / 100).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })]);
   }
   const body = para("Thank you, " + esc(p.client_name || "there") + ". We’ve received your payment. Your receipt is below, and a PDF copy is attached for your records.")
-    + detailRows(rows2);
+    + detailRows(rows2 as [string, string][]);
   return shell(BRAND_MAIN, "Payment Receipt", "Payment received", body);
 }
 
