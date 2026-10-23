@@ -137,6 +137,36 @@ function ClientActionPanel({ session, grp, draft, setDraft, onSubmit }) {
   return <div style={{ display: "flex", alignItems: "center", gap: 9, color: STONE, fontSize: 13, marginTop: 4, background: CREAM, border: `1px dashed ${LINE}`, borderRadius: 10, padding: "13px 16px" }}><Clock size={15} color="#9a988f" /> We'll email you the moment your next update is ready.</div>;
 }
 
+function SessionReleases({ session }) {
+  const [list, setList] = useState(null);
+  const [copied, setCopied] = useState("");
+  useEffect(() => {
+    let stop = false;
+    if (!session || !session.id) return;
+    fetch("/api/model-release/mine?sessionId=" + encodeURIComponent(session.id)).then((r) => r.json()).then((d) => { if (!stop) setList(d.models || []); }).catch(() => { if (!stop) setList([]); });
+    return () => { stop = true; };
+  }, [session && session.id]);
+  if (!list || list.length === 0) return null;
+  const copy = async (m) => { try { await navigator.clipboard.writeText(window.location.origin + "/sign-release/" + m.token); setCopied(m.id); setTimeout(() => setCopied(""), 1600); } catch (e) {} };
+  return (
+    <div style={{ ...card, padding: "18px 20px", marginBottom: 18 }}>
+      <div style={{ ...display, fontSize: 16, color: INK, marginBottom: 4, display: "flex", alignItems: "center", gap: 8 }}><FileCheck size={16} style={{ color: RED }} /> Model releases</div>
+      <div style={{ ...mono, fontSize: 10, color: FAINT, marginBottom: 6, letterSpacing: "0.04em", lineHeight: 1.5 }}>Everyone photographed or filmed signs a release. Share each person's link; minors are signed by a parent or guardian.</div>
+      {list.map((m) => (
+        <div key={m.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, borderTop: `1px solid ${LINE}`, padding: "10px 0" }}>
+          <div>
+            <span style={{ fontSize: 13.5, color: INK, fontWeight: 600 }}>{m.name}</span>
+            {m.minor && <span style={{ ...mono, fontSize: 8, letterSpacing: "0.06em", marginLeft: 7, padding: "2px 6px", borderRadius: 5, background: "#eef3fb", color: "#3a5a8c" }}>MINOR</span>}
+          </div>
+          {m.status === "pending"
+            ? <button onClick={() => copy(m)} style={{ ...mono, fontSize: 10, letterSpacing: "0.04em", padding: "7px 11px", borderRadius: 7, border: `1px solid ${RED}`, background: "#fdf1ee", color: RED, cursor: "pointer" }}>{copied === m.id ? "Link copied" : "Copy sign link"}</button>
+            : <span style={{ ...mono, fontSize: 10, color: OK, display: "inline-flex", alignItems: "center", gap: 5 }}><CheckCircle2 size={12} /> Signed</span>}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export function ClientView({ session, sessions, clientId, setClientId, addComment, onRescheduleRequest, markMessagesRead, patchSession, resizeImage, uploadMessageImage, showToast, onOpenSession, onRebook }) {
   const isMobile = useIsMobile();
   const [draft, setDraft] = useState("");
@@ -327,6 +357,7 @@ export function ClientView({ session, sessions, clientId, setClientId, addCommen
           <div style={{ fontSize: 13, color: BODY, lineHeight: 1.5 }}>Questions about your session? Reach out to us at support@dot1.media.</div>
         </div>
       )}
+      <SessionReleases session={session} />
       {status === "active" && (session.currentStage || 0) <= 1 && (
         <div style={{ background: grp.bg, border: `1px solid ${grp.border}`, borderRadius: 10, padding: "14px 18px", marginBottom: 18 }}>
           <div style={{ ...display, fontSize: 16, color: INK, marginBottom: 3 }}>You're all set, {(session.clientName || "").split(" ")[0]}!</div>
