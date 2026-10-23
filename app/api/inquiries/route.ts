@@ -5,6 +5,11 @@ import { verifyToken, ADMIN_COOKIE } from "@/lib/auth";
 import { hasStudio } from "@/lib/studioGuard";
 import { sendEmail } from "@/lib/email";
 import { sendPush } from "@/lib/push";
+import { inquiryEmailFor } from "@/lib/portal/constants";
+
+const TOPIC_LABELS: Record<string, string> = {
+  photo: "Photography", video: "Video & Cinematography", support: "Support", general: "General",
+};
 
 export const runtime = "nodejs";
 
@@ -27,6 +32,7 @@ async function ensureTable() {
     handled BOOLEAN NOT NULL DEFAULT false,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now()
   )`;
+  await sql`ALTER TABLE site_inquiries ADD COLUMN IF NOT EXISTS topic TEXT DEFAULT 'general'`;
   ensured = true;
 }
 
@@ -43,18 +49,21 @@ export async function POST(request: Request) {
   const name = String(b.name || "").trim().slice(0, 120);
   const email = String(b.email || "").trim().slice(0, 200);
   const message = String(b.message || "").trim().slice(0, 4000);
+  const topic = ["photo", "video", "support", "general"].includes(String(b.topic || "").toLowerCase()) ? String(b.topic).toLowerCase() : "general";
   if (!name || !email || !message || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
     return NextResponse.json({ error: "Please add your name, a valid email, and a message." }, { status: 400, headers: CORS });
   }
-  await sql`INSERT INTO site_inquiries (name, email, message) VALUES (${name}, ${email}, ${message})`;
-  // Let the studio know right away; reply-to goes straight back to the sender.
+  await sql`INSERT INTO site_inquiries (name, email, message, topic) VALUES (${name}, ${email}, ${message}, ${topic})`;
+  // Route to the right desk by topic; reply-to goes straight back to the sender.
+  const to = inquiryEmailFor(topic);
+  const topicLabel = TOPIC_LABELS[topic] || "General";
   try {
     const esc = (t: string) => t.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
     await sendEmail({
-      to: "contact@dot1.media",
-      subject: "New website message from " + name,
+      to,
+      subject: "[" + topicLabel + "] New website message from " + name,
       replyTo: email,
-      html: '<div style="font-family:Arial,sans-serif;font-size:14px;color:#33322d;line-height:1.6"><p><b>' + esc(name) + '</b> (' + esc(email) + ') sent a message through dot1.media:</p><blockquote style="margin:10px 0;padding:10px 14px;border-left:3px solid #e23b2e;background:#fbf8f2;white-space:pre-wrap">' + esc(message) + '</blockquote><p style="font-size:12px;color:#6f6d65">It is also waiting in the portal Inbox: <a href="https://portal.dot1.media">portal.dot1.media</a>. Replying to this email replies to ' + esc(name.split(" ")[0]) + ' directly.</p></div>',
+      html: '<div style="font-family:Arial,sans-serif;font-size:14px;color:#33322d;line-height:1.6"><p><b>' + esc(name) + '</b> (' + esc(email) + ') sent a <b>' + esc(topicLabel) + '</b> message through dot1.media:</p><blockquote style="margin:10px 0;padding:10px 14px;border-left:3px solid #e23b2e;background:#fbf8f2;white-space:pre-wrap">' + esc(message) + '</blockquote><p style="font-size:12px;color:#6f6d65">It is also waiting in the portal Inbox: <a href="https://portal.dot1.media">portal.dot1.media</a>. Replying to this email replies to ' + esc(name.split(" ")[0]) + ' directly.</p></div>',
     });
   } catch (e) {}
   try { await sendPush("New website message", name + " sent a message", "/"); } catch (e) {}
@@ -66,6 +75,6 @@ export async function GET() {
   await ensureTable();
   const store = await cookies();
   if (!(await hasStudio())) return NextResponse.json({ error: "Not authorized." }, { status: 401 });
-  const rows = await sql`SELECT id, name, email, message, handled, created_at FROM site_inquiries ORDER BY created_at DESC LIMIT 300`;
+  const rows = await sql`SELECT id, name, email, message, topic, handled, created_at FROM site_inquiries ORDER BY created_at DESC LIMIT 300`;
   return NextResponse.json({ inquiries: rows });
 }

@@ -318,13 +318,13 @@ export function ClientView({ session, sessions, clientId, setClientId, addCommen
       {status === "cancelled" && (
         <div style={{ background: "#fbeeed", border: "1px solid #f2cdc9", borderRadius: 10, padding: "14px 18px", marginBottom: 18 }}>
           <div style={{ ...display, fontSize: 16, color: DANGER, marginBottom: 3 }}>This booking was cancelled</div>
-          <div style={{ fontSize: 13, color: BODY, lineHeight: 1.5 }}>If this wasn't expected, please reach out to us at contact@dot1.media and we'll help.</div>
+          <div style={{ fontSize: 13, color: BODY, lineHeight: 1.5 }}>If this wasn't expected, please reach out to us at support@dot1.media and we will help.</div>
         </div>
       )}
       {status === "closed" && (
         <div style={{ background: CREAM, border: `1px solid ${LINE}`, borderRadius: 10, padding: "14px 18px", marginBottom: 18 }}>
           <div style={{ ...display, fontSize: 16, color: INK, marginBottom: 3 }}>This booking is closed</div>
-          <div style={{ fontSize: 13, color: BODY, lineHeight: 1.5 }}>Questions about your session? Reach out to us at contact@dot1.media.</div>
+          <div style={{ fontSize: 13, color: BODY, lineHeight: 1.5 }}>Questions about your session? Reach out to us at support@dot1.media.</div>
         </div>
       )}
       {status === "active" && (session.currentStage || 0) <= 1 && (
