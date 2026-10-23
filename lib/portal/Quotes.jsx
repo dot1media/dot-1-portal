@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { X, FileText, Plus, Trash2, Eye, ChevronLeft, Download, FileCheck2, ArrowRight } from "lucide-react";
+import { X, FileText, Plus, Trash2, Eye, ChevronLeft, Download, FileCheck2, ArrowRight, Link2 } from "lucide-react";
 import { INK, BODY, STONE, FAINT, LINE, PAPER, CREAM, RED, OK, mono, display, card, inputStyle, btnSolid } from "./theme";
 import { GROUPS } from "./groups";
 
@@ -84,9 +84,11 @@ function ConvertRow({ q, showToast, onConverted }) {
 
 function QuoteArchive({ showToast, reloadKey, onConverted }) {
   const [list, setList] = useState(null);
+  const [copiedId, setCopiedId] = useState("");
   const load = async () => { try { const d = await fetch("/api/quotes").then((r) => r.json()); setList(d.quotes || []); } catch (e) { setList([]); } };
   useEffect(() => { load(); }, [reloadKey]);
   const download = (q) => { try { window.open("/api/quotes/" + encodeURIComponent(q.token) + "/pdf", "_blank"); } catch (e) {} };
+  const copyClient = async (q) => { try { await navigator.clipboard.writeText(window.location.origin + "/quote/" + q.token); setCopiedId(q.token); setTimeout(() => setCopiedId(""), 1600); } catch (e) { showToast("Could not copy the link."); } };
   const remove = async (q) => {
     if (!window.confirm("Delete quote " + q.no + "? Any invoice already created from it is kept.")) return;
     try { const r = await fetch("/api/quotes/" + encodeURIComponent(q.token), { method: "DELETE" }); if (!r.ok) throw new Error(); setList((p) => (p || []).filter((x) => x.token !== q.token)); } catch (e) { showToast("Could not delete."); }
@@ -108,6 +110,7 @@ function QuoteArchive({ showToast, reloadKey, onConverted }) {
           <div style={{ ...mono, fontSize: 10, color: FAINT, marginTop: 3 }}>{q.service && q.service.name}{q.service && q.service.date ? " · " + q.service.date + (q.service.time ? " at " + q.service.time : "") : " · date TBD"}</div>
           <div style={{ display: "flex", gap: 8, marginTop: 9, flexWrap: "wrap", alignItems: "center" }}>
             <button onClick={() => download(q)} style={miniBtn}><Download size={12} /> Download PDF</button>
+            {q.status !== "converted" && <button onClick={() => copyClient(q)} style={miniBtn}><Link2 size={12} /> {copiedId === q.token ? "Copied" : "Copy client link"}</button>}
             <ConvertRow q={q} showToast={showToast} onConverted={() => { load(); onConverted && onConverted(); }} />
             <button onClick={() => remove(q)} style={{ ...miniBtn, color: RED, borderColor: "#f0d4cf" }}><Trash2 size={12} /> Delete</button>
           </div>
