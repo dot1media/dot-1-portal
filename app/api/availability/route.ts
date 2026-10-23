@@ -31,8 +31,7 @@ export async function GET() {
 
 // Admin: open a day with a window.
 export async function POST(request: Request) {
-  if (!(await isAdmin())) try { if (typeof date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(date)) await notifyWaitlist(date); } catch (e) {}
-    return NextResponse.json({ error: "Not authorized." }, { status: 401 });
+  if (!(await isAdmin())) return NextResponse.json({ error: "Not authorized." }, { status: 401 });
   const b = await request.json().catch(() => ({}));
   const date = String(b.date || "").trim();
   const start = String(b.start || "").trim();
@@ -53,6 +52,8 @@ export async function POST(request: Request) {
               to_char(start_time, 'HH24:MI') AS start,
               to_char(end_time, 'HH24:MI') AS end,
               COALESCE(service_ids, '[]'::jsonb) AS "serviceIds"`;
+  // A newly opened day may match people on the waitlist — let them know.
+  try { await notifyWaitlist(date); } catch (e) {}
   return NextResponse.json({ slot: rows[0] });
 }
 
