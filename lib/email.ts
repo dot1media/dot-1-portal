@@ -368,7 +368,7 @@ export async function sendEmail(opts: { to?: string; subject: string; html: stri
   const key = process.env.RESEND_API_KEY;
   if (!key) return { ok: false, error: "Email is not configured (RESEND_API_KEY is missing)." };
   if (!opts.to) return { ok: false, error: "No recipient address." };
-  const from = process.env.EMAIL_FROM || "Dot One Media <notifications@dot1.media>";
+  const from = process.env.EMAIL_FROM || "Dot One Media <contact@dot1.media>";
   const cc = (Array.isArray(opts.cc) ? opts.cc : (opts.cc ? [opts.cc] : []))
     .map((e) => String(e || "").trim())
     .filter((e) => /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(e) && e.toLowerCase() !== String(opts.to).toLowerCase());
