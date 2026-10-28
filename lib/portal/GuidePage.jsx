@@ -1,5 +1,5 @@
 import React from "react";
-import { ArrowLeft, Download, ArrowUp } from "lucide-react";
+import { ArrowLeft, Download, ArrowUp, PlayCircle, Compass } from "lucide-react";
 import { RED, INK, STONE, LINE, PAPER } from "./theme";
 
 // Renders a guide (client or studio) inside the portal, styled to match, with a Download PDF button.
@@ -30,7 +30,7 @@ const GUIDE_CSS = `.dot1-guide{color:#33322d;font-family:'Archivo',system-ui,san
 .dot1-guide h1{display:none;}
 .dot1-guide em{font-style:italic;}`;
 
-export function GuidePage({ title, html, pdf, onBack }) {
+export function GuidePage({ title, html, pdf, onBack, onWalkthrough, onTour }) {
   const jump = (e) => {
     const a = e.target && e.target.closest ? e.target.closest('a[href^="#"]') : null;
     if (!a) return;
@@ -53,6 +53,16 @@ export function GuidePage({ title, html, pdf, onBack }) {
         </div>
         <a href={pdf} target="_blank" rel="noopener noreferrer" style={{ display: "flex", alignItems: "center", gap: 7, padding: "9px 15px", borderRadius: 7, background: RED, color: "#fff", fontSize: 12.5, fontWeight: 500, textDecoration: "none" }}><Download size={14} /> Download PDF</a>
       </div>
+      {(onWalkthrough || onTour) && (
+        <div style={{ border: `1px solid ${RED}`, background: "#fdeeec", borderRadius: 10, padding: "16px 18px", marginBottom: 22 }}>
+          <div style={{ fontFamily: "'Bodoni Moda', Georgia, serif", fontWeight: 700, fontSize: 18, color: INK, marginBottom: 4 }}>New here? Take the tour.</div>
+          <div style={{ fontSize: 14, lineHeight: 1.55, color: "#4a473f", marginBottom: 12 }}>Two quick ways to learn your way around, and you can replay either any time from this page. The walkthrough shows each step with illustrations; the live tour points out the real sections on screen.</div>
+          <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+            {onWalkthrough && <button onClick={onWalkthrough} style={{ display: "inline-flex", alignItems: "center", gap: 7, background: RED, color: "#fff", border: "none", borderRadius: 7, padding: "9px 15px", fontSize: 13, fontWeight: 600, cursor: "pointer" }}><PlayCircle size={15} /> Play the walkthrough</button>}
+            {onTour && <button onClick={onTour} style={{ display: "inline-flex", alignItems: "center", gap: 7, background: "transparent", color: INK, border: `1px solid ${LINE}`, borderRadius: 7, padding: "9px 15px", fontSize: 13, fontWeight: 500, cursor: "pointer" }}><Compass size={15} /> Take the live tour</button>}
+          </div>
+        </div>
+      )}
       <div className="dot1-guide" onClick={jump} dangerouslySetInnerHTML={{ __html: html }} />
       <button onClick={toTop} aria-label="Back to top" title="Back to top" style={{ position: "fixed", bottom: 22, left: 22, width: 42, height: 42, borderRadius: 21, background: INK, color: "#fff", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 6px 20px rgba(0,0,0,0.22)", zIndex: 70 }}><ArrowUp size={18} /></button>
     </div>

@@ -35,6 +35,9 @@ import { ClientViewRedesign } from "../lib/portal/ClientViewRedesign";
 import { ClientUiToggle } from "../lib/portal/ClientUiToggle";
 import { GuidePage } from "../lib/portal/GuidePage";
 import { CLIENT_GUIDE_HTML, ADMIN_GUIDE_HTML } from "../lib/portal/guides";
+import Walkthrough from "../lib/portal/Walkthrough";
+import UITour from "../lib/portal/UITour";
+import { CLIENT_WALK, ADMIN_WALK, CLIENT_TOUR, ADMIN_TOUR } from "../lib/portal/tours";
 import { AccountManagement } from "../lib/portal/AccountManagement";
 import { SuiteHub } from "../lib/portal/SuiteHub";
 import {
@@ -108,6 +111,8 @@ export default function App() {
   const [inviteToken, setInviteToken] = useState("");
   const [guideSeen, setGuideSeen] = useState(true);
   const [clientGuideOpen, setClientGuideOpen] = useState(false);
+  const [walk, setWalk] = useState(null); // null | "client" | "admin"
+  const [tour, setTour] = useState(null); // null | "client" | "admin"
   const [themeKey, setThemeKey] = useState("default");
   const [customAccent, setCustomAccent] = useState("");
   const [themeOpen, setThemeOpen] = useState(false);
@@ -567,7 +572,7 @@ export default function App() {
         {view === "resetpw" && <ResetPassword token={resetToken} onDone={() => setView("login")} showToast={showToast} />}
         {view === "invite" && <InviteAccept token={inviteToken} showToast={showToast} />}
         {(view === "terms" || view === "privacy") && <LegalPage kind={view} onBack={() => setView(legalReturn)} />}
-        {view === "client" && clientGuideOpen && <GuidePage title="Client Guide" html={CLIENT_GUIDE_HTML} pdf="/guides/dot1-client-guide.pdf" onBack={() => setClientGuideOpen(false)} />}
+        {view === "client" && clientGuideOpen && <GuidePage title="Client Guide" html={CLIENT_GUIDE_HTML} pdf="/guides/dot1-client-guide.pdf" onBack={() => setClientGuideOpen(false)} onWalkthrough={() => setWalk("client")} onTour={() => { setClientGuideOpen(false); setTimeout(() => setTour("client"), 90); }} />}
         {view === "client" && !clientGuideOpen && (() => { const CView = clientUi === "redesign" ? ClientViewRedesign : ClientView; return <CView session={clientSession} onOpenSession={(id) => setClientId(id)} onRebook={(serviceId) => { setPreServiceId(serviceId ? String(serviceId) : ""); setPreServiceSlug(""); setDirectContext(null); setView("book"); window.scrollTo(0, 0); }} sessions={state.sessions} clientId={clientId} setClientId={setClientId} addComment={addComment} onRescheduleRequest={clientRescheduleRequest} markMessagesRead={markMessagesRead} patchSession={patchSession} resizeImage={resizeImage} uploadMessageImage={uploadMessageImage} showToast={showToast} />; })()}
         {view === "thankyou" && <ThankYou session={clientSession} onPortal={() => setView("client")} brand={brand} />}
         {view === "onboard" && <InvoiceOnboarding session={clientSession} onDone={() => { try { localStorage.setItem("dot1_view_pref", "client"); } catch (e) {} setView("client"); showToast("You're all set. Welcome to your portal!"); }} />}
@@ -576,17 +581,19 @@ export default function App() {
         {internalOpen && <InternalBookingModal state={state} showToast={showToast} onClose={() => setInternalOpen(false)} onCreate={createInternalBooking} />}
         {invoiceOpen && <InvoiceModal state={state} showToast={showToast} onClose={() => setInvoiceOpen(false)} onSessionsRefresh={async () => { try { const sd = await fetch("/api/sessions").then((r) => r.json()); if (sd && sd.sessions) setState((s) => ({ ...s, sessions: sd.sessions })); } catch (e) {} }} />}
         {quoteOpen && <QuoteModal state={state} showToast={showToast} onClose={() => setQuoteOpen(false)} onSessionsRefresh={async () => { try { const sd = await fetch("/api/sessions").then((r) => r.json()); if (sd && sd.sessions) setState((s) => ({ ...s, sessions: sd.sessions })); } catch (e) {} }} />}
+        <Walkthrough open={!!walk} onClose={() => setWalk(null)} title={walk === "admin" ? "Studio walkthrough" : "Client walkthrough"} steps={walk === "admin" ? ADMIN_WALK : CLIENT_WALK} />
+        <UITour open={!!tour} onClose={() => setTour(null)} title={tour === "admin" ? "Studio tour" : "Portal tour"} steps={tour === "admin" ? ADMIN_TOUR : CLIENT_TOUR} />
         {view === "admin" && (
           <div>
             <div style={{ display: "flex", gap: 6, marginBottom: 24, borderBottom: `1px solid ${LINE}`, flexWrap: "nowrap", overflowX: "auto", WebkitOverflowScrolling: "touch" }}>
-              <SubTab active={adminTab === "home"} onClick={() => setAdminTab("home")} label="Home" />
+              <SubTab active={adminTab === "home"} onClick={() => setAdminTab("home")} label="Home" tourId="admin-home" />
               <SubTab active={adminTab === "inbox"} onClick={() => setAdminTab("inbox")} label="Inbox" badge={inquiries.filter((i) => !i.handled).length} />
-              <SubTab active={adminTab === "sessions"} onClick={() => setAdminTab("sessions")} label="Sessions" badge={unreadClientTotal} />
-              <SubTab active={adminTab === "calendar"} onClick={() => setAdminTab("calendar")} label="Calendar" />
-              <SubTab active={adminTab === "availability"} onClick={() => setAdminTab("availability")} label="Availability" />
-              <SubTab active={adminTab === "services"} onClick={() => setAdminTab("services")} label="Services & Add-ons" />
-              <SubTab active={adminTab === "business"} onClick={() => setAdminTab("business")} label="Business Settings" />
-              <SubTab active={adminTab === "account"} onClick={() => setAdminTab("account")} label="Account Management" />
+              <SubTab active={adminTab === "sessions"} onClick={() => setAdminTab("sessions")} label="Sessions" badge={unreadClientTotal} tourId="admin-sessions" />
+              <SubTab active={adminTab === "calendar"} onClick={() => setAdminTab("calendar")} label="Calendar" tourId="admin-calendar" />
+              <SubTab active={adminTab === "availability"} onClick={() => setAdminTab("availability")} label="Availability" tourId="admin-availability" />
+              <SubTab active={adminTab === "services"} onClick={() => setAdminTab("services")} label="Services & Add-ons" tourId="admin-services" />
+              <SubTab active={adminTab === "business"} onClick={() => setAdminTab("business")} label="Business Settings" tourId="admin-business" />
+              <SubTab active={adminTab === "account"} onClick={() => setAdminTab("account")} label="Account Management" tourId="admin-account" />
             </div>
             {adminTab === "home" && <StudioHome state={state} setAdminId={setAdminId} setAdminTab={setAdminTab} dark={themeKey === "midnight"} />}
             {adminTab === "inbox" && <Inbox inquiries={inquiries} setInquiries={setInquiries} showToast={showToast} />}
@@ -596,7 +603,7 @@ export default function App() {
             {adminTab === "services" && <ServiceCatalog state={state} addService={addService} updateService={updateService} deleteService={deleteService} addAddon={addAddon} updateAddon={updateAddon} deleteAddon={deleteAddon} showToast={showToast} setConfirm={setConfirm} />}
             {adminTab === "business" && <><ClientUiToggle showToast={showToast} onChange={setClientUi} /><BusinessSettings sessions={state.sessions} showToast={showToast} onImport={importSessions} /></>}
             {adminTab === "account" && <><AccountManagement state={state} showToast={showToast} /><div style={{ marginTop: 44, paddingTop: 40, borderTop: `1px solid ${LINE}` }}><AdminAccounts showToast={showToast} /></div></>}
-            {adminTab === "guide" && <GuidePage title="Studio Admin Guide" html={ADMIN_GUIDE_HTML} pdf="/guides/dot1-admin-guide.pdf" onBack={() => setAdminTab(prevTab)} />}
+            {adminTab === "guide" && <GuidePage title="Studio Admin Guide" html={ADMIN_GUIDE_HTML} pdf="/guides/dot1-admin-guide.pdf" onBack={() => setAdminTab(prevTab)} onWalkthrough={() => setWalk("admin")} onTour={() => setTour("admin")} />}
           </div>
         )}
       </main>
@@ -1026,8 +1033,8 @@ function downloadCsv(rows, filename) {
 
 
 
-function SubTab({ active, onClick, label, badge }) {
-  return <button onClick={onClick} style={{ ...mono, fontSize: 11, letterSpacing: "0.1em", textTransform: "uppercase", padding: "10px 4px", marginRight: 20, cursor: "pointer", background: "transparent", border: "none", color: active ? INK : FAINT, borderBottom: `2px solid ${active ? RED : "transparent"}`, marginBottom: -1, display: "inline-flex", alignItems: "center", gap: 7, whiteSpace: "nowrap", flexShrink: 0 }}>{label}{badge ? <span style={{ background: RED, color: "#fff", borderRadius: 20, fontSize: 9.5, minWidth: 16, height: 16, padding: "0 5px", display: "inline-flex", alignItems: "center", justifyContent: "center" }}>{badge}</span> : null}</button>;
+function SubTab({ active, onClick, label, badge, tourId }) {
+  return <button data-tour={tourId} onClick={onClick} style={{ ...mono, fontSize: 11, letterSpacing: "0.1em", textTransform: "uppercase", padding: "10px 4px", marginRight: 20, cursor: "pointer", background: "transparent", border: "none", color: active ? INK : FAINT, borderBottom: `2px solid ${active ? RED : "transparent"}`, marginBottom: -1, display: "inline-flex", alignItems: "center", gap: 7, whiteSpace: "nowrap", flexShrink: 0 }}>{label}{badge ? <span style={{ background: RED, color: "#fff", borderRadius: 20, fontSize: 9.5, minWidth: 16, height: 16, padding: "0 5px", display: "inline-flex", alignItems: "center", justifyContent: "center" }}>{badge}</span> : null}</button>;
 }
 
 
