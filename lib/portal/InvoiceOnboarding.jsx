@@ -14,14 +14,16 @@ export function InvoiceOnboarding({ session, onDone }) {
   const group = session?.serviceLine || "video";
   const grp = GROUPS[group] || GROUPS.video;
   const A = grp.color;
-  const email = (session?.clientEmail || "").toLowerCase();
-  const name = session?.clientName || "";
+  // The account owner. Pre-filled from the invoice, but editable: whoever pays
+  // and signs may differ from the person the invoice was emailed to.
+  const [ownerName, setOwnerName] = useState(session?.clientName || "");
+  const [ownerEmail, setOwnerEmail] = useState((session?.clientEmail || "").toLowerCase());
 
   const [isMinor, setIsMinor] = useState(false);
   const [child, setChild] = useState({ name: "", age: "", relationship: "" });
   const [usage, setUsage] = useState("A");
   const [exception, setException] = useState("");
-  const [signature, setSignature] = useState(name);
+  const [signature, setSignature] = useState(session?.clientName || "");
   const [password, setPassword] = useState("");
   const [agree, setAgree] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -29,25 +31,35 @@ export function InvoiceOnboarding({ session, onDone }) {
   // If the account already has a password (e.g. the studio created it, or the client set one already),
   // this becomes a sign-only step: no password field, and we don't overwrite their existing password.
   const [hasPw, setHasPw] = useState(null);
+  const emailValid = (e) => /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test((e || "").trim());
   useEffect(() => {
-    if (!email) { setHasPw(false); return; }
+    const em = (ownerEmail || "").trim().toLowerCase();
+    if (!emailValid(em)) { setHasPw(false); return; }
     let live = true;
-    fetch("/api/client-onboard-status?email=" + encodeURIComponent(email)).then((r) => r.json()).then((d) => { if (live) setHasPw(!!(d && d.hasPassword)); }).catch(() => { if (live) setHasPw(false); });
-    return () => { live = false; };
-  }, [email]);
+    // Debounced: whether a password is needed depends on the entered owner email's
+    // account, which changes as they type their own email.
+    const t = setTimeout(() => {
+      fetch("/api/client-onboard-status?email=" + encodeURIComponent(em)).then((r) => r.json()).then((d) => { if (live) setHasPw(!!(d && d.hasPassword)); }).catch(() => { if (live) setHasPw(false); });
+    }, 450);
+    return () => { live = false; clearTimeout(t); };
+  }, [ownerEmail]);
   const needsPw = hasPw === false; // null while loading → treat as not-yet-required
 
   const submit = async () => {
     setErr("");
+    const em = (ownerEmail || "").trim().toLowerCase();
+    const who = ownerName.trim() || signature.trim();
+    if (!who) { setErr("Enter the account owner's full name."); return; }
+    if (!emailValid(em)) { setErr("Enter a valid email for the account owner."); return; }
     if (!signature.trim()) { setErr("Type your full legal name to sign."); return; }
     if (!agree) { setErr("Please check the box to agree and sign."); return; }
     if (needsPw && (!password || password.length < 8)) { setErr("Choose a password of at least 8 characters."); return; }
     if (isMinor && (!child.name.trim() || !child.age.trim() || !child.relationship.trim())) { setErr("Please add the child's name, age, and your relationship to the child."); return; }
     setSubmitting(true);
     try {
-      // create/attach the account (idempotent on email; sets the client cookie). Password is only sent
-      // when the account doesn't already have one — otherwise the existing password is preserved.
-      const ures = await fetch("/api/users", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ name: name.trim() || signature.trim(), email, phone: (session?.clientPhone || "").trim(), password: needsPw ? password : "" }) });
+      // create/attach the account under the OWNER's email (idempotent; sets the client cookie). Password is
+      // only sent when the account doesn't already have one — otherwise the existing password is preserved.
+      const ures = await fetch("/api/users", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ name: who, email: em, phone: (session?.clientPhone || "").trim(), password: needsPw ? password : "" }) });
       const udata = await ures.json().catch(() => ({}));
       if (!ures.ok) throw new Error(udata.error || "Could not set up your account.");
 
@@ -59,8 +71,16 @@ export function InvoiceOnboarding({ session, onDone }) {
         { type: "client_services", version: CLIENT_SERVICES_VERSION },
         { type: releaseType, version: RELEASE_VERSION, usageOption: usage, details },
       ];
-      const ares = await fetch("/api/agreements", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ email, signedName: signature.trim(), agreements }) });
+      const ares = await fetch("/api/agreements", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ email: em, signedName: signature.trim(), agreements }) });
       if (!ares.ok) { const d = await ares.json().catch(() => ({})); throw new Error(d.error || "Could not record your signature."); }
+
+      // Re-point the booking to this owner so they can see and own it, even if the
+      // invoice was emailed to someone else. Keyed by the invoice token + session id.
+      if (session?.invoiceToken && session?.id) {
+        try {
+          await fetch("/api/invoices/" + encodeURIComponent(session.invoiceToken) + "/claim", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ sessionId: session.id, email: em, name: who }) });
+        } catch (e) { /* non-fatal: account + signatures are already recorded under their email */ }
+      }
       onDone && onDone();
     } catch (e) {
       setErr((e && e.message) || "Something went wrong. Please try again.");
@@ -79,6 +99,16 @@ export function InvoiceOnboarding({ session, onDone }) {
       </div>
 
       <div style={{ ...card, padding: "22px 22px 24px" }}>
+        <div style={{ marginBottom: 18, paddingBottom: 18, borderBottom: `1px solid ${LINE}` }}>
+          <div style={{ ...mono, fontSize: 10.5, letterSpacing: "0.16em", textTransform: "uppercase", color: STONE, marginBottom: 10 }}>Who is signing &amp; will own this account</div>
+          <FieldLabel>Full name</FieldLabel>
+          <TextInput value={ownerName} onChange={setOwnerName} placeholder="Your full name" />
+          <div style={{ height: 10 }} />
+          <FieldLabel>Email for this account</FieldLabel>
+          <TextInput value={ownerEmail} onChange={(v) => setOwnerEmail((v || "").toLowerCase())} placeholder="you@email.com" />
+          <div style={{ fontSize: 12, color: STONE, marginTop: 7, lineHeight: 1.5 }}>This is the email you&rsquo;ll sign in with. Use the account owner&rsquo;s email, even if the invoice was sent to someone else.</div>
+        </div>
+
         <label style={{ display: "flex", alignItems: "flex-start", gap: 10, marginBottom: 4, cursor: "pointer", background: CREAM, border: `1px solid ${LINE}`, borderRadius: 9, padding: "12px 14px" }}>
           <input type="checkbox" checked={isMinor} onChange={(e) => setIsMinor(e.target.checked)} style={{ marginTop: 2, width: 16, height: 16, accentColor: A, cursor: "pointer" }} />
           <span style={{ fontSize: 12.5, color: BODY, lineHeight: 1.5 }}>This session is for a child under 18. I am the parent or legal guardian and will sign on their behalf.</span>
@@ -116,7 +146,7 @@ export function InvoiceOnboarding({ session, onDone }) {
         {needsPw && (
           <div style={{ marginTop: 20, borderTop: `1px solid ${LINE}`, paddingTop: 18 }}>
             <div style={{ ...mono, fontSize: 10.5, letterSpacing: "0.16em", textTransform: "uppercase", color: STONE, marginBottom: 8 }}>Set your portal password</div>
-            <div style={{ fontSize: 12.5, color: STONE, marginBottom: 8, lineHeight: 1.5 }}>You'll sign in with <strong style={{ color: INK }}>{email}</strong> and this password.</div>
+            <div style={{ fontSize: 12.5, color: STONE, marginBottom: 8, lineHeight: 1.5 }}>You'll sign in with <strong style={{ color: INK }}>{ownerEmail}</strong> and this password.</div>
             <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="At least 8 characters" style={{ ...inputStyle, marginBottom: 2 }} />
             <PasswordMeter value={password} />
           </div>

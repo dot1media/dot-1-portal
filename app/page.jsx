@@ -195,8 +195,12 @@ export default function App() {
       try { res = await fetch("/api/pay/verify?sid=" + encodeURIComponent(paidSid) + (payKind ? "&kind=" + encodeURIComponent(payKind) : "") + (payCharge ? "&charge=" + encodeURIComponent(payCharge) : "")).then((r) => r.json()).catch(() => ({})); } catch (e) {}
       try { const sd = await fetch("/api/sessions").then((r) => r.json()).catch(() => ({})); const all = (sd && sd.sessions) || []; const paid0 = all.find((x) => x.id === paidSid); const myTEmail = ((paid0 && paid0.clientEmail) || "").toLowerCase(); const sess = myTEmail ? all.filter((x) => (x.clientEmail || "").toLowerCase() === myTEmail) : all; if (sess.length) { setState((s) => ({ ...s, sessions: sess })); const mine = sess.find((x) => x.id === paidSid) || sess[0]; setClientId(mine.id); setClientAuth({ name: mine.clientName || "", email: mine.clientEmail || "" });
         let needsOnboard = false;
-        if (mine.source === "invoice" && mine.clientEmail) {
-          try { const st = await fetch("/api/client-onboard-status?email=" + encodeURIComponent(mine.clientEmail)).then((r) => r.json()).catch(() => null); if (st && (!st.hasPassword || !st.signedServices)) needsOnboard = true; } catch (e) {}
+        // Invoice sessions run onboarding until someone claims them, so whoever
+        // actually pays and signs becomes the account owner, even if the invoice
+        // was emailed to a different person. Once claimed (onboardedEmail set) or
+        // for charge/balance payments, skip straight to the dashboard.
+        if (mine.source === "invoice" && !mine.onboardedEmail && !payKind) {
+          needsOnboard = true;
         }
         setView(needsOnboard ? "onboard" : "thankyou"); } } catch (e) {}
       showToast(res && res.paid ? "Payment received. Thank you!" : "Thanks! If your payment is still processing, your status will update shortly.");

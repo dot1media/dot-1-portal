@@ -24,10 +24,27 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   if (!(await isAdmin())) return NextResponse.json({ error: "Not authorized." }, { status: 401 });
   const { id } = await params;
   const b = await request.json().catch(() => ({}));
-  if (b.action !== "resend" && b.action !== "createlink") return NextResponse.json({ error: "Unknown action." }, { status: 400 });
+  if (b.action !== "resend" && b.action !== "createlink" && b.action !== "reassign") return NextResponse.json({ error: "Unknown action." }, { status: 400 });
   const rows = (await sql`SELECT session_id, data FROM invoices WHERE token = ${id} LIMIT 1`) as any[];
   if (!rows.length) return NextResponse.json({ error: "Not found." }, { status: 404 });
   const inv = rows[0].data || {};
+
+  if (b.action === "reassign") {
+    // Move an already-sent invoice's booking to the real owner's email, for when
+    // it was sent to a contact who wasn't the person who pays and signs.
+    const email = String(b.email || "").trim().toLowerCase();
+    const name = String(b.name || "").trim();
+    const emailOk = /^[a-z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-z0-9-]+(\.[a-z0-9-]+)+$/.test(email) && email.indexOf("..") === -1 && email.length <= 254;
+    if (!emailOk) return NextResponse.json({ error: "Enter a valid email." }, { status: 400 });
+    const sessionId = rows[0].session_id || "";
+    const patch: Record<string, any> = { clientEmail: email, onboardedEmail: email };
+    if (name) patch.clientName = name;
+    if (sessionId) await sql`UPDATE portal_sessions SET client_email = ${email}, data = data || ${JSON.stringify(patch)}::jsonb WHERE id = ${sessionId}`;
+    const ip: Record<string, any> = { ownerEmail: email };
+    if (name) ip.ownerName = name;
+    await sql`UPDATE invoices SET data = data || ${JSON.stringify(ip)}::jsonb WHERE token = ${id}`;
+    return NextResponse.json({ ok: true });
+  }
 
   if (b.action === "createlink") {
     // Repair an invoice that went out without a payment link.

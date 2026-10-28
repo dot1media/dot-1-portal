@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { X, FileText, Plus, Trash2, Send, Eye, RefreshCw, Copy, ChevronLeft, Download, Link2 } from "lucide-react";
+import { X, FileText, Plus, Trash2, Send, Eye, RefreshCw, Copy, ChevronLeft, Download, Link2, UserCog } from "lucide-react";
 import { INK, BODY, STONE, FAINT, LINE, PAPER, CREAM, RED, OK, mono, display, card, inputStyle, btnSolid } from "./theme";
 import { GROUPS } from "./groups";
 
@@ -77,6 +77,20 @@ export function InvoiceArchive({ showToast }) {
       showToast("Payment link created for " + inv.no + ". Resend the email so " + ((inv.client && inv.client.name) || "the client") + " receives it.");
     } catch (e) { showToast("Could not create the payment link."); }
   };
+  const reassign = async (inv) => {
+    const current = inv.ownerEmail || (inv.client && inv.client.email) || "";
+    const email = window.prompt("Reassign this booking to the real owner's email.\nWhoever signs in with this email will own and see the booking (useful when the invoice went to a contact who wasn't the payer).", current);
+    if (email === null) return;
+    const em = email.trim().toLowerCase();
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em)) { showToast("Enter a valid email."); return; }
+    try {
+      const r = await fetch("/api/invoices/" + inv.token, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ action: "reassign", email: em }) });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) { showToast(d.error || "Could not reassign."); return; }
+      setList((p) => (p || []).map((x) => (x.token === inv.token ? { ...x, ownerEmail: em } : x)));
+      showToast("Booking reassigned to " + em + ". They can sign in, or send them a portal invite to finish setup.");
+    } catch (e) { showToast("Could not reassign."); }
+  };
   return (
     <div>
       {list === null && <div style={{ ...mono, fontSize: 11, color: FAINT, padding: 20, textAlign: "center" }}>Loading&hellip;</div>}
@@ -92,10 +106,12 @@ export function InvoiceArchive({ showToast }) {
             <span style={{ ...mono, fontSize: 10, color: STONE }}>{fmt((inv.totalCents || 0) / 100)} · retainer {fmt((inv.retainerCents || 0) / 100)}</span>
           </div>
           <div style={{ ...mono, fontSize: 10, color: FAINT, marginTop: 3 }}>{inv.service && inv.service.name} · {inv.service && inv.service.date} at {inv.service && inv.service.time}</div>
+          {inv.ownerEmail && inv.ownerEmail !== (inv.client && inv.client.email) ? <div style={{ ...mono, fontSize: 9.5, color: OK, marginTop: 3 }}>Owner: {inv.ownerEmail}</div> : null}
           <div style={{ display: "flex", gap: 8, marginTop: 9, flexWrap: "wrap" }}>
             <button onClick={() => download(inv)} style={miniBtn}><Download size={12} /> Download PDF</button>
             <button onClick={() => resend(inv)} style={miniBtn}><RefreshCw size={12} /> Resend email</button>
             {inv.payUrl ? <button onClick={() => copyLink(inv)} style={miniBtn}><Copy size={12} /> Payment link</button> : <button onClick={() => makeLink(inv)} style={{ ...miniBtn, color: "#a16207", borderColor: "#eadfc0", background: "#fdf9ee" }}><Link2 size={12} /> Create payment link</button>}
+            <button onClick={() => reassign(inv)} style={miniBtn}><UserCog size={12} /> Reassign owner</button>
             <button onClick={() => removeInv(inv)} style={{ ...miniBtn, color: RED, borderColor: "#f0d4cf" }}><Trash2 size={12} /> Delete</button>
           </div>
         </div>
