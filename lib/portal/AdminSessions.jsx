@@ -271,6 +271,18 @@ function ClientAccountForSession({ session, onSendInvite, patchSession, showToas
   const [busy, setBusy] = useState(false);
   const [editEmail, setEditEmail] = useState(false);
   const [emailVal, setEmailVal] = useState("");
+  const [reminding, setReminding] = useState(false);
+
+  const remindSign = async () => {
+    setReminding(true);
+    try {
+      const res = await fetch("/api/agreements/remind", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ sessionId: session.id }) });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok) showToast && showToast("Sign reminder sent to " + email + ".");
+      else showToast && showToast(data.error || "Could not send the reminder.");
+    } catch (e) { showToast && showToast("Could not send the reminder."); }
+    setReminding(false);
+  };
 
   const load = () => {
     if (!email) { setStatus({ hasAccount: false }); return; }
@@ -363,8 +375,9 @@ function ClientAccountForSession({ session, onSendInvite, patchSession, showToas
       ) : (
         <div style={{ fontSize: 12.5, color: BODY, lineHeight: 1.55, marginTop: 10 }}>
           {active
-            ? (status.signedServices ? "They have an account and have signed the agreement. They can sign in to track this session." : "They have an account but haven't signed the agreement yet — they'll be prompted to sign the next time they sign in.")
+            ? (status.signedServices ? "They have an account and have signed the agreement. They can sign in to track this session." : "They have an account but haven't signed the agreement yet. Send a reminder with a direct link to sign, or they'll be prompted the next time they sign in.")
             : "An account exists but no password is set. They can set one from the sign-in page (or use \"Send portal invite\"), then they'll be asked to sign the agreement."}
+          {active && !status.signedServices && <div style={{ marginTop: 11 }}><button onClick={remindSign} disabled={reminding} style={{ ...btnSolid, background: RED, opacity: reminding ? 0.6 : 1 }}><Send size={13} /> {reminding ? "Sending…" : "Send sign reminder"}</button></div>}
           {!active && onSendInvite && <div style={{ marginTop: 11 }}><button onClick={() => onSendInvite(session)} style={{ ...btnGhost }}><Send size={13} /> Send portal invite</button></div>}
         </div>
       )}

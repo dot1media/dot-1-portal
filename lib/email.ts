@@ -211,6 +211,17 @@ export function inviteEmail(s: any, link: string): string {
   return shell(brand, "Your Portal", "Create your account to track your session", body);
 }
 
+export function signReminderEmail(s: any, link: string): string {
+  const brand = brandFor(s);
+  const first = s && s.clientName ? esc(String(s.clientName).split(" ")[0]) : "";
+  const body =
+    para(`Hi${first ? " " + first : ""}, thank you for booking your <strong style="color:${INK};">${esc(s.type) || "session"}</strong> with Dot One Media.`) +
+    para("Before your session, we still need your signature on the Client Services Agreement and the release waiver. It only takes a moment, and it keeps everything clear and on the record for both of us.") +
+    button(brand, link, "Review & sign your agreement") +
+    para("If a model release is needed for others appearing in your session, you can add those from your portal too.");
+  return shell(brand, "One quick signature", "Please sign your agreement before your session", body);
+}
+
 export function balanceEmail(s: any, link: string, balance: number): string {
   const brand = brandFor(s);
   const body = para(`The remaining balance for your <strong style="color:${INK};">${esc(s.type) || "session"}</strong> is ready to pay.`) +

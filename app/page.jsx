@@ -146,7 +146,7 @@ export default function App() {
     const path = window.location.pathname || "";
     const directTok = q.get("b") || (path.indexOf("/book/") === 0 ? path.slice(6).split("/")[0] : "");
     // Special links (direct booking, password reset, invites, payment returns) own the view.
-    if (directTok || q.get("reset") || q.get("invite") || q.get("paid")) { setAuthChecked(true); return; }
+    if (directTok || q.get("reset") || q.get("invite") || q.get("paid") || q.get("sign")) { setAuthChecked(true); return; }
     let pref = ""; try { pref = localStorage.getItem("dot1_view_pref") || ""; } catch (e) {}
     const a = await fetch("/api/auth/me").then((r) => r.json()).catch(() => null);
     const c = await fetch("/api/client-me").then((r) => r.json()).catch(() => null);
@@ -204,6 +204,31 @@ export default function App() {
         }
         setView(needsOnboard ? "onboard" : "thankyou"); } } catch (e) {}
       showToast(res && res.paid ? "Payment received. Thank you!" : "Thanks! If your payment is still processing, your status will update shortly.");
+    })();
+  }, []);
+  // Sign-reminder deep link (/?sign=<sessionId>): drop the client into the sign
+  // flow. If they're signed in we find their booking and go straight there; if
+  // not, send them to sign in first, after which the needs-signature gate routes
+  // them to the same place.
+  useEffect(() => {
+    const signSid = new URLSearchParams(window.location.search).get("sign");
+    if (!signSid) return;
+    (async () => {
+      try {
+        const sd = await fetch("/api/sessions").then((r) => r.json()).catch(() => ({}));
+        const all = (sd && sd.sessions) || [];
+        const mine = all.find((x) => x.id === signSid);
+        if (mine) {
+          const em = (mine.clientEmail || "").toLowerCase();
+          setState((s) => ({ ...s, sessions: em ? all.filter((x) => (x.clientEmail || "").toLowerCase() === em) : all }));
+          setClientId(mine.id);
+          setClientAuth({ name: mine.clientName || "", email: mine.clientEmail || "" });
+          setView("onboard");
+        } else {
+          setView("login");
+          showToast("Please sign in to review and sign your agreement.");
+        }
+      } catch (e) { setView("login"); }
     })();
   }, []);
   useEffect(() => {
