@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { X, FileText, Plus, Trash2, Eye, ChevronLeft, Download, FileCheck2, ArrowRight, Link2 } from "lucide-react";
+import { X, FileText, Plus, Trash2, Eye, ChevronLeft, Download, FileCheck2, ArrowRight, Link2, RotateCcw } from "lucide-react";
 import { INK, BODY, STONE, FAINT, LINE, PAPER, CREAM, RED, OK, mono, display, card, inputStyle, btnSolid } from "./theme";
 import { GROUPS } from "./groups";
 
@@ -84,14 +84,24 @@ function ConvertRow({ q, showToast, onConverted }) {
 
 function QuoteArchive({ showToast, reloadKey, onConverted }) {
   const [list, setList] = useState(null);
+  const [deleted, setDeleted] = useState([]);
+  const [showDeleted, setShowDeleted] = useState(false);
   const [copiedId, setCopiedId] = useState("");
   const load = async () => { try { const d = await fetch("/api/quotes").then((r) => r.json()); setList(d.quotes || []); } catch (e) { setList([]); } };
-  useEffect(() => { load(); }, [reloadKey]);
+  const loadDeleted = async () => { try { const d = await fetch("/api/quotes?scope=deleted").then((r) => r.json()); setDeleted(d.quotes || []); } catch (e) { setDeleted([]); } };
+  useEffect(() => { load(); loadDeleted(); }, [reloadKey]);
   const download = (q) => { try { window.open("/api/quotes/" + encodeURIComponent(q.token) + "/pdf", "_blank"); } catch (e) {} };
   const copyClient = async (q) => { try { await navigator.clipboard.writeText(window.location.origin + "/quote/" + q.token); setCopiedId(q.token); setTimeout(() => setCopiedId(""), 1600); } catch (e) { showToast("Could not copy the link."); } };
   const remove = async (q) => {
-    if (!window.confirm("Delete quote " + q.no + "? Any invoice already created from it is kept.")) return;
-    try { const r = await fetch("/api/quotes/" + encodeURIComponent(q.token), { method: "DELETE" }); if (!r.ok) throw new Error(); setList((p) => (p || []).filter((x) => x.token !== q.token)); } catch (e) { showToast("Could not delete."); }
+    // Soft delete: moves to Recently deleted, restorable. Any invoice already created is kept.
+    try { const r = await fetch("/api/quotes/" + encodeURIComponent(q.token), { method: "DELETE" }); if (!r.ok) throw new Error(); setList((p) => (p || []).filter((x) => x.token !== q.token)); loadDeleted(); showToast("Quote " + q.no + " moved to Recently deleted. Restore it below if needed."); } catch (e) { showToast("Could not delete."); }
+  };
+  const restore = async (q) => {
+    try { const r = await fetch("/api/quotes/" + encodeURIComponent(q.token) + "/restore", { method: "POST" }); if (!r.ok) throw new Error(); setDeleted((p) => (p || []).filter((x) => x.token !== q.token)); load(); onConverted && onConverted(); showToast("Quote " + q.no + " restored."); } catch (e) { showToast("Could not restore the quote."); }
+  };
+  const purge = async (q) => {
+    if (!window.confirm("Permanently delete quote " + q.no + "? This cannot be undone.")) return;
+    try { const r = await fetch("/api/quotes/" + encodeURIComponent(q.token) + "?hard=1", { method: "DELETE" }); if (!r.ok) throw new Error(); setDeleted((p) => (p || []).filter((x) => x.token !== q.token)); } catch (e) { showToast("Could not delete."); }
   };
   return (
     <div>
@@ -116,6 +126,26 @@ function QuoteArchive({ showToast, reloadKey, onConverted }) {
           </div>
         </div>
       ))}
+
+      {deleted.length > 0 && (
+        <div style={{ marginTop: 16, borderTop: `1px solid ${LINE}`, paddingTop: 14 }}>
+          <button onClick={() => setShowDeleted((v) => !v)} style={{ ...mono, fontSize: 10, letterSpacing: "0.08em", textTransform: "uppercase", color: STONE, background: "transparent", border: "none", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 6, padding: 0 }}>
+            <Trash2 size={11} /> Recently deleted ({deleted.length})
+          </button>
+          {showDeleted && deleted.map((q) => (
+            <div key={q.token} style={{ border: `1px solid ${LINE}`, borderRadius: 9, padding: "10px 12px", marginTop: 10, background: CREAM }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 6 }}>
+                <span><span style={{ fontWeight: 600, color: INK, fontSize: 13 }}>{q.no}</span><span style={{ ...mono, fontSize: 10, color: STONE, marginLeft: 8 }}>{q.client && q.client.name}</span></span>
+                <span style={{ ...mono, fontSize: 10, color: STONE }}>{fmt((q.totalCents || 0) / 100)}</span>
+              </div>
+              <div style={{ display: "flex", gap: 8, marginTop: 8, flexWrap: "wrap" }}>
+                <button onClick={() => restore(q)} style={{ ...miniBtn, color: OK, borderColor: "#cfe6d4" }}><RotateCcw size={12} /> Restore</button>
+                <button onClick={() => purge(q)} style={{ ...miniBtn, color: RED, borderColor: "#f0d4cf" }}><Trash2 size={12} /> Delete permanently</button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
