@@ -3,7 +3,7 @@ import React, { useState, useEffect } from "react";
 import { AlertTriangle, ArrowRight, Ban, CalendarClock, Check, ChevronDown, Download, FileText, Film, Image as ImageIcon, Landmark, Link2, MessageSquare, Music, PackageCheck, Pencil, Plus, RefreshCw, Send, Star, Trash2, UserPlus, Wallet, XCircle } from "lucide-react";
 import { RED, INK, BODY, STONE, FAINT, LINE, PAPER, CREAM, OK, WARN, DANGER, display, mono, card, cardDense, inputStyle, btnGhost, btnSolid } from "./theme";
 import { GROUPS, GROUP_KEYS } from "./groups";
-import { fmtDate, fmtTime, money, sessionBucket } from "./format";
+import { fmtDate, fmtStamp, fmtTime, money, sessionBucket } from "./format";
 import { BRIEF_FIELDS } from "./constants";
 import { GalleryUploader } from "./GalleryUploader";
 import { ClientNotes } from "./ClientNotes";
@@ -223,7 +223,7 @@ function SignedAgreements({ email, showToast }) {
               <div key={a.id || idx} style={{ display: "flex", alignItems: "center", gap: 10, padding: "11px 13px", borderTop: idx ? `1px solid ${LINE}` : "none" }}>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontSize: 13.5, color: INK, display: "flex", alignItems: "center", gap: 7, flexWrap: "wrap" }}>{AGREEMENT_LABELS[a.agreement_type] || a.agreement_type}{a.uploaded && <span style={{ ...mono, fontSize: 8.5, letterSpacing: "0.08em", textTransform: "uppercase", color: RED, background: CREAM, border: `1px solid ${LINE}`, borderRadius: 999, padding: "2px 7px" }}>Uploaded copy</span>}</div>
-                  <div style={{ ...mono, fontSize: 10.5, color: STONE }}>{a.uploaded ? "Signed offline" : "Signed by " + (a.signed_name || "—")}{a.signed_at ? " · " + (fmtDate(a.signed_at) || "") : ""}{a.version ? " · v" + a.version : ""}</div>
+                  <div style={{ ...mono, fontSize: 10.5, color: STONE }}>{a.uploaded ? "Signed offline" : "Signed by " + (a.signed_name || "—")}{a.signed_at ? " · " + (fmtStamp(a.signed_at) || "") : ""}{a.version ? " · v" + a.version : ""}</div>
                 </div>
                 {canDoc ? (
                   <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>

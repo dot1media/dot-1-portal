@@ -60,8 +60,8 @@ export async function POST(request: Request) {
     const usageOption = it && it.usageOption ? String(it.usageOption).trim() : null;
     const details = it && it.details ? JSON.stringify(it.details) : null;
     const rows = await sql`
-      INSERT INTO agreements (user_id, agreement_type, version, signed_name, usage_option, details)
-      VALUES (${userId}, ${type}, ${version}, ${signedName}, ${usageOption}, ${details}::jsonb)
+      INSERT INTO agreements (user_id, agreement_type, version, signed_name, usage_option, details, signed_at)
+      VALUES (${userId}, ${type}, ${version}, ${signedName}, ${usageOption}, ${details}::jsonb, now())
       RETURNING id, agreement_type, version, usage_option, signed_at
     `;
     recorded.push(rows[0]);

@@ -618,7 +618,7 @@ export function ClientView({ session, sessions, clientId, setClientId, addCommen
             {docs.map((d, i) => {
               const meta = DOC_META[d.agreement_type] || { label: String(d.agreement_type || "Document").replace(/_/g, " "), pdf: null };
               const usage = d.usage_option ? (DOC_USAGE[d.usage_option] || d.usage_option) : null;
-              const when = d.signed_at ? new Date(d.signed_at).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" }) : "";
+              const when = d.signed_at ? new Date(d.signed_at).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric", timeZone: "America/Anchorage" }) : "";
               return (
                 <div key={i} style={{ display: "flex", alignItems: "center", gap: 11, padding: "13px 16px", borderTop: i === 0 ? "none" : `1px solid ${LINE}`, background: PAPER }}>
                   <FileCheck size={16} color={grp.color} style={{ flexShrink: 0 }} />
