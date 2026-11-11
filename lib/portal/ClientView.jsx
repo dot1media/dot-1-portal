@@ -4,7 +4,7 @@ import { BookingCalendar } from "./BookingFlow";
 import { InspirationBoard } from "./InspirationBoard";
 // Dot One Media portal - client project dashboard (timeline, payments, deliverables, messages, brief, usage rights) + private ProgressBar, SummaryCell, StatusBadge, Timeline, ClientActionPanel. resizeImage is an App-level prop.
 import React, { useState, useEffect, useRef } from "react";
-import { AlertTriangle, CalendarClock, CalendarPlus, Camera, CheckCircle2, ChevronDown, Clock, Download, ExternalLink, FileCheck, FileText, Film, Image as ImageIcon, MessageSquare, Play, Send, Star, Upload, User, X, Paperclip} from "lucide-react";
+import { AlertTriangle, CalendarClock, CalendarPlus, Camera, CheckCircle2, ChevronDown, Clock, Download, ExternalLink, FileCheck, FileText, Film, Image as ImageIcon, MessageSquare, Palette, Play, Send, Star, Upload, User, X, Paperclip} from "lucide-react";
 import { RED, INK, BODY, STONE, FAINT, LINE, PAPER, CREAM, OK, WARN, DANGER, display, mono, card, inputStyle, btnGhost, btnSolid } from "./theme";
 import { GROUPS } from "./groups";
 import { fmtDate, fmtTime, gcalLink, money, timeGreeting } from "./format";
@@ -167,7 +167,7 @@ export function SessionReleases({ session }) {
   );
 }
 
-export function ClientView({ session, sessions, clientId, setClientId, addComment, onRescheduleRequest, markMessagesRead, patchSession, resizeImage, uploadMessageImage, showToast, onOpenSession, onRebook }) {
+export function ClientView({ session, sessions, clientId, setClientId, addComment, onRescheduleRequest, markMessagesRead, patchSession, resizeImage, uploadMessageImage, showToast, onOpenSession, onRebook, onAppearance }) {
   const isMobile = useIsMobile();
   const [draft, setDraft] = useState("");
   const [msg, setMsg] = useState("");
@@ -397,6 +397,11 @@ export function ClientView({ session, sessions, clientId, setClientId, addCommen
           <div style={{ marginBottom: 4 }}><span style={{ ...mono, fontSize: 11, letterSpacing: "0.2em", textTransform: "uppercase", color: grp.soft }}>{timeGreeting()}</span></div>
           <h1 style={{ ...display, fontWeight: 700, fontSize: 32, color: INK, lineHeight: 1.05, letterSpacing: "-0.015em" }}>{session.clientName}</h1>
         </div>
+        {onAppearance && (
+          <button onClick={onAppearance} title="Appearance" style={{ marginLeft: "auto", display: "inline-flex", alignItems: "center", gap: 7, padding: "8px 13px", borderRadius: 999, border: `1px solid ${LINE}`, background: PAPER, color: STONE, cursor: "pointer", fontSize: 12.5, fontWeight: 600 }}>
+            <Palette size={15} /> Appearance
+          </button>
+        )}
       </div>
 
       {unreadReplies > 0 && (

@@ -527,7 +527,12 @@ export default function App() {
   useEffect(() => {
     if (view !== "book" && view !== "client") return; // never touch the studio-side theme
     if (photoCtx) setPhotoTheme();
-    else if (view === "client") setClientTheme(); // client portal = clean black & white
+    else if (view === "client") {
+      // Clients can now choose their own palette (stored per client email); fall
+      // back to the clean black & white look if they have not picked one.
+      if (themeKey && themeKey !== "default") { applyTheme(themeKey, customAccent); if (typeof document !== "undefined") document.body.style.background = (THEMES[themeKey] && THEMES[themeKey].bg) || "#ffffff"; }
+      else setClientTheme();
+    }
     else { applyTheme(themeKey, customAccent); if (typeof document !== "undefined") document.body.style.background = "#fbf8f2"; }
   }, [view, photoCtx, themeKey, customAccent]);
   const unreadClientTotal = state.sessions.reduce((n, s) => n + s.comments.filter((c) => c.author === "client" && !c.read).length, 0);
@@ -602,7 +607,7 @@ export default function App() {
         {view === "invite" && <InviteAccept token={inviteToken} showToast={showToast} />}
         {(view === "terms" || view === "privacy") && <LegalPage kind={view} onBack={() => setView(legalReturn)} />}
         {view === "client" && clientGuideOpen && <GuidePage title="Client Guide" html={CLIENT_GUIDE_HTML} pdf="/guides/dot1-client-guide.pdf" onBack={() => setClientGuideOpen(false)} onWalkthrough={() => setWalk("client")} onTour={() => { setClientGuideOpen(false); setTimeout(() => setTour("client"), 90); }} />}
-        {view === "client" && !clientGuideOpen && (() => { const CView = clientUi === "redesign" ? ClientViewRedesign : ClientView; return <CView session={clientSession} onOpenSession={(id) => setClientId(id)} onRebook={(serviceId) => { setPreServiceId(serviceId ? String(serviceId) : ""); setPreServiceSlug(""); setDirectContext(null); setView("book"); window.scrollTo(0, 0); }} sessions={state.sessions} clientId={clientId} setClientId={setClientId} addComment={addComment} onRescheduleRequest={clientRescheduleRequest} markMessagesRead={markMessagesRead} patchSession={patchSession} resizeImage={resizeImage} uploadMessageImage={uploadMessageImage} showToast={showToast} />; })()}
+        {view === "client" && !clientGuideOpen && (() => { const CView = clientUi === "redesign" ? ClientViewRedesign : ClientView; return <CView session={clientSession} onOpenSession={(id) => setClientId(id)} onRebook={(serviceId) => { setPreServiceId(serviceId ? String(serviceId) : ""); setPreServiceSlug(""); setDirectContext(null); setView("book"); window.scrollTo(0, 0); }} sessions={state.sessions} clientId={clientId} setClientId={setClientId} addComment={addComment} onRescheduleRequest={clientRescheduleRequest} markMessagesRead={markMessagesRead} patchSession={patchSession} resizeImage={resizeImage} uploadMessageImage={uploadMessageImage} showToast={showToast} onAppearance={() => setThemeOpen(true)} />; })()}
         {view === "thankyou" && <ThankYou session={clientSession} onPortal={() => setView("client")} brand={brand} />}
         {view === "onboard" && <InvoiceOnboarding session={clientSession} onDone={() => { try { localStorage.setItem("dot1_view_pref", "client"); } catch (e) {} setView("client"); showToast("You're all set. Welcome to your portal!"); }} />}
         {view === "client" && !guideSeen && clientSession && <ClientGuide onClose={() => { setGuideSeen(true); try { localStorage.setItem("dot1_guide_seen", "1"); } catch (e) {} }} />}
