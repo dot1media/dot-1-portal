@@ -12,6 +12,8 @@ import { NOTIFY_EMAILS, isConsult, GOOGLE_REVIEW_URL, ADMINS, PORTAL_BASE, STORA
 import { PAYMENT_RULES, STAGES, CONSULT_STAGES, stagesFor, curStage } from "../lib/portal/stages";
 import { AdminCalendar } from "../lib/portal/AdminCalendar";
 import { StudioHome } from "../lib/portal/StudioHome";
+import { StudioHomeRedesign } from "../lib/portal/StudioHomeRedesign";
+import { StudioUiToggle } from "../lib/portal/StudioUiToggle";
 import { InternalBookingModal } from "../lib/portal/InternalBookingModal";
 import { InvoiceModal } from "../lib/portal/Invoices";
 import { QuoteModal } from "../lib/portal/Quotes";
@@ -103,6 +105,8 @@ export default function App() {
   // Which client experience is live (admin-controlled, revertible). Defaults to the redesign.
   const [clientUi, setClientUi] = useState("redesign");
   useEffect(() => { fetch("/api/client-ui").then((r) => r.json()).then((d) => { if (d && d.mode) setClientUi(d.mode); }).catch(() => {}); }, []);
+  const [studioUi, setStudioUi] = useState("classic");
+  useEffect(() => { try { const m = localStorage.getItem("dot1_studio_ui"); if (m === "redesign" || m === "classic") setStudioUi(m); } catch (e) {} }, []);
   const [installDismissed, setInstallDismissed] = useState(false);
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [clientId, setClientId] = useState("");
@@ -629,13 +633,13 @@ export default function App() {
               <SubTab active={adminTab === "business"} onClick={() => setAdminTab("business")} label="Business Settings" tourId="admin-business" />
               <SubTab active={adminTab === "account"} onClick={() => setAdminTab("account")} label="Account Management" tourId="admin-account" />
             </div>
-            {adminTab === "home" && <StudioHome state={state} setAdminId={setAdminId} setAdminTab={setAdminTab} dark={themeKey === "midnight"} />}
+            {adminTab === "home" && (studioUi === "redesign" ? <StudioHomeRedesign state={state} setAdminId={setAdminId} setAdminTab={setAdminTab} dark={themeKey === "midnight"} /> : <StudioHome state={state} setAdminId={setAdminId} setAdminTab={setAdminTab} dark={themeKey === "midnight"} />)}
             {adminTab === "inbox" && <Inbox inquiries={inquiries} setInquiries={setInquiries} showToast={showToast} />}
             {adminTab === "sessions" && <><QuickBook state={state} showToast={showToast} onCreated={(ns) => setState((s) => ({ ...s, sessions: [...s.sessions, ns] }))} /><ServiceLinks state={state} showToast={showToast} updateService={updateService} /><AdminSessions showToast={showToast} state={state} adminId={adminId} setAdminId={setAdminId} requestSetStage={requestSetStage} addComment={addComment} uploadMessageImage={uploadMessageImage} patchSession={patchSession} onReschedule={adminReschedule} slotTaken={slotTaken} markMessagesRead={markMessagesRead} onCancelBooking={requestCancelBooking} onCloseBooking={requestCloseBooking} onReopenBooking={requestReopenBooking} onSendBalance={requestSendBalance} onSendCharge={requestSendCharge} onCheckPayment={checkChargePayment} onNewInternal={() => setInternalOpen(true)} onNewInvoice={() => setInvoiceOpen(true)} onNewQuote={() => setQuoteOpen(true)} onEmailDelivery={confirmSendDelivery} onRequestReview={requestReview} onSendInvite={requestInvite} onSetGroup={setSessionGroup} onDeleteBooking={requestDeleteBooking} /></>}
             {adminTab === "calendar" && <AdminCalendar state={state} onSelectSession={(id) => { setAdminId(id); setAdminTab("sessions"); }} />}
             {adminTab === "availability" && <><CalendarSync showToast={showToast} /><WeeklyHours services={state.services} showToast={showToast} onApplied={reloadAvailability} /><WaitlistPanel showToast={showToast} /><AvailabilityManager availability={state.availability} addAvailability={addAvailability} removeAvailability={removeAvailability} showToast={showToast} services={state.services} /><div style={{ marginTop: 44, paddingTop: 40, borderTop: `1px solid ${LINE}` }}><DirectLinks state={state} createDirectLink={createDirectLink} revokeDirectLink={revokeDirectLink} openDirectLink={openDirectLink} showToast={showToast} /></div></>}
             {adminTab === "services" && <ServiceCatalog state={state} addService={addService} updateService={updateService} deleteService={deleteService} addAddon={addAddon} updateAddon={updateAddon} deleteAddon={deleteAddon} showToast={showToast} setConfirm={setConfirm} />}
-            {adminTab === "business" && <><ClientUiToggle showToast={showToast} onChange={setClientUi} /><BusinessSettings sessions={state.sessions} showToast={showToast} onImport={importSessions} /></>}
+            {adminTab === "business" && <><StudioUiToggle onChange={setStudioUi} /><ClientUiToggle showToast={showToast} onChange={setClientUi} /><BusinessSettings sessions={state.sessions} showToast={showToast} onImport={importSessions} /></>}
             {adminTab === "account" && <><AccountManagement state={state} showToast={showToast} /><div style={{ marginTop: 44, paddingTop: 40, borderTop: `1px solid ${LINE}` }}><AdminAccounts showToast={showToast} /></div></>}
             {adminTab === "guide" && <GuidePage title="Studio Admin Guide" html={ADMIN_GUIDE_HTML} pdf="/guides/dot1-admin-guide.pdf" onBack={() => setAdminTab(prevTab)} onWalkthrough={() => setWalk("admin")} onTour={() => setTour("admin")} />}
           </div>
