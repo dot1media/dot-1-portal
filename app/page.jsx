@@ -1046,17 +1046,6 @@ function Toggle({ active, onClick, Icon, label }) {
   return <button onClick={onClick} style={{ display: "flex", alignItems: "center", gap: 7, padding: "8px 13px", borderRadius: 7, cursor: "pointer", fontSize: 12.5, border: `1px solid ${active ? INK : LINE}`, background: active ? INK : PAPER, color: active ? "#fff" : STONE }}><Icon size={14} /> {label}</button>;
 }
 
-function csvCell(v) { const s = String(v == null ? "" : v); return /[",]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; }
-function downloadCsv(rows, filename) {
-  try {
-    const csv = rows.map((r) => r.map(csvCell).join(",")).join("\r\n");
-    const blob = new Blob(["\ufeff" + csv], { type: "text/csv;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a"); a.href = url; a.download = filename;
-    document.body.appendChild(a); a.click(); document.body.removeChild(a);
-    setTimeout(() => URL.revokeObjectURL(url), 1500);
-  } catch (e) {}
-}
 
 
 
