@@ -675,7 +675,7 @@ function PortalFooter({ brand = { orgName: "Dot One Media", tagline: "Create wit
       <div style={{ ...mono, fontSize: 11, letterSpacing: "0.04em", display: "flex", justifyContent: "center", gap: 20, flexWrap: "wrap", marginBottom: 26 }}>
         {A("https://instagram.com/dot1media", "Instagram · @dot1media")}
         {A("https://instagram.com/dot1photo", "Instagram · @dot1photo")}
-        {A("https://apps.apple.com/us/app/dot-1-news/id6757212352", "Dot 1 News · App Store")}
+        {A("https://apps.apple.com/us/app/dot-1-news/id6757212352", "Discernt · App Store")}
       </div>
       <img src="/api/brand/logo" alt="Dot One Media" style={{ height: 34, width: "auto", margin: "0 auto 10px", display: "block" }} />
       <div style={{ ...mono, fontSize: 10.5, letterSpacing: "0.16em", textTransform: "uppercase", color: INK, marginBottom: 24 }}>{brand.orgName} · {brand.tagline}</div>
